@@ -1,0 +1,11 @@
+[package]
+name = "sub-a"
+version = "0.1.0"
+edition = "2021"
+authors = ["Test Author"]
+license = "MIT"
+
+[dependencies]
+crate-a = { workspace = true }
+
+[dev-dependencies]

@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "crates/a",
+  "crates/b",
+  "sub_system/sub_a",
+  "sub_system/sub_b"
+]
+
+[workspace.dependencies]
+crate-a = { path = "crates/a" }
