@@ -1,0 +1,9 @@
+[package]
+name = "vector_distance"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+vector_types.path = "../types"
+vector_sub.path = "../sub"
+sqrt.workspace = true

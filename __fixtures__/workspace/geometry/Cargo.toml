@@ -1,0 +1,9 @@
+[package]
+name = "vector_geometry"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+vector_distance.path = "../vector/distance"
+vector_types.path = "../vector/types"
+vector_sub.path = "../vector/sub"

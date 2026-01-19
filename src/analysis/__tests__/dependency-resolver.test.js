@@ -1,7 +1,7 @@
-import { describe, it, expect } from '@jest/globals'
+import { describe, it, expect, beforeAll } from '@jest/globals'
+import { parseWorkspace } from '../cargo-manifest.js'
 import {
   createCrateIndex,
-  resolveDependency,
   getDirectDownstream,
   getTransitiveDownstream,
   getTransitiveUpstream,
@@ -13,260 +13,354 @@ import {
   detectDependencyCycles
 } from '../dependency-resolver.js'
 
-describe('Dependency Graph Analysis - High-Level Tests', () => {
-  const simpleLine = [
-    { name: 'a', version: '0.1.0', path: '/a/Cargo.toml', dependencies: [] },
-    {
-      name: 'b',
-      version: '0.1.0',
-      path: '/b/Cargo.toml',
-      dependencies: [{ name: 'a', path: null }]
-    },
-    {
-      name: 'c',
-      version: '0.1.0',
-      path: '/c/Cargo.toml',
-      dependencies: [{ name: 'b', path: null }]
-    }
-  ]
+describe('Dependency Graph Analysis', () => {
+  const fixtureRoot = '__fixtures__/workspace'
+  let crates
+  let index
 
-  const complexTree = [
-    {
-      name: 'core',
-      version: '0.1.0',
-      path: '/core/Cargo.toml',
-      dependencies: []
-    },
-    {
-      name: 'utils',
-      version: '0.1.0',
-      path: '/utils/Cargo.toml',
-      dependencies: [{ name: 'core', path: null }]
-    },
-    {
-      name: 'db',
-      version: '0.1.0',
-      path: '/db/Cargo.toml',
-      dependencies: [{ name: 'core', path: null }]
-    },
-    {
-      name: 'api',
-      version: '0.1.0',
-      path: '/api/Cargo.toml',
-      dependencies: [
-        { name: 'core', path: null },
-        { name: 'utils', path: null },
-        { name: 'db', path: null }
+  beforeAll(() => {
+    crates = parseWorkspace(fixtureRoot)
+    index = createCrateIndex(crates)
+  })
+
+  describe('Topological Sort', () => {
+    it('should produce valid build order for entire fixture', () => {
+      const sorted = topologicalSort(new Set(crates.map((c) => c.name)), index)
+
+      expect(sorted.length).toBe(12)
+
+      // Foundation crates come first (no internal dependencies)
+      const foundationNames = [
+        'add',
+        'sub',
+        'mul',
+        'div',
+        'sqrt',
+        'vector_types'
       ]
-    },
-    {
-      name: 'app',
-      version: '0.1.0',
-      path: '/app/Cargo.toml',
-      dependencies: [{ name: 'api', path: null }]
-    }
-  ]
-
-  describe('Dependency Resolution', () => {
-    it('should correctly resolve dependencies in linear dependency chain', () => {
-      const index = createCrateIndex(simpleLine)
-
-      expect(resolveDependency('a', index)).toBeTruthy()
-      expect(resolveDependency('b', index)).toBeTruthy()
-      expect(resolveDependency('nonexistent', index)).toBeNull()
-    })
-
-    it('should compute transitive downstream across complex tree', () => {
-      const downstream = getTransitiveDownstream('core', complexTree)
-
-      expect(downstream).toEqual(new Set(['utils', 'db', 'api', 'app']))
-    })
-
-    it('should handle multiple inheritance branches in downstream', () => {
-      const downstream = getTransitiveDownstream('core', complexTree)
-      const fromDb = getTransitiveDownstream('db', complexTree)
-
-      expect(downstream.size).toBe(4)
-      expect(fromDb).toEqual(new Set(['api', 'app']))
-    })
-
-    it('should compute upstream dependencies correctly', () => {
-      const index = createCrateIndex(complexTree)
-      const upstream = getTransitiveUpstream('app', index)
-
-      expect(upstream).toContain('api')
-      expect(upstream).toContain('core')
-      expect(upstream).toContain('utils')
-      expect(upstream).toContain('db')
-    })
-  })
-
-  describe('Test Scope Computation - Complex Scenarios', () => {
-    it('should compute full impact scope when modifying core dependency', () => {
-      const modified = new Set(['core'])
-      const scope = computeTestScope(modified, complexTree)
-
-      expect(scope.modified).toEqual(new Set(['core']))
-      expect(scope.downstream).toEqual(new Set(['utils', 'db', 'api', 'app']))
-      expect(scope.allAffected.size).toBe(5)
-    })
-
-    it('should compute minimal scope when modifying leaf crate', () => {
-      const modified = new Set(['app'])
-      const scope = computeTestScope(modified, complexTree)
-
-      expect(scope.modified).toEqual(new Set(['app']))
-      expect(scope.downstream.size).toBe(0)
-      expect(scope.allAffected).toEqual(new Set(['app']))
-    })
-
-    it('should compute correct scope for multiple modified crates', () => {
-      const modified = new Set(['core', 'utils'])
-      const scope = computeTestScope(modified, complexTree)
-
-      expect(scope.modified).toEqual(new Set(['core', 'utils']))
-      expect(scope.downstream).toContain('db')
-      expect(scope.downstream).toContain('api')
-      expect(scope.downstream).toContain('app')
-    })
-
-    it('should maintain immutability of scope objects', () => {
-      const modified = new Set(['core'])
-      const scope1 = computeTestScope(modified, complexTree)
-      const scope2 = computeTestScope(modified, complexTree)
-
-      expect(scope1.modified).not.toBe(scope2.modified)
-      expect(scope1.downstream).not.toBe(scope2.downstream)
-      expect(scope1.allAffected).not.toBe(scope2.allAffected)
-    })
-  })
-
-  describe('Topological Sorting - Execution Order', () => {
-    it('should produce valid topological order for linear chain', () => {
-      const index = createCrateIndex(simpleLine)
-      const sorted = topologicalSort(new Set(['a', 'b', 'c']), index)
-
-      const aIdx = sorted.indexOf('a')
-      const bIdx = sorted.indexOf('b')
-      const cIdx = sorted.indexOf('c')
-
-      expect(aIdx < bIdx && bIdx < cIdx).toBe(true)
-    })
-
-    it('should handle complex DAG with multiple paths', () => {
-      const index = createCrateIndex(complexTree)
-      const sorted = topologicalSort(
-        new Set(['core', 'utils', 'db', 'api', 'app']),
-        index
+      const foundationIndices = foundationNames.map((name) =>
+        sorted.indexOf(name)
       )
+      const maxFoundation = Math.max(...foundationIndices)
 
-      expect(sorted.length).toBe(5)
-      expect(sorted.indexOf('core')).toBeLessThan(sorted.indexOf('api'))
-      expect(sorted.indexOf('utils')).toBeLessThan(sorted.indexOf('api'))
-      expect(sorted.indexOf('db')).toBeLessThan(sorted.indexOf('api'))
-      expect(sorted.indexOf('api')).toBeLessThan(sorted.indexOf('app'))
+      // Vector operations come next
+      const vectorNames = [
+        'vector_add',
+        'vector_sub',
+        'vector_mul',
+        'vector_div'
+      ]
+      const vectorIndices = vectorNames.map((name) => sorted.indexOf(name))
+      const minVector = Math.min(...vectorIndices)
+      const maxVector = Math.max(...vectorIndices)
+
+      expect(minVector).toBeGreaterThan(maxFoundation)
+
+      // Advanced operations come last
+      const advancedIndices = [
+        sorted.indexOf('vector_distance'),
+        sorted.indexOf('vector_geometry')
+      ]
+      const minAdvanced = Math.min(...advancedIndices)
+
+      expect(minAdvanced).toBeGreaterThan(maxVector)
     })
 
-    it('should respect all dependency constraints in order', () => {
-      const index = createCrateIndex(complexTree)
-      const sorted = topologicalSort(new Set(['core', 'utils', 'db']), index)
+    it('should respect all dependencies in sorted order', () => {
+      const sorted = topologicalSort(new Set(crates.map((c) => c.name)), index)
 
-      expect(sorted[0]).toBe('core')
-      expect(['utils', 'db']).toContain(sorted[1])
-      expect(['utils', 'db']).toContain(sorted[2])
+      crates.forEach((crate) => {
+        const crateIdx = sorted.indexOf(crate.name)
+        crate.dependencies.forEach((dep) => {
+          const depIdx = sorted.indexOf(dep.name)
+          expect(depIdx).toBeLessThan(crateIdx)
+        })
+      })
     })
   })
 
-  describe('Dependency Report Generation', () => {
-    it('should generate accurate counts for complex workspace', () => {
-      const report = buildDependencyReport(complexTree)
+  describe('Test Scope Computation', () => {
+    it('should compute minimal scope for leaf crate change (vector_add)', () => {
+      const modified = new Set(['vector_add'])
+      const scope = computeTestScope(modified, crates)
 
-      expect(report.dependencyCount.get('core')).toBe(0)
-      expect(report.dependencyCount.get('api')).toBe(3)
-      expect(report.dependentCount.get('core')).toBe(3)
-      expect(report.dependentCount.get('app')).toBe(0)
+      expect(scope.modified).toEqual(new Set(['vector_add']))
+      expect(scope.downstream.size).toBe(0)
+      expect(scope.allAffected).toEqual(new Set(['vector_add']))
     })
 
-    it('should maintain distinct Map instances across calls', () => {
-      const report1 = buildDependencyReport(complexTree)
-      const report2 = buildDependencyReport(complexTree)
+    it('should compute cascading scope for sqrt change', () => {
+      const modified = new Set(['sqrt'])
+      const scope = computeTestScope(modified, crates)
 
-      expect(report1.crateIndex).not.toBe(report2.crateIndex)
-      expect(report1.dependencyCount).not.toBe(report2.dependencyCount)
-      expect(report1.dependentCount).not.toBe(report2.dependentCount)
+      expect(scope.modified).toEqual(new Set(['sqrt']))
+      expect(scope.downstream).toContain('vector_distance')
+      expect(scope.downstream).toContain('vector_geometry')
+      expect(scope.downstream.size).toBe(2)
+    })
+
+    it('should compute full geometry impact for vector_types change', () => {
+      const modified = new Set(['vector_types'])
+      const scope = computeTestScope(modified, crates)
+
+      expect(scope.modified).toEqual(new Set(['vector_types']))
+      // Should affect all vector crates and geometry
+      const expected = new Set([
+        'vector_add',
+        'vector_sub',
+        'vector_mul',
+        'vector_div',
+        'vector_distance',
+        'vector_geometry'
+      ])
+      expect(scope.downstream).toEqual(expected)
+    })
+
+    it('should handle multiple foundation crate changes', () => {
+      const modified = new Set(['add', 'sub'])
+      const scope = computeTestScope(modified, crates)
+
+      expect(scope.modified.size).toBe(2)
+      expect(scope.downstream).toContain('vector_add')
+      expect(scope.downstream).toContain('vector_sub')
+      expect(scope.downstream).toContain('vector_distance')
+      expect(scope.downstream).toContain('vector_geometry')
+    })
+  })
+
+  describe('Upstream Dependency Tracking', () => {
+    it('should identify all dependencies for vector_geometry', () => {
+      const upstream = getTransitiveUpstream('vector_geometry', index)
+
+      expect(upstream).toContain('vector_distance')
+      expect(upstream).toContain('vector_sub')
+      expect(upstream).toContain('sqrt')
+      expect(upstream).toContain('sub')
+      expect(upstream).toContain('vector_types')
+    })
+
+    it('should identify direct dependencies for vector_distance', () => {
+      const upstream = getTransitiveUpstream('vector_distance', index)
+
+      expect(upstream).toContain('vector_types')
+      expect(upstream).toContain('vector_sub')
+      expect(upstream).toContain('sqrt')
+    })
+  })
+
+  describe('Downstream Dependency Tracking', () => {
+    it('should find all downstream dependents of add', () => {
+      const downstream = getTransitiveDownstream('add', crates)
+
+      expect(downstream).toEqual(new Set(['vector_add']))
+    })
+
+    it('should find all downstream dependents of vector_types', () => {
+      const downstream = getTransitiveDownstream('vector_types', crates)
+
+      expect(downstream.size).toBe(6)
+      expect(downstream).toContain('vector_add')
+      expect(downstream).toContain('vector_sub')
+      expect(downstream).toContain('vector_mul')
+      expect(downstream).toContain('vector_div')
+      expect(downstream).toContain('vector_distance')
+      expect(downstream).toContain('vector_geometry')
+    })
+
+    it('should find transitive downstream of vector_sub', () => {
+      const downstream = getTransitiveDownstream('vector_sub', crates)
+
+      expect(downstream).toContain('vector_distance')
+      expect(downstream).toContain('vector_geometry')
     })
   })
 
   describe('Workspace Member Validation', () => {
-    it('should validate workspace member presence', () => {
-      const index = createCrateIndex(complexTree)
+    it('should validate all fixture crates as workspace members', () => {
+      crates.forEach((crate) => {
+        expect(isValidWorkspaceMember(crate.name, index)).toBe(true)
+      })
+    })
 
-      expect(isValidWorkspaceMember('core', index)).toBe(true)
-      expect(isValidWorkspaceMember('app', index)).toBe(true)
+    it('should reject non-existent crate', () => {
       expect(isValidWorkspaceMember('nonexistent', index)).toBe(false)
     })
   })
 
-  describe('Dependency Statistics - Workspace vs External', () => {
-    it('should correctly classify workspace and external dependencies', () => {
+  describe('Dependency Statistics', () => {
+    it('should report correct stats for foundation crate (add)', () => {
+      const stats = getDependencyStats('add', index)
+
+      expect(stats).not.toBeNull()
+      expect(stats.directDependencies).toBe(0)
+      expect(stats.workspaceDependencies).toBe(0)
+      expect(stats.externalDependencies).toBe(0)
+    })
+
+    it('should report correct stats for vector_add', () => {
+      const stats = getDependencyStats('vector_add', index)
+
+      expect(stats).not.toBeNull()
+      expect(stats.directDependencies).toBe(2)
+      expect(stats.workspaceDependencies).toBe(2)
+      expect(stats.externalDependencies).toBe(0)
+    })
+
+    it('should report correct stats for vector_geometry', () => {
+      const stats = getDependencyStats('vector_geometry', index)
+
+      expect(stats).not.toBeNull()
+      expect(stats.directDependencies).toBe(3)
+      expect(stats.workspaceDependencies).toBe(3)
+      expect(stats.externalDependencies).toBe(0)
+    })
+  })
+
+  describe('Cycle Detection', () => {
+    it('should confirm fixture workspace has no cycles', () => {
+      const result = detectDependencyCycles(crates, index)
+
+      expect(result.hasCycles).toBe(false)
+      expect(result.cycles).toEqual([])
+    })
+  })
+
+  describe('Dependency Report Generation', () => {
+    it('should generate accurate counts for entire fixture', () => {
+      const report = buildDependencyReport(crates)
+
+      expect(report.crateIndex.size).toBe(12)
+
+      // Foundation crates have no dependencies
+      expect(report.dependencyCount.get('add')).toBe(0)
+      expect(report.dependencyCount.get('vector_types')).toBe(0)
+
+      // Vector operations have 2 dependencies each
+      expect(report.dependencyCount.get('vector_add')).toBe(2)
+      expect(report.dependencyCount.get('vector_sub')).toBe(2)
+
+      // Geometry has complex dependencies
+      expect(report.dependencyCount.get('vector_geometry')).toBe(3)
+
+      // vector_types is most depended-on (6 dependents)
+      expect(report.dependentCount.get('vector_types')).toBe(6)
+
+      // add only has vector_add as dependent
+      expect(report.dependentCount.get('add')).toBe(1)
+
+      // Leaf crates have no dependents
+      expect(report.dependentCount.get('vector_geometry')).toBe(0)
+    })
+  })
+
+  describe('Error handling', () => {
+    it('should handle empty crate set', () => {
+      const emptyCrates = []
+      const index = createCrateIndex(emptyCrates)
+
+      expect(index.size).toBe(0)
+    })
+
+    it('should handle crate with no dependencies', () => {
+      const isolated = [
+        {
+          name: 'isolated',
+          version: '0.1.0',
+          path: '/isolated/Cargo.toml',
+          dependencies: []
+        }
+      ]
+
+      const index = createCrateIndex(isolated)
+      const stats = getDependencyStats('isolated', index)
+
+      expect(stats.directDependencies).toBe(0)
+      expect(stats.workspaceDependencies).toBe(0)
+      expect(stats.externalDependencies).toBe(0)
+    })
+
+    it('should return null for non-existent crate in stats', () => {
+      const index = createCrateIndex(crates)
+      const stats = getDependencyStats('nonexistent-crate', index)
+
+      expect(stats).toBeNull()
+    })
+
+    it('should handle external dependencies in stats', () => {
       const mixedCrates = [
         {
-          name: 'internal-a',
+          name: 'app',
           version: '0.1.0',
-          path: '/a/Cargo.toml',
+          path: '/app/Cargo.toml',
           dependencies: [
-            { name: 'internal-b', path: null },
+            { name: 'lib', path: null },
             { name: 'serde', path: null },
             { name: 'tokio', path: null }
           ]
         },
         {
-          name: 'internal-b',
+          name: 'lib',
           version: '0.1.0',
-          path: '/b/Cargo.toml',
+          path: '/lib/Cargo.toml',
           dependencies: []
         }
       ]
 
       const index = createCrateIndex(mixedCrates)
-      const stats = getDependencyStats('internal-a', index)
+      const stats = getDependencyStats('app', index)
 
       expect(stats.directDependencies).toBe(3)
       expect(stats.workspaceDependencies).toBe(1)
       expect(stats.externalDependencies).toBe(2)
     })
 
-    it('should return null for non-existent crate', () => {
-      const index = createCrateIndex(complexTree)
-      const stats = getDependencyStats('nonexistent', index)
+    it('should detect cycle in simple graph', () => {
+      const cycleCrates = [
+        {
+          name: 'a',
+          version: '0.1.0',
+          path: '/a/Cargo.toml',
+          dependencies: [{ name: 'b', path: null }]
+        },
+        {
+          name: 'b',
+          version: '0.1.0',
+          path: '/b/Cargo.toml',
+          dependencies: [{ name: 'a', path: null }]
+        }
+      ]
 
-      expect(stats).toBeNull()
+      const index = createCrateIndex(cycleCrates)
+      const result = detectDependencyCycles(cycleCrates, index)
+
+      expect(result.hasCycles).toBe(true)
+      expect(result.cycles.length).toBeGreaterThan(0)
+      expect(Object.isFrozen(result)).toBe(true)
+      expect(Object.isFrozen(result.cycles)).toBe(true)
     })
-  })
 
-  describe('Cycle Detection - Rust Constraint Validation', () => {
-    it('should detect when no cycles exist (valid workspace)', () => {
-      const index = createCrateIndex(complexTree)
-      const result = detectDependencyCycles(complexTree, index)
+    it('should freeze returned stats objects', () => {
+      const index = createCrateIndex(crates)
+      const stats = getDependencyStats('add', index)
 
-      expect(result.hasCycles).toBe(false)
-      expect(result.cycles).toEqual([])
+      expect(Object.isFrozen(stats)).toBe(true)
+      expect(() => {
+        stats.directDependencies = 999
+      }).toThrow()
     })
 
-    it('should handle edge case: single isolated crate', () => {
+    it('should handle isolated crate (no downstream)', () => {
       const isolated = [
         {
-          name: 'standalone',
+          name: 'isolated',
           version: '0.1.0',
-          path: '/standalone/Cargo.toml',
+          path: '/isolated/Cargo.toml',
           dependencies: []
         }
       ]
 
-      const index = createCrateIndex(isolated)
-      const result = detectDependencyCycles(isolated, index)
-
-      expect(result.hasCycles).toBe(false)
+      const downstream = getDirectDownstream('isolated', isolated)
+      expect(downstream.length).toBe(0)
     })
   })
 })

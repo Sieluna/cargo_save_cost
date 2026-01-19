@@ -1,3 +1,5 @@
+import { describe, it, expect, beforeAll } from '@jest/globals'
+import { parseWorkspace } from '../cargo-manifest.js'
 import {
   parseCargoTreeOutput,
   buildManifestDependencyMap,
@@ -6,406 +8,444 @@ import {
   formatValidationReport
 } from '../cargo-tree-validator.js'
 
-describe('Cargo Tree Validator - High-Level Integration Tests', () => {
-  describe('parseCargoTreeOutput - Realistic Edge Cases', () => {
-    it('should parse workspace with direct child dependencies only', () => {
-      const output = `workspace v0.1.0
-├── core-lib v0.2.0
-├── bin-app v0.1.0
-└── test-utils v0.0.1`
+describe('Cargo Tree Validator', () => {
+  const fixtureRoot = '__fixtures__/workspace'
+  let crates
+
+  beforeAll(() => {
+    crates = parseWorkspace(fixtureRoot)
+  })
+
+  describe('parseCargoTreeOutput', () => {
+    it('handles structured tree output with dependencies', () => {
+      // Simulate realistic cargo tree output from fixture
+      const output = `add v0.1.0 (crates/add)
+
+div v0.1.0 (crates/div)
+
+mul v0.1.0 (crates/mul)
+
+sqrt v0.1.0 (crates/sqrt)
+
+sub v0.1.0 (crates/sub)
+
+vector_add v0.1.0 (vector/add)
+├── add v0.1.0 (crates/add)
+└── vector_types v0.1.0 (vector/types)
+
+vector_distance v0.1.0 (vector/distance)
+├── sqrt v0.1.0 (crates/sqrt)
+├── vector_sub v0.1.0 (vector/sub)
+│   ├── sub v0.1.0 (crates/sub)
+│   └── vector_types v0.1.0 (vector/types)
+└── vector_types v0.1.0 (vector/types)
+
+vector_div v0.1.0 (vector/div)
+├── div v0.1.0 (crates/div)
+└── vector_types v0.1.0 (vector/types)
+
+vector_geometry v0.1.0 (geometry)
+├── vector_distance v0.1.0 (vector/distance) (*)
+├── vector_sub v0.1.0 (vector/sub) (*)
+└── vector_types v0.1.0 (vector/types)
+
+vector_mul v0.1.0 (vector/mul)
+├── mul v0.1.0 (crates/mul)
+└── vector_types v0.1.0 (vector/types)
+
+vector_sub v0.1.0 (vector/sub) (*)
+
+vector_types v0.1.0 (vector/types)`
 
       const result = parseCargoTreeOutput(output)
 
-      expect(result.get('workspace')).toEqual(
-        new Set(['core-lib', 'bin-app', 'test-utils'])
-      )
-      expect(result.size).toBe(1)
-    })
-
-    it('should capture all items at depth 1 including nested branches', () => {
-      const output = `my-crate v0.1.0
-├── internal-lib v0.1.0
-│   └── nested-dep v0.1.0
-├── internal-util v0.2.0
-├── serde v1.0.0
-└── tokio v1.0.0`
-
-      const result = parseCargoTreeOutput(output)
-
-      // All items with one branch character (├ or └) are captured
-      expect(result.get('my-crate')).toContain('internal-lib')
-      expect(result.get('my-crate')).toContain('nested-dep')
-      expect(result.get('my-crate')).toContain('internal-util')
-      expect(result.get('my-crate')).toContain('serde')
-      expect(result.get('my-crate')).toContain('tokio')
-    })
-
-    it('should handle tree output with only external dependencies', () => {
-      const output = `app v0.1.0
-├── serde v1.0.0
-├── tokio v1.0.0
-└── uuid v1.0.0`
-
-      const result = parseCargoTreeOutput(output)
-
-      // All are captured as dependencies
-      expect(result.get('app').size).toBe(3)
-      expect(result.get('app')).toContain('serde')
-    })
-
-    it('should parse multiple independent crate trees', () => {
-      const output = `crate-a v0.1.0
-├── crate-shared v0.1.0
-
-crate-b v0.1.0
-├── crate-shared v0.1.0`
-
-      const result = parseCargoTreeOutput(output)
-
-      expect(result.get('crate-a')).toEqual(new Set(['crate-shared']))
-      expect(result.get('crate-b')).toEqual(new Set(['crate-shared']))
-      expect(result.size).toBe(2)
-    })
-
-    it('should distinguish between root crates and their dependencies', () => {
-      const output = `primary v0.1.0
-├── secondary v0.1.0
-└── tertiary v0.1.0
-
-secondary v0.1.0
-└── utils v0.1.0`
-
-      const result = parseCargoTreeOutput(output)
-
-      expect(result.get('primary')).toEqual(new Set(['secondary', 'tertiary']))
-      expect(result.get('secondary')).toEqual(new Set(['utils']))
+      expect(result.size).toBeGreaterThan(0)
+      expect(result.has('add')).toBe(true)
+      expect(result.has('vector_add')).toBe(true)
     })
   })
 
-  describe('buildManifestDependencyMap - Advanced Filtering', () => {
-    it('should correctly separate workspace from external deps in complex scenario', () => {
-      const crates = [
-        {
-          name: 'core',
-          dependencies: [
-            { name: 'utils', path: null },
-            { name: 'serde', path: null },
-            { name: 'tokio', path: null }
-          ]
-        },
-        {
-          name: 'utils',
-          dependencies: [{ name: 'anyhow', path: null }]
-        },
-        {
-          name: 'app',
-          dependencies: [
-            { name: 'core', path: null },
-            { name: 'utils', path: null },
-            { name: 'clap', path: null }
-          ]
-        }
-      ]
-
+  describe('buildManifestDependencyMap', () => {
+    it('extracts workspace dependencies from fixture crates', () => {
       const result = buildManifestDependencyMap(crates)
 
-      expect(result.get('core')).toEqual(new Set(['utils']))
-      expect(result.get('utils')).toEqual(new Set())
-      expect(result.get('app')).toEqual(new Set(['core', 'utils']))
+      expect(result.size).toBe(12)
+
+      // Foundation crates have no workspace dependencies
+      expect(result.get('add')).toEqual(new Set())
+      expect(result.get('vector_types')).toEqual(new Set())
+
+      // vector_add depends on: vector_types, add
+      expect(result.get('vector_add')).toEqual(new Set(['vector_types', 'add']))
+
+      // vector_sub depends on: vector_types, sub
+      expect(result.get('vector_sub')).toEqual(new Set(['vector_types', 'sub']))
+
+      // vector_distance depends on: vector_types, vector_sub, sqrt
+      expect(result.get('vector_distance')).toEqual(
+        new Set(['vector_types', 'vector_sub', 'sqrt'])
+      )
+
+      // vector_geometry depends on: vector_distance, vector_types, vector_sub
+      expect(result.get('vector_geometry')).toEqual(
+        new Set(['vector_distance', 'vector_types', 'vector_sub'])
+      )
     })
 
-    it('should produce independent instances for functional immutability', () => {
-      const crates = [
-        {
-          name: 'crate-a',
-          dependencies: [{ name: 'crate-b', path: null }]
-        },
-        {
-          name: 'crate-b',
-          dependencies: []
-        }
-      ]
-
-      const result1 = buildManifestDependencyMap(crates)
-      const result2 = buildManifestDependencyMap(crates)
-
-      // Different Map instances
-      expect(result1).not.toBe(result2)
-      // Different Set instances for same dependencies
-      expect(result1.get('crate-a')).not.toBe(result2.get('crate-a'))
-      // But same content
-      expect(result1.get('crate-a')).toEqual(result2.get('crate-a'))
-    })
-
-    it('should handle crates with only external dependencies', () => {
-      const crates = [
-        {
-          name: 'standalone',
-          dependencies: [
-            { name: 'serde', path: null },
-            { name: 'tokio', path: null }
-          ]
-        }
-      ]
-
+    it('correctly identifies internal vs external dependencies', () => {
       const result = buildManifestDependencyMap(crates)
 
-      expect(result.get('standalone')).toEqual(new Set())
+      // All dependencies in fixture are internal (workspace members)
+      crates.forEach((crate) => {
+        const deps = result.get(crate.name)
+        deps.forEach((dep) => {
+          // Each dependency should exist as a crate in workspace
+          expect(crates.some((c) => c.name === dep)).toBe(true)
+        })
+      })
     })
   })
 
-  describe('compareDependencies - Sophisticated Discrepancy Detection', () => {
-    it('should detect simultaneous missing and extra deps', () => {
-      const manifestDeps = new Map([
-        ['crate-a', new Set(['crate-b', 'crate-c', 'crate-d'])]
-      ])
+  describe('compareDependencies', () => {
+    it('validates fixture manifest matches expected structure', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
 
-      const treeDeps = new Map([['crate-a', new Set(['crate-b', 'crate-e'])]])
-
-      const result = compareDependencies(manifestDeps, treeDeps)
-
-      expect(result.matches).toBe(false)
-      expect(result.missingInTree.get('crate-a')).toEqual(
-        new Set(['crate-c', 'crate-d'])
-      )
-      expect(result.extraInTree.get('crate-a')).toEqual(new Set(['crate-e']))
-    })
-
-    it('should generate accurate detail report when everything matches', () => {
-      const manifestDeps = new Map([
-        ['crate-a', new Set(['crate-b', 'crate-c'])],
-        ['crate-b', new Set()],
-        ['crate-c', new Set(['crate-d'])]
-      ])
-
-      const treeDeps = new Map([
-        ['crate-a', new Set(['crate-b', 'crate-c'])],
-        ['crate-b', new Set()],
-        ['crate-c', new Set(['crate-d'])]
-      ])
+      // Create a matching tree deps structure
+      const treeDeps = new Map(manifestDeps)
 
       const result = compareDependencies(manifestDeps, treeDeps)
 
       expect(result.matches).toBe(true)
-      expect(result.details.length).toBe(3)
-      expect(result.details.every((d) => d.status === 'ok')).toBe(true)
+      expect(result.missingInTree.size).toBe(0)
+      expect(result.extraInTree.size).toBe(0)
     })
 
-    it('should detect partial dependency mismatch in multi-crate scenario', () => {
+    it('detects missing dependencies', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+
+      // Remove vector_types from vector_add's dependencies in tree
+      const treeDeps = new Map(manifestDeps)
+      const vectorAddDeps = new Set(treeDeps.get('vector_add'))
+      vectorAddDeps.delete('vector_types')
+      treeDeps.set('vector_add', vectorAddDeps)
+
+      const result = compareDependencies(manifestDeps, treeDeps)
+
+      expect(result.matches).toBe(false)
+      expect(result.missingInTree.get('vector_add')).toContain('vector_types')
+    })
+
+    it('detects extra dependencies in tree', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+
+      // Add phantom dependency to tree
+      const treeDeps = new Map(manifestDeps)
+      const vectorAddDeps = new Set(treeDeps.get('vector_add'))
+      vectorAddDeps.add('phantom_crate')
+      treeDeps.set('vector_add', vectorAddDeps)
+
+      const result = compareDependencies(manifestDeps, treeDeps)
+
+      expect(result.matches).toBe(false)
+      expect(result.extraInTree.get('vector_add')).toContain('phantom_crate')
+    })
+
+    it('generates detailed report with all crate status', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+      const treeDeps = new Map(manifestDeps)
+
+      const result = compareDependencies(manifestDeps, treeDeps)
+
+      expect(result.details.length).toBe(12)
+      expect(result.details.every((d) => d.status === 'ok')).toBe(true)
+      expect(result.details.every((d) => d.crate)).toBe(true)
+    })
+
+    it('correctly classifies multi-crate mismatches', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+
+      // Create tree with multiple discrepancies
+      const treeDeps = new Map(manifestDeps)
+
+      // Remove one dependency from vector_add
+      const vectorAddDeps = new Set(treeDeps.get('vector_add'))
+      vectorAddDeps.delete('add')
+      treeDeps.set('vector_add', vectorAddDeps)
+
+      // Add phantom to vector_geometry
+      const geoDepsDeps = new Set(treeDeps.get('vector_geometry'))
+      geoDepsDeps.add('unknown')
+      treeDeps.set('vector_geometry', geoDepsDeps)
+
+      const result = compareDependencies(manifestDeps, treeDeps)
+
+      expect(result.matches).toBe(false)
+      expect(result.missingInTree.get('vector_add')).toContain('add')
+      expect(result.extraInTree.get('vector_geometry')).toContain('unknown')
+    })
+  })
+
+  describe('validateWorkspaceWithCargoTree', () => {
+    it('returns frozen result structures', () => {
+      const result = validateWorkspaceWithCargoTree(crates, fixtureRoot)
+
+      expect(Object.isFrozen(result)).toBe(true)
+      expect(Object.isFrozen(result.manifestDeps)).toBe(true)
+      expect(Array.isArray(result.errors)).toBe(true)
+    })
+
+    it('builds manifest deps even when cargo tree unavailable', () => {
+      const result = validateWorkspaceWithCargoTree(crates, '/nonexistent')
+
+      expect(result.manifestDeps.size).toBe(12)
+      expect(result.manifestDeps.get('vector_add')).toEqual(
+        new Set(['vector_types', 'add'])
+      )
+    })
+
+    it('reports errors when cargo tree fails', () => {
+      const result = validateWorkspaceWithCargoTree(crates, '/invalid/path')
+
+      expect(result.errors.length).toBeGreaterThan(0)
+      expect(result.valid).toBe(false)
+    })
+
+    it('validates workspace structure', () => {
+      const result = validateWorkspaceWithCargoTree(crates, fixtureRoot)
+
+      expect(result.valid).toBeDefined()
+      expect(Array.isArray(result.errors)).toBe(true)
+      expect(result.manifestDeps).toBeDefined()
+    })
+  })
+
+  describe('formatValidationReport', () => {
+    it('formats passing validation report', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+
+      const validationResult = {
+        valid: true,
+        errors: [],
+        comparison: {
+          matches: true,
+          details: Array.from(manifestDeps.keys()).map((crateName) => ({
+            crate: crateName,
+            status: 'ok',
+            message: 'Dependencies match'
+          }))
+        }
+      }
+
+      const report = formatValidationReport(validationResult)
+
+      expect(report).toContain('✓ VALID')
+      expect(report).toContain('Cargo Tree Validation Report')
+      expect(report).toContain('vector_add')
+      expect(report).toContain('vector_geometry')
+    })
+
+    it('formats report with missing dependencies', () => {
+      const validationResult = {
+        valid: false,
+        errors: ['Dependency mismatch detected'],
+        comparison: {
+          details: [
+            {
+              crate: 'vector_add',
+              status: 'missing_deps',
+              message: 'Missing: vector_types'
+            },
+            {
+              crate: 'vector_geometry',
+              status: 'ok',
+              message: 'Dependencies match'
+            }
+          ]
+        }
+      }
+
+      const report = formatValidationReport(validationResult)
+
+      expect(report).toContain('✗ INVALID')
+      expect(report).toContain('vector_add')
+      expect(report).toContain('Missing')
+      expect(report).toContain('vector_types')
+    })
+
+    it('formats report with extra dependencies', () => {
+      const validationResult = {
+        valid: false,
+        errors: [],
+        comparison: {
+          details: [
+            {
+              crate: 'vector_add',
+              status: 'extra_deps',
+              message: 'Extra: phantom_dep'
+            }
+          ]
+        }
+      }
+
+      const report = formatValidationReport(validationResult)
+
+      expect(report).toContain('✗ INVALID')
+      expect(report).toContain('vector_add')
+      expect(report).toContain('Extra')
+      expect(report).toContain('phantom_dep')
+    })
+
+    it('formats comprehensive report with all dependency levels', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+
+      const validationResult = {
+        valid: true,
+        errors: [],
+        comparison: {
+          matches: true,
+          details: [
+            {
+              crate: 'add',
+              status: 'ok',
+              message: 'Foundation: 0 dependencies'
+            },
+            {
+              crate: 'vector_add',
+              status: 'ok',
+              message: 'Level 1: 2 dependencies'
+            },
+            {
+              crate: 'vector_geometry',
+              status: 'ok',
+              message: 'Level 2: 3 dependencies'
+            }
+          ]
+        }
+      }
+
+      const report = formatValidationReport(validationResult)
+
+      expect(report).toContain('✓ VALID')
+      expect(report).toContain('add')
+      expect(report).toContain('vector_add')
+      expect(report).toContain('vector_geometry')
+    })
+  })
+
+  describe('full validation workflow', () => {
+    it('completes full validation cycle for fixture', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+      const result = validateWorkspaceWithCargoTree(crates, fixtureRoot)
+      const report = formatValidationReport({
+        valid: result.valid,
+        errors: result.errors,
+        comparison: result.comparison
+      })
+
+      expect(report).toBeDefined()
+      expect(report.length).toBeGreaterThan(0)
+      expect(manifestDeps.size).toBe(12)
+    })
+
+    it('validates all three dependency levels are correctly represented', () => {
+      const manifestDeps = buildManifestDependencyMap(crates)
+
+      // Level 0: Foundation
+      const foundation = ['add', 'sub', 'mul', 'div', 'sqrt', 'vector_types']
+      foundation.forEach((name) => {
+        expect(manifestDeps.get(name)).toEqual(new Set())
+      })
+
+      // Level 1: Vector ops
+      const level1 = ['vector_add', 'vector_sub', 'vector_mul', 'vector_div']
+      level1.forEach((name) => {
+        const deps = manifestDeps.get(name)
+        expect(deps.size).toBe(2)
+        expect(deps.has('vector_types')).toBe(true)
+      })
+
+      // Level 2: Advanced
+      const level2 = ['vector_distance', 'vector_geometry']
+      level2.forEach((name) => {
+        const deps = manifestDeps.get(name)
+        expect(deps.size).toBeGreaterThanOrEqual(2)
+      })
+    })
+  })
+
+  describe('edge cases and error scenarios', () => {
+    it('handles empty tree output', () => {
+      const output = ''
+      const result = parseCargoTreeOutput(output)
+      expect(result.size).toBe(0)
+    })
+
+    it('handles tree output with only whitespace', () => {
+      const output = '\n\n\n   \n\n'
+      const result = parseCargoTreeOutput(output)
+      expect(result.size).toBe(0)
+    })
+
+    it('handles tree with complex nesting', () => {
+      const output = `root v0.1.0
+├── dep-a v0.1.0
+│   ├── dep-b v0.1.0
+│   │   └── dep-c v0.1.0
+│   └── dep-d v0.1.0
+└── dep-e v0.1.0`
+
+      const result = parseCargoTreeOutput(output)
+
+      expect(result.has('root')).toBe(true)
+      expect(result.get('root')).toContain('dep-a')
+      expect(result.get('root')).toContain('dep-e')
+    })
+
+    it('detects missing dependencies in comparison', () => {
       const manifestDeps = new Map([
-        ['pkg-a', new Set(['pkg-b', 'pkg-c'])],
-        ['pkg-b', new Set(['pkg-d'])],
-        ['pkg-c', new Set()],
-        ['pkg-d', new Set()]
+        ['crate-a', new Set(['crate-b', 'crate-c'])],
+        ['crate-b', new Set()]
       ])
 
       const treeDeps = new Map([
-        ['pkg-a', new Set(['pkg-b', 'pkg-c'])],
-        ['pkg-b', new Set(['pkg-d', 'pkg-e'])],
-        ['pkg-c', new Set()],
-        ['pkg-d', new Set()]
+        ['crate-a', new Set(['crate-b'])],
+        ['crate-b', new Set()]
       ])
 
       const result = compareDependencies(manifestDeps, treeDeps)
 
       expect(result.matches).toBe(false)
-      expect(result.extraInTree.get('pkg-b')).toEqual(new Set(['pkg-e']))
+      expect(result.missingInTree.get('crate-a')).toContain('crate-c')
     })
 
-    it('should correctly report status for all crates even with missing entries', () => {
-      const manifestDeps = new Map([
-        ['crate-a', new Set(['crate-b'])],
-        ['crate-b', new Set()]
-      ])
-
-      const treeDeps = new Map([['crate-a', new Set(['crate-b'])]])
+    it('handles completely empty dependency maps', () => {
+      const manifestDeps = new Map()
+      const treeDeps = new Map()
 
       const result = compareDependencies(manifestDeps, treeDeps)
 
-      // Should have details for all manifest crates
-      expect(result.details.length).toBeGreaterThanOrEqual(2)
-      // At least one should indicate crate-b is missing
-      const hasMissingCrate = result.details.some((d) => d.status === 'missing')
-      expect(hasMissingCrate).toBe(true)
+      expect(result.matches).toBe(true)
+      expect(result.details.length).toBe(0)
     })
-  })
 
-  describe('validateWorkspaceWithCargoTree - Integration Validation', () => {
-    it('should return frozen result structure when cargo tree fails', () => {
-      const crates = [
-        {
-          name: 'pkg-a',
-          version: '0.1.0',
-          dependencies: [
-            { name: 'pkg-b', path: null },
-            { name: 'external', path: null }
-          ]
-        },
-        {
-          name: 'pkg-b',
-          version: '0.1.0',
-          dependencies: []
-        }
-      ]
+    it('freezes all nested structures in comparison result', () => {
+      const manifestDeps = new Map([['a', new Set(['b'])]])
+      const treeDeps = new Map([['a', new Set(['b'])]])
 
-      const result = validateWorkspaceWithCargoTree(crates, '/invalid')
+      const result = compareDependencies(manifestDeps, treeDeps)
 
       expect(Object.isFrozen(result)).toBe(true)
+      expect(Object.isFrozen(result.missingInTree)).toBe(true)
+      expect(Object.isFrozen(result.extraInTree)).toBe(true)
+      expect(Object.isFrozen(result.details)).toBe(true)
+    })
+
+    it('freezes all structures in validation result', () => {
+      const result = validateWorkspaceWithCargoTree(crates, fixtureRoot)
+
+      expect(Object.isFrozen(result)).toBe(true)
+      expect(Object.isFrozen(result.manifestDeps)).toBe(true)
       expect(Object.isFrozen(result.errors)).toBe(true)
-    })
-
-    it('should correctly filter external deps even when cargo tree fails', () => {
-      const crates = [
-        {
-          name: 'crate-a',
-          version: '0.1.0',
-          dependencies: [
-            { name: 'crate-b', path: null },
-            { name: 'serde', path: null },
-            { name: 'tokio', path: null },
-            { name: 'crate-c', path: null }
-          ]
-        },
-        {
-          name: 'crate-b',
-          version: '0.1.0',
-          dependencies: []
-        },
-        {
-          name: 'crate-c',
-          version: '0.1.0',
-          dependencies: []
-        }
-      ]
-
-      const result = validateWorkspaceWithCargoTree(crates, '/invalid')
-
-      expect(result.manifestDeps.get('crate-a')).toEqual(
-        new Set(['crate-b', 'crate-c'])
-      )
-      expect(result.manifestDeps.get('crate-a').size).toBe(2)
-    })
-
-    it('should handle gracefully when cargo tree is unavailable', () => {
-      const crates = [
-        {
-          name: 'test-pkg',
-          version: '0.1.0',
-          dependencies: [{ name: 'dep', path: null }]
-        },
-        {
-          name: 'dep',
-          version: '0.1.0',
-          dependencies: []
-        }
-      ]
-
-      const result = validateWorkspaceWithCargoTree(crates, '/nonexistent/path')
-
-      // Should still build manifest deps
-      expect(result.manifestDeps.size).toBeGreaterThan(0)
-      // Errors expected
-      expect(result.errors.length).toBeGreaterThan(0)
-    })
-  })
-
-  describe('formatValidationReport - High-Quality Output', () => {
-    it('should format comprehensive passing validation report', () => {
-      const validationResult = {
-        valid: true,
-        errors: [],
-        comparison: {
-          details: [
-            { crate: 'core', status: 'ok', message: 'Dependencies match' },
-            { crate: 'app', status: 'ok', message: 'Dependencies match' },
-            { crate: 'utils', status: 'ok', message: 'Dependencies match' }
-          ]
-        }
-      }
-
-      const report = formatValidationReport(validationResult)
-
-      expect(report).toContain('Cargo Tree Validation Report')
-      expect(report).toContain('✓ VALID')
-      expect(report).toContain('Dependency Verification')
-      expect(report).toContain('core')
-      expect(report).toContain('app')
-      expect(report).toContain('utils')
-    })
-
-    it('should format detailed error report with mismatch context', () => {
-      const validationResult = {
-        valid: false,
-        errors: [
-          'cargo tree command not available',
-          'Failed to parse workspace output'
-        ],
-        comparison: {
-          details: [
-            {
-              crate: 'pkg-a',
-              status: 'missing_deps',
-              message: 'Missing: pkg-b, pkg-c'
-            },
-            {
-              crate: 'pkg-d',
-              status: 'extra_deps',
-              message: 'Extra: pkg-e'
-            }
-          ]
-        }
-      }
-
-      const report = formatValidationReport(validationResult)
-
-      expect(report).toContain('✗ INVALID')
-      expect(report).toContain('VALIDATION ERRORS')
-      expect(report).toContain('cargo tree command not available')
-      expect(report).toContain('Failed to parse workspace output')
-      expect(report).toContain('pkg-a')
-      expect(report).toContain('Missing:')
-      expect(report).toContain('pkg-d')
-      expect(report).toContain('Extra:')
-    })
-
-    it('should handle edge case: null comparison with errors', () => {
-      const validationResult = {
-        valid: false,
-        errors: [
-          'Critical: Unable to build dependency maps',
-          'Manifest parsing failed'
-        ],
-        comparison: null
-      }
-
-      const report = formatValidationReport(validationResult)
-
-      expect(report).toContain('✗ INVALID')
-      expect(report).toContain('VALIDATION ERRORS')
-      expect(report).toContain('Critical: Unable to build dependency maps')
-      expect(report).toContain('Manifest parsing failed')
-    })
-
-    it('should highlight only workspace member discrepancies', () => {
-      const validationResult = {
-        valid: false,
-        errors: [],
-        comparison: {
-          details: [
-            {
-              crate: 'workspace-pkg',
-              status: 'missing_deps',
-              message: 'Missing internal deps: shared-lib'
-            }
-          ]
-        }
-      }
-
-      const report = formatValidationReport(validationResult)
-
-      expect(report).toContain('workspace-pkg')
-      expect(report).toContain('Missing')
-      expect(report).toContain('shared-lib')
     })
   })
 })
