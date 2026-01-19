@@ -5,7 +5,7 @@ import {
   buildBuildCommand,
   createTestPlan,
   formatTestResults
-} from '../test-scheduler.js'
+} from '../../src/execution/test-scheduler.js'
 
 describe('Test Executor', () => {
   describe('formatCrateFlags', () => {

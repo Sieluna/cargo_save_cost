@@ -3,7 +3,7 @@ import {
   parseManifestFile,
   findManifestFiles,
   parseWorkspace
-} from '../cargo-manifest.js'
+} from '../../src/analysis/cargo-manifest.js'
 
 describe('Cargo Manifest Parser', () => {
   const fixtureRoot = '__fixtures__/workspace'

@@ -9,7 +9,7 @@ ARG NODE_VERSION=lts/*
 
 # Install dependencies
 RUN apt-get update \
-    && apt-get install -y pkg-config curl clang git libpolly-dev \
+    && apt-get install -y curl git \
     && apt-get clean -y && rm -rf /var/lib/apt/lists/* /tmp/library-scripts
 
 # Set users

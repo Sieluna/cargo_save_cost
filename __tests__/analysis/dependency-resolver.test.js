@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from '@jest/globals'
-import { parseWorkspace } from '../cargo-manifest.js'
+import { parseWorkspace } from '../../src/analysis/cargo-manifest.js'
 import {
   createCrateIndex,
   getDirectDownstream,
@@ -11,7 +11,7 @@ import {
   isValidWorkspaceMember,
   getDependencyStats,
   detectDependencyCycles
-} from '../dependency-resolver.js'
+} from '../../src/analysis/dependency-resolver.js'
 
 describe('Dependency Graph Analysis', () => {
   const fixtureRoot = '__fixtures__/workspace'

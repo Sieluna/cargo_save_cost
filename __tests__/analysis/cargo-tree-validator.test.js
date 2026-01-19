@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll } from '@jest/globals'
-import { parseWorkspace } from '../cargo-manifest.js'
+import { parseWorkspace } from '../../src/analysis/cargo-manifest.js'
 import {
   parseCargoTreeOutput,
   buildManifestDependencyMap,
   compareDependencies,
   validateWorkspaceWithCargoTree,
   formatValidationReport
-} from '../cargo-tree-validator.js'
+} from '../../src/analysis/cargo-tree-validator.js'
 
 describe('Cargo Tree Validator', () => {
   const fixtureRoot = '__fixtures__/workspace'

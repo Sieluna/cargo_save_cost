@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
 import path from 'node:path'
+import { parsePorcelain, parseDiffFile } from './diff-parser.js'
 
 /**
  * Execute git command and return output
@@ -16,18 +17,6 @@ const execGitCommand = (command, cwd = process.cwd()) => {
   } catch (error) {
     throw new Error(`Git command failed: ${error.message}`)
   }
-}
-
-/**
- * Parse git diff output into file paths
- * @param {string} diffOutput - Git diff output
- * @returns {Array<string>} Array of modified file paths
- */
-const parseDiffOutput = (diffOutput) => {
-  return diffOutput
-    .split('\n')
-    .filter((line) => line.length > 0)
-    .map((line) => line.trim())
 }
 
 /**
@@ -82,7 +71,7 @@ const getChangedFiles = (baseRef, headRef, cwd = process.cwd()) => {
   const command = `diff --name-only ${baseRef}...${headRef}`
   const output = execGitCommand(command, cwd)
 
-  return output.length > 0 ? parseDiffOutput(output) : []
+  return output.length > 0 ? parseDiffFile(output) : []
 }
 
 /**
@@ -93,15 +82,7 @@ const getChangedFiles = (baseRef, headRef, cwd = process.cwd()) => {
 const getLocalChanges = (cwd = process.cwd()) => {
   const command = 'status --porcelain'
   const output = execGitCommand(command, cwd)
-
-  if (!output) {
-    return []
-  }
-
-  return output
-    .split('\n')
-    .filter((line) => line.length > 0)
-    .map((line) => line.substring(3).trim()) // Remove status prefix (e.g., 'M ', 'A ')
+  return parsePorcelain(output).map((entry) => entry.filename)
 }
 
 /**
@@ -145,7 +126,6 @@ const detectModifiedCrates = (options, allCrates) => {
 
 export {
   execGitCommand,
-  parseDiffOutput,
   fileInCrate,
   mapFilesToCrates,
   getChangedFiles,
