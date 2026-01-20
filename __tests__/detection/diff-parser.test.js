@@ -1,5 +1,9 @@
 import { describe, it, expect } from '@jest/globals'
-import { parseDiff, parsePorcelain, parseDiffFile } from '../../src/detection/diff-parser.js'
+import {
+  parseDiff,
+  parsePorcelain,
+  parseDiffFile
+} from '../../src/detection/diff-parser.js'
 
 describe('parsePorcelain', () => {
   it('should parse null input', () => {
