@@ -1,23 +1,40 @@
-name: The name of your action here
-description: Provide a description here
-author: Your name or organization here
+name: Cargo Save Cost
+description:
+  Intelligently run Rust workspace tests based on changed crates and
+  dependencies
+author: Claude Code
 
-# Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: heart
-  color: red
+  icon: check-circle
+  color: orange
 
-# Define your inputs here.
 inputs:
-  milliseconds:
-    description: Your input description here
-    required: true
-    default: '1000'
+  workspace-root:
+    description: Path to the Cargo workspace root
+    required: false
+    default: '.'
+  base-ref:
+    description: Base git reference (branch/commit) for comparison
+    required: false
+  head-ref:
+    description: Head git reference (branch/commit) for comparison
+    required: false
+  test-all:
+    description: Test all crates in the workspace regardless of changes
+    required: false
+    default: 'false'
+  verbose:
+    description: Enable verbose output for cargo commands
+    required: false
+    default: 'false'
 
-# Define your outputs here.
 outputs:
-  time:
-    description: Your output description here
+  test-count:
+    description: Total number of crates tested
+  passed-count:
+    description: Number of passed test crates
+  failed-count:
+    description: Number of failed test crates
 
 runs:
   using: node24

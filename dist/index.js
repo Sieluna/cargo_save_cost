@@ -27,8 +27,15 @@ import require$$6 from 'string_decoder';
 import require$$0$9 from 'diagnostics_channel';
 import require$$2$2 from 'child_process';
 import require$$6$1 from 'timers';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execSync } from 'node:child_process';
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+
+function getDefaultExportFromCjs (x) {
+	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
+}
 
 var core = {};
 
@@ -44,7 +51,8 @@ function requireUtils$1 () {
 	// We use any as a valid input type
 	/* eslint-disable @typescript-eslint/no-explicit-any */
 	Object.defineProperty(utils$1, "__esModule", { value: true });
-	utils$1.toCommandProperties = utils$1.toCommandValue = void 0;
+	utils$1.toCommandValue = toCommandValue;
+	utils$1.toCommandProperties = toCommandProperties;
 	/**
 	 * Sanitizes an input into a string so it can be passed into issueCommand safely
 	 * @param input input to sanitize into a string
@@ -58,7 +66,6 @@ function requireUtils$1 () {
 	    }
 	    return JSON.stringify(input);
 	}
-	utils$1.toCommandValue = toCommandValue;
 	/**
 	 *
 	 * @param annotationProperties
@@ -78,7 +85,6 @@ function requireUtils$1 () {
 	        endColumn: annotationProperties.endColumn
 	    };
 	}
-	utils$1.toCommandProperties = toCommandProperties;
 	
 	return utils$1;
 }
@@ -104,36 +110,68 @@ function requireCommand () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (command && command.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (command && command.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	Object.defineProperty(command, "__esModule", { value: true });
-	command.issue = command.issueCommand = void 0;
+	command.issueCommand = issueCommand;
+	command.issue = issue;
 	const os = __importStar(require$$0);
 	const utils_1 = requireUtils$1();
 	/**
-	 * Commands
+	 * Issues a command to the GitHub Actions runner
+	 *
+	 * @param command - The command name to issue
+	 * @param properties - Additional properties for the command (key-value pairs)
+	 * @param message - The message to include with the command
+	 * @remarks
+	 * This function outputs a specially formatted string to stdout that the Actions
+	 * runner interprets as a command. These commands can control workflow behavior,
+	 * set outputs, create annotations, mask values, and more.
 	 *
 	 * Command Format:
 	 *   ::name key=value,key=value::message
 	 *
-	 * Examples:
-	 *   ::warning::This is the message
-	 *   ::set-env name=MY_VAR::some value
+	 * @example
+	 * ```typescript
+	 * // Issue a warning annotation
+	 * issueCommand('warning', {}, 'This is a warning message');
+	 * // Output: ::warning::This is a warning message
+	 *
+	 * // Set an environment variable
+	 * issueCommand('set-env', { name: 'MY_VAR' }, 'some value');
+	 * // Output: ::set-env name=MY_VAR::some value
+	 *
+	 * // Add a secret mask
+	 * issueCommand('add-mask', {}, 'secretValue123');
+	 * // Output: ::add-mask::secretValue123
+	 * ```
+	 *
+	 * @internal
+	 * This is an internal utility function that powers the public API functions
+	 * such as setSecret, warning, error, and exportVariable.
 	 */
 	function issueCommand(command, properties, message) {
 	    const cmd = new Command(command, properties, message);
 	    process.stdout.write(cmd.toString() + os.EOL);
 	}
-	command.issueCommand = issueCommand;
 	function issue(name, message = '') {
 	    issueCommand(name, {}, message);
 	}
-	command.issue = issue;
 	const CMD_STRING = '::';
 	class Command {
 	    constructor(command, properties, message) {
@@ -210,15 +248,26 @@ function requireFileCommand () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (fileCommand && fileCommand.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (fileCommand && fileCommand.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	Object.defineProperty(fileCommand, "__esModule", { value: true });
-	fileCommand.prepareKeyValueMessage = fileCommand.issueFileCommand = void 0;
+	fileCommand.issueFileCommand = issueFileCommand;
+	fileCommand.prepareKeyValueMessage = prepareKeyValueMessage;
 	// We use any as a valid input type
 	/* eslint-disable @typescript-eslint/no-explicit-any */
 	const crypto = __importStar(require$$0$1);
@@ -237,7 +286,6 @@ function requireFileCommand () {
 	        encoding: 'utf8'
 	    });
 	}
-	fileCommand.issueFileCommand = issueFileCommand;
 	function prepareKeyValueMessage(key, value) {
 	    const delimiter = `ghadelimiter_${crypto.randomUUID()}`;
 	    const convertedValue = (0, utils_1.toCommandValue)(value);
@@ -252,7 +300,6 @@ function requireFileCommand () {
 	    }
 	    return `${key}<<${delimiter}${os.EOL}${convertedValue}${os.EOL}${delimiter}`;
 	}
-	fileCommand.prepareKeyValueMessage = prepareKeyValueMessage;
 	
 	return fileCommand;
 }
@@ -269,7 +316,8 @@ function requireProxy () {
 	if (hasRequiredProxy) return proxy;
 	hasRequiredProxy = 1;
 	Object.defineProperty(proxy, "__esModule", { value: true });
-	proxy.checkBypass = proxy.getProxyUrl = void 0;
+	proxy.getProxyUrl = getProxyUrl;
+	proxy.checkBypass = checkBypass;
 	function getProxyUrl(reqUrl) {
 	    const usingSsl = reqUrl.protocol === 'https:';
 	    if (checkBypass(reqUrl)) {
@@ -296,7 +344,6 @@ function requireProxy () {
 	        return undefined;
 	    }
 	}
-	proxy.getProxyUrl = getProxyUrl;
 	function checkBypass(reqUrl) {
 	    if (!reqUrl.hostname) {
 	        return false;
@@ -340,7 +387,6 @@ function requireProxy () {
 	    }
 	    return false;
 	}
-	proxy.checkBypass = checkBypass;
 	function isLoopbackAddress(host) {
 	    const hostLower = host.toLowerCase();
 	    return (hostLower === 'localhost' ||
@@ -24369,13 +24415,23 @@ function requireLib () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (lib && lib.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (lib && lib.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	var __awaiter = (lib && lib.__awaiter) || function (thisArg, _arguments, P, generator) {
 	    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 	    return new (P || (P = Promise))(function (resolve, reject) {
@@ -24386,7 +24442,9 @@ function requireLib () {
 	    });
 	};
 	Object.defineProperty(lib, "__esModule", { value: true });
-	lib.HttpClient = lib.isHttps = lib.HttpClientResponse = lib.HttpClientError = lib.getProxyUrl = lib.MediaTypes = lib.Headers = lib.HttpCodes = void 0;
+	lib.HttpClient = lib.HttpClientResponse = lib.HttpClientError = lib.MediaTypes = lib.Headers = lib.HttpCodes = void 0;
+	lib.getProxyUrl = getProxyUrl;
+	lib.isHttps = isHttps;
 	const http = __importStar(require$$2);
 	const https = __importStar(require$$3);
 	const pm = __importStar(requireProxy());
@@ -24439,7 +24497,6 @@ function requireLib () {
 	    const proxyUrl = pm.getProxyUrl(new URL(serverUrl));
 	    return proxyUrl ? proxyUrl.href : '';
 	}
-	lib.getProxyUrl = getProxyUrl;
 	const HttpRedirectCodes = [
 	    HttpCodes.MovedPermanently,
 	    HttpCodes.ResourceMoved,
@@ -24500,7 +24557,6 @@ function requireLib () {
 	    const parsedUrl = new URL(requestUrl);
 	    return parsedUrl.protocol === 'https:';
 	}
-	lib.isHttps = isHttps;
 	class HttpClient {
 	    constructor(userAgent, handlers, requestOptions) {
 	        this._ignoreSslError = false;
@@ -24511,7 +24567,7 @@ function requireLib () {
 	        this._maxRetries = 1;
 	        this._keepAlive = false;
 	        this._disposed = false;
-	        this.userAgent = userAgent;
+	        this.userAgent = this._getUserAgentWithOrchestrationId(userAgent);
 	        this.handlers = handlers || [];
 	        this.requestOptions = requestOptions;
 	        if (requestOptions) {
@@ -24583,36 +24639,39 @@ function requireLib () {
 	     * Gets a typed object from an endpoint
 	     * Be aware that not found returns a null.  Other errors (4xx, 5xx) reject the promise
 	     */
-	    getJson(requestUrl, additionalHeaders = {}) {
-	        return __awaiter(this, void 0, void 0, function* () {
+	    getJson(requestUrl_1) {
+	        return __awaiter(this, arguments, void 0, function* (requestUrl, additionalHeaders = {}) {
 	            additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
 	            const res = yield this.get(requestUrl, additionalHeaders);
 	            return this._processResponse(res, this.requestOptions);
 	        });
 	    }
-	    postJson(requestUrl, obj, additionalHeaders = {}) {
-	        return __awaiter(this, void 0, void 0, function* () {
+	    postJson(requestUrl_1, obj_1) {
+	        return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
 	            const data = JSON.stringify(obj, null, 2);
 	            additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-	            additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
+	            additionalHeaders[Headers.ContentType] =
+	                this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
 	            const res = yield this.post(requestUrl, data, additionalHeaders);
 	            return this._processResponse(res, this.requestOptions);
 	        });
 	    }
-	    putJson(requestUrl, obj, additionalHeaders = {}) {
-	        return __awaiter(this, void 0, void 0, function* () {
+	    putJson(requestUrl_1, obj_1) {
+	        return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
 	            const data = JSON.stringify(obj, null, 2);
 	            additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-	            additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
+	            additionalHeaders[Headers.ContentType] =
+	                this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
 	            const res = yield this.put(requestUrl, data, additionalHeaders);
 	            return this._processResponse(res, this.requestOptions);
 	        });
 	    }
-	    patchJson(requestUrl, obj, additionalHeaders = {}) {
-	        return __awaiter(this, void 0, void 0, function* () {
+	    patchJson(requestUrl_1, obj_1) {
+	        return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
 	            const data = JSON.stringify(obj, null, 2);
 	            additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-	            additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
+	            additionalHeaders[Headers.ContentType] =
+	                this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
 	            const res = yield this.patch(requestUrl, data, additionalHeaders);
 	            return this._processResponse(res, this.requestOptions);
 	        });
@@ -24841,12 +24900,73 @@ function requireLib () {
 	        }
 	        return lowercaseKeys(headers || {});
 	    }
+	    /**
+	     * Gets an existing header value or returns a default.
+	     * Handles converting number header values to strings since HTTP headers must be strings.
+	     * Note: This returns string | string[] since some headers can have multiple values.
+	     * For headers that must always be a single string (like Content-Type), use the
+	     * specialized _getExistingOrDefaultContentTypeHeader method instead.
+	     */
 	    _getExistingOrDefaultHeader(additionalHeaders, header, _default) {
 	        let clientHeader;
 	        if (this.requestOptions && this.requestOptions.headers) {
-	            clientHeader = lowercaseKeys(this.requestOptions.headers)[header];
+	            const headerValue = lowercaseKeys(this.requestOptions.headers)[header];
+	            if (headerValue) {
+	                clientHeader =
+	                    typeof headerValue === 'number' ? headerValue.toString() : headerValue;
+	            }
 	        }
-	        return additionalHeaders[header] || clientHeader || _default;
+	        const additionalValue = additionalHeaders[header];
+	        if (additionalValue !== undefined) {
+	            return typeof additionalValue === 'number'
+	                ? additionalValue.toString()
+	                : additionalValue;
+	        }
+	        if (clientHeader !== undefined) {
+	            return clientHeader;
+	        }
+	        return _default;
+	    }
+	    /**
+	     * Specialized version of _getExistingOrDefaultHeader for Content-Type header.
+	     * Always returns a single string (not an array) since Content-Type should be a single value.
+	     * Converts arrays to comma-separated strings and numbers to strings to ensure type safety.
+	     * This was split from _getExistingOrDefaultHeader to provide stricter typing for callers
+	     * that assign the result to places expecting a string (e.g., additionalHeaders[Headers.ContentType]).
+	     */
+	    _getExistingOrDefaultContentTypeHeader(additionalHeaders, _default) {
+	        let clientHeader;
+	        if (this.requestOptions && this.requestOptions.headers) {
+	            const headerValue = lowercaseKeys(this.requestOptions.headers)[Headers.ContentType];
+	            if (headerValue) {
+	                if (typeof headerValue === 'number') {
+	                    clientHeader = String(headerValue);
+	                }
+	                else if (Array.isArray(headerValue)) {
+	                    clientHeader = headerValue.join(', ');
+	                }
+	                else {
+	                    clientHeader = headerValue;
+	                }
+	            }
+	        }
+	        const additionalValue = additionalHeaders[Headers.ContentType];
+	        // Return the first non-undefined value, converting numbers or arrays to strings if necessary
+	        if (additionalValue !== undefined) {
+	            if (typeof additionalValue === 'number') {
+	                return String(additionalValue);
+	            }
+	            else if (Array.isArray(additionalValue)) {
+	                return additionalValue.join(', ');
+	            }
+	            else {
+	                return additionalValue;
+	            }
+	        }
+	        if (clientHeader !== undefined) {
+	            return clientHeader;
+	        }
+	        return _default;
 	    }
 	    _getAgent(parsedUrl) {
 	        let agent;
@@ -24926,6 +25046,17 @@ function requireLib () {
 	            });
 	        }
 	        return proxyAgent;
+	    }
+	    _getUserAgentWithOrchestrationId(userAgent) {
+	        const baseUserAgent = userAgent || 'actions/http-client';
+	        const orchId = process.env['ACTIONS_ORCHESTRATION_ID'];
+	        if (orchId) {
+	            // Sanitize the orchestration ID to ensure it contains only valid characters
+	            // Valid characters: 0-9, a-z, _, -, .
+	            const sanitizedId = orchId.replace(/[^a-z0-9_.-]/gi, '_');
+	            return `${baseUserAgent} actions_orchestration_id/${sanitizedId}`;
+	        }
+	        return baseUserAgent;
 	    }
 	    _performExponentialBackoff(retryNumber) {
 	        return __awaiter(this, void 0, void 0, function* () {
@@ -25138,8 +25269,8 @@ function requireOidcUtils () {
 	        return runtimeUrl;
 	    }
 	    static getCall(id_token_url) {
-	        var _a;
 	        return __awaiter(this, void 0, void 0, function* () {
+	            var _a;
 	            const httpclient = OidcClient.createHttpClient();
 	            const res = yield httpclient
 	                .getJson(id_token_url)
@@ -25497,15 +25628,27 @@ function requirePathUtils () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (pathUtils && pathUtils.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (pathUtils && pathUtils.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	Object.defineProperty(pathUtils, "__esModule", { value: true });
-	pathUtils.toPlatformPath = pathUtils.toWin32Path = pathUtils.toPosixPath = void 0;
+	pathUtils.toPosixPath = toPosixPath;
+	pathUtils.toWin32Path = toWin32Path;
+	pathUtils.toPlatformPath = toPlatformPath;
 	const path = __importStar(require$$1$5);
 	/**
 	 * toPosixPath converts the given path to the posix form. On Windows, \\ will be
@@ -25517,7 +25660,6 @@ function requirePathUtils () {
 	function toPosixPath(pth) {
 	    return pth.replace(/[\\]/g, '/');
 	}
-	pathUtils.toPosixPath = toPosixPath;
 	/**
 	 * toWin32Path converts the given path to the win32 form. On Linux, / will be
 	 * replaced with \\.
@@ -25528,7 +25670,6 @@ function requirePathUtils () {
 	function toWin32Path(pth) {
 	    return pth.replace(/[/]/g, '\\');
 	}
-	pathUtils.toWin32Path = toWin32Path;
 	/**
 	 * toPlatformPath converts the given path to a platform-specific path. It does
 	 * this by replacing instances of / and \ with the platform-specific path
@@ -25540,7 +25681,6 @@ function requirePathUtils () {
 	function toPlatformPath(pth) {
 	    return pth.replace(/[/\\]/g, path.sep);
 	}
-	pathUtils.toPlatformPath = toPlatformPath;
 	
 	return pathUtils;
 }
@@ -25563,7 +25703,11 @@ function requireIoUtil () {
 	(function (exports$1) {
 		var __createBinding = (ioUtil && ioUtil.__createBinding) || (Object.create ? (function(o, m, k, k2) {
 		    if (k2 === undefined) k2 = k;
-		    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+		    var desc = Object.getOwnPropertyDescriptor(m, k);
+		    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+		      desc = { enumerable: true, get: function() { return m[k]; } };
+		    }
+		    Object.defineProperty(o, k2, desc);
 		}) : (function(o, m, k, k2) {
 		    if (k2 === undefined) k2 = k;
 		    o[k2] = m[k];
@@ -25573,13 +25717,23 @@ function requireIoUtil () {
 		}) : function(o, v) {
 		    o["default"] = v;
 		});
-		var __importStar = (ioUtil && ioUtil.__importStar) || function (mod) {
-		    if (mod && mod.__esModule) return mod;
-		    var result = {};
-		    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-		    __setModuleDefault(result, mod);
-		    return result;
-		};
+		var __importStar = (ioUtil && ioUtil.__importStar) || (function () {
+		    var ownKeys = function(o) {
+		        ownKeys = Object.getOwnPropertyNames || function (o) {
+		            var ar = [];
+		            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+		            return ar;
+		        };
+		        return ownKeys(o);
+		    };
+		    return function (mod) {
+		        if (mod && mod.__esModule) return mod;
+		        var result = {};
+		        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+		        __setModuleDefault(result, mod);
+		        return result;
+		    };
+		})();
 		var __awaiter = (ioUtil && ioUtil.__awaiter) || function (thisArg, _arguments, P, generator) {
 		    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 		    return new (P || (P = Promise))(function (resolve, reject) {
@@ -25591,21 +25745,49 @@ function requireIoUtil () {
 		};
 		var _a;
 		Object.defineProperty(exports$1, "__esModule", { value: true });
-		exports$1.getCmdPath = exports$1.tryGetExecutablePath = exports$1.isRooted = exports$1.isDirectory = exports$1.exists = exports$1.READONLY = exports$1.UV_FS_O_EXLOCK = exports$1.IS_WINDOWS = exports$1.unlink = exports$1.symlink = exports$1.stat = exports$1.rmdir = exports$1.rm = exports$1.rename = exports$1.readlink = exports$1.readdir = exports$1.open = exports$1.mkdir = exports$1.lstat = exports$1.copyFile = exports$1.chmod = void 0;
+		exports$1.READONLY = exports$1.UV_FS_O_EXLOCK = exports$1.IS_WINDOWS = exports$1.unlink = exports$1.symlink = exports$1.stat = exports$1.rmdir = exports$1.rm = exports$1.rename = exports$1.readdir = exports$1.open = exports$1.mkdir = exports$1.lstat = exports$1.copyFile = exports$1.chmod = void 0;
+		exports$1.readlink = readlink;
+		exports$1.exists = exists;
+		exports$1.isDirectory = isDirectory;
+		exports$1.isRooted = isRooted;
+		exports$1.tryGetExecutablePath = tryGetExecutablePath;
+		exports$1.getCmdPath = getCmdPath;
 		const fs = __importStar(require$$1);
 		const path = __importStar(require$$1$5);
 		_a = fs.promises
 		// export const {open} = 'fs'
-		, exports$1.chmod = _a.chmod, exports$1.copyFile = _a.copyFile, exports$1.lstat = _a.lstat, exports$1.mkdir = _a.mkdir, exports$1.open = _a.open, exports$1.readdir = _a.readdir, exports$1.readlink = _a.readlink, exports$1.rename = _a.rename, exports$1.rm = _a.rm, exports$1.rmdir = _a.rmdir, exports$1.stat = _a.stat, exports$1.symlink = _a.symlink, exports$1.unlink = _a.unlink;
+		, exports$1.chmod = _a.chmod, exports$1.copyFile = _a.copyFile, exports$1.lstat = _a.lstat, exports$1.mkdir = _a.mkdir, exports$1.open = _a.open, exports$1.readdir = _a.readdir, exports$1.rename = _a.rename, exports$1.rm = _a.rm, exports$1.rmdir = _a.rmdir, exports$1.stat = _a.stat, exports$1.symlink = _a.symlink, exports$1.unlink = _a.unlink;
 		// export const {open} = 'fs'
 		exports$1.IS_WINDOWS = process.platform === 'win32';
+		/**
+		 * Custom implementation of readlink to ensure Windows junctions
+		 * maintain trailing backslash for backward compatibility with Node.js < 24
+		 *
+		 * In Node.js 20, Windows junctions (directory symlinks) always returned paths
+		 * with trailing backslashes. Node.js 24 removed this behavior, which breaks
+		 * code that relied on this format for path operations.
+		 *
+		 * This implementation restores the Node 20 behavior by adding a trailing
+		 * backslash to all junction results on Windows.
+		 */
+		function readlink(fsPath) {
+		    return __awaiter(this, void 0, void 0, function* () {
+		        const result = yield fs.promises.readlink(fsPath);
+		        // On Windows, restore Node 20 behavior: add trailing backslash to all results
+		        // since junctions on Windows are always directory links
+		        if (exports$1.IS_WINDOWS && !result.endsWith('\\')) {
+		            return `${result}\\`;
+		        }
+		        return result;
+		    });
+		}
 		// See https://github.com/nodejs/node/blob/d0153aee367422d0858105abec186da4dff0a0c5/deps/uv/include/uv/win.h#L691
 		exports$1.UV_FS_O_EXLOCK = 0x10000000;
 		exports$1.READONLY = fs.constants.O_RDONLY;
 		function exists(fsPath) {
 		    return __awaiter(this, void 0, void 0, function* () {
 		        try {
-		            yield exports$1.stat(fsPath);
+		            yield (0, exports$1.stat)(fsPath);
 		        }
 		        catch (err) {
 		            if (err.code === 'ENOENT') {
@@ -25616,14 +25798,12 @@ function requireIoUtil () {
 		        return true;
 		    });
 		}
-		exports$1.exists = exists;
-		function isDirectory(fsPath, useStat = false) {
-		    return __awaiter(this, void 0, void 0, function* () {
-		        const stats = useStat ? yield exports$1.stat(fsPath) : yield exports$1.lstat(fsPath);
+		function isDirectory(fsPath_1) {
+		    return __awaiter(this, arguments, void 0, function* (fsPath, useStat = false) {
+		        const stats = useStat ? yield (0, exports$1.stat)(fsPath) : yield (0, exports$1.lstat)(fsPath);
 		        return stats.isDirectory();
 		    });
 		}
-		exports$1.isDirectory = isDirectory;
 		/**
 		 * On OSX/Linux, true if path starts with '/'. On Windows, true for paths like:
 		 * \, \hello, \\hello\share, C:, and C:\hello (and corresponding alternate separator cases).
@@ -25639,7 +25819,6 @@ function requireIoUtil () {
 		    }
 		    return p.startsWith('/');
 		}
-		exports$1.isRooted = isRooted;
 		/**
 		 * Best effort attempt to determine whether a file exists and is executable.
 		 * @param filePath    file path to check
@@ -25651,7 +25830,7 @@ function requireIoUtil () {
 		        let stats = undefined;
 		        try {
 		            // test file exists
-		            stats = yield exports$1.stat(filePath);
+		            stats = yield (0, exports$1.stat)(filePath);
 		        }
 		        catch (err) {
 		            if (err.code !== 'ENOENT') {
@@ -25679,7 +25858,7 @@ function requireIoUtil () {
 		            filePath = originalFilePath + extension;
 		            stats = undefined;
 		            try {
-		                stats = yield exports$1.stat(filePath);
+		                stats = yield (0, exports$1.stat)(filePath);
 		            }
 		            catch (err) {
 		                if (err.code !== 'ENOENT') {
@@ -25693,7 +25872,7 @@ function requireIoUtil () {
 		                    try {
 		                        const directory = path.dirname(filePath);
 		                        const upperName = path.basename(filePath).toUpperCase();
-		                        for (const actualName of yield exports$1.readdir(directory)) {
+		                        for (const actualName of yield (0, exports$1.readdir)(directory)) {
 		                            if (upperName === actualName.toUpperCase()) {
 		                                filePath = path.join(directory, actualName);
 		                                break;
@@ -25716,7 +25895,6 @@ function requireIoUtil () {
 		        return '';
 		    });
 		}
-		exports$1.tryGetExecutablePath = tryGetExecutablePath;
 		function normalizeSeparators(p) {
 		    p = p || '';
 		    if (exports$1.IS_WINDOWS) {
@@ -25733,15 +25911,18 @@ function requireIoUtil () {
 		//   256 128 64 32 16 8 4 2 1
 		function isUnixExecutable(stats) {
 		    return ((stats.mode & 1) > 0 ||
-		        ((stats.mode & 8) > 0 && stats.gid === process.getgid()) ||
-		        ((stats.mode & 64) > 0 && stats.uid === process.getuid()));
+		        ((stats.mode & 8) > 0 &&
+		            process.getgid !== undefined &&
+		            stats.gid === process.getgid()) ||
+		        ((stats.mode & 64) > 0 &&
+		            process.getuid !== undefined &&
+		            stats.uid === process.getuid()));
 		}
 		// Get the path of cmd.exe in windows
 		function getCmdPath() {
 		    var _a;
 		    return (_a = process.env['COMSPEC']) !== null && _a !== void 0 ? _a : `cmd.exe`;
 		}
-		exports$1.getCmdPath = getCmdPath;
 		
 	} (ioUtil));
 	return ioUtil;
@@ -25754,7 +25935,11 @@ function requireIo () {
 	hasRequiredIo = 1;
 	var __createBinding = (io && io.__createBinding) || (Object.create ? (function(o, m, k, k2) {
 	    if (k2 === undefined) k2 = k;
-	    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+	    var desc = Object.getOwnPropertyDescriptor(m, k);
+	    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+	      desc = { enumerable: true, get: function() { return m[k]; } };
+	    }
+	    Object.defineProperty(o, k2, desc);
 	}) : (function(o, m, k, k2) {
 	    if (k2 === undefined) k2 = k;
 	    o[k2] = m[k];
@@ -25764,13 +25949,23 @@ function requireIo () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (io && io.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (io && io.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	var __awaiter = (io && io.__awaiter) || function (thisArg, _arguments, P, generator) {
 	    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 	    return new (P || (P = Promise))(function (resolve, reject) {
@@ -25781,7 +25976,12 @@ function requireIo () {
 	    });
 	};
 	Object.defineProperty(io, "__esModule", { value: true });
-	io.findInPath = io.which = io.mkdirP = io.rmRF = io.mv = io.cp = void 0;
+	io.cp = cp;
+	io.mv = mv;
+	io.rmRF = rmRF;
+	io.mkdirP = mkdirP;
+	io.which = which;
+	io.findInPath = findInPath;
 	const assert_1 = require$$0$3;
 	const path = __importStar(require$$1$5);
 	const ioUtil = __importStar(requireIoUtil());
@@ -25793,8 +25993,8 @@ function requireIo () {
 	 * @param     dest      destination path
 	 * @param     options   optional. See CopyOptions.
 	 */
-	function cp(source, dest, options = {}) {
-	    return __awaiter(this, void 0, void 0, function* () {
+	function cp(source_1, dest_1) {
+	    return __awaiter(this, arguments, void 0, function* (source, dest, options = {}) {
 	        const { force, recursive, copySourceDirectory } = readCopyOptions(options);
 	        const destStat = (yield ioUtil.exists(dest)) ? yield ioUtil.stat(dest) : null;
 	        // Dest is an existing file, but not forcing
@@ -25826,7 +26026,6 @@ function requireIo () {
 	        }
 	    });
 	}
-	io.cp = cp;
 	/**
 	 * Moves a path.
 	 *
@@ -25834,8 +26033,8 @@ function requireIo () {
 	 * @param     dest      destination path
 	 * @param     options   optional. See MoveOptions.
 	 */
-	function mv(source, dest, options = {}) {
-	    return __awaiter(this, void 0, void 0, function* () {
+	function mv(source_1, dest_1) {
+	    return __awaiter(this, arguments, void 0, function* (source, dest, options = {}) {
 	        if (yield ioUtil.exists(dest)) {
 	            let destExists = true;
 	            if (yield ioUtil.isDirectory(dest)) {
@@ -25856,7 +26055,6 @@ function requireIo () {
 	        yield ioUtil.rename(source, dest);
 	    });
 	}
-	io.mv = mv;
 	/**
 	 * Remove a path recursively with force
 	 *
@@ -25885,7 +26083,6 @@ function requireIo () {
 	        }
 	    });
 	}
-	io.rmRF = rmRF;
 	/**
 	 * Make a directory.  Creates the full path with folders in between
 	 * Will throw if it fails
@@ -25895,11 +26092,10 @@ function requireIo () {
 	 */
 	function mkdirP(fsPath) {
 	    return __awaiter(this, void 0, void 0, function* () {
-	        assert_1.ok(fsPath, 'a path argument must be provided');
+	        (0, assert_1.ok)(fsPath, 'a path argument must be provided');
 	        yield ioUtil.mkdir(fsPath, { recursive: true });
 	    });
 	}
-	io.mkdirP = mkdirP;
 	/**
 	 * Returns path of a tool had the tool actually been invoked.  Resolves via paths.
 	 * If you check and the tool does not exist, it will throw.
@@ -25933,7 +26129,6 @@ function requireIo () {
 	        return '';
 	    });
 	}
-	io.which = which;
 	/**
 	 * Returns a list of all occurrences of the given tool on the system path.
 	 *
@@ -25990,7 +26185,6 @@ function requireIo () {
 	        return matches;
 	    });
 	}
-	io.findInPath = findInPath;
 	function readCopyOptions(options) {
 	    const force = options.force == null ? true : options.force;
 	    const recursive = Boolean(options.recursive);
@@ -26060,7 +26254,11 @@ function requireToolrunner () {
 	hasRequiredToolrunner = 1;
 	var __createBinding = (toolrunner && toolrunner.__createBinding) || (Object.create ? (function(o, m, k, k2) {
 	    if (k2 === undefined) k2 = k;
-	    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+	    var desc = Object.getOwnPropertyDescriptor(m, k);
+	    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+	      desc = { enumerable: true, get: function() { return m[k]; } };
+	    }
+	    Object.defineProperty(o, k2, desc);
 	}) : (function(o, m, k, k2) {
 	    if (k2 === undefined) k2 = k;
 	    o[k2] = m[k];
@@ -26070,13 +26268,23 @@ function requireToolrunner () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (toolrunner && toolrunner.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (toolrunner && toolrunner.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	var __awaiter = (toolrunner && toolrunner.__awaiter) || function (thisArg, _arguments, P, generator) {
 	    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 	    return new (P || (P = Promise))(function (resolve, reject) {
@@ -26087,7 +26295,8 @@ function requireToolrunner () {
 	    });
 	};
 	Object.defineProperty(toolrunner, "__esModule", { value: true });
-	toolrunner.argStringToArray = toolrunner.ToolRunner = void 0;
+	toolrunner.ToolRunner = void 0;
+	toolrunner.argStringToArray = argStringToArray;
 	const os = __importStar(require$$0);
 	const events = __importStar(require$$4);
 	const child = __importStar(require$$2$2);
@@ -26319,10 +26528,7 @@ function requireToolrunner () {
 	            }
 	        }
 	        reverse += '"';
-	        return reverse
-	            .split('')
-	            .reverse()
-	            .join('');
+	        return reverse.split('').reverse().join('');
 	    }
 	    _uvQuoteCmdArg(arg) {
 	        // Tool runner wraps child_process.spawn() and needs to apply the same quoting as
@@ -26398,10 +26604,7 @@ function requireToolrunner () {
 	            }
 	        }
 	        reverse += '"';
-	        return reverse
-	            .split('')
-	            .reverse()
-	            .join('');
+	        return reverse.split('').reverse().join('');
 	    }
 	    _cloneExecOptions(options) {
 	        options = options || {};
@@ -26605,7 +26808,6 @@ function requireToolrunner () {
 	    }
 	    return args;
 	}
-	toolrunner.argStringToArray = argStringToArray;
 	class ExecState extends events.EventEmitter {
 	    constructor(options, toolPath) {
 	        super();
@@ -26634,7 +26836,7 @@ function requireToolrunner () {
 	            this._setResult();
 	        }
 	        else if (this.processExited) {
-	            this.timeout = timers_1.setTimeout(ExecState.HandleTimeout, this.delay, this);
+	            this.timeout = (0, timers_1.setTimeout)(ExecState.HandleTimeout, this.delay, this);
 	        }
 	    }
 	    _debug(message) {
@@ -26667,8 +26869,7 @@ function requireToolrunner () {
 	            return;
 	        }
 	        if (!state.processClosed && state.processExited) {
-	            const message = `The STDIO streams did not close within ${state.delay /
-	                1000} seconds of the exit event from process '${state.toolPath}'. This may indicate a child process inherited the STDIO streams and has not yet exited.`;
+	            const message = `The STDIO streams did not close within ${state.delay / 1000} seconds of the exit event from process '${state.toolPath}'. This may indicate a child process inherited the STDIO streams and has not yet exited.`;
 	            state._debug(message);
 	        }
 	        state._setResult();
@@ -26685,7 +26886,11 @@ function requireExec () {
 	hasRequiredExec = 1;
 	var __createBinding = (exec && exec.__createBinding) || (Object.create ? (function(o, m, k, k2) {
 	    if (k2 === undefined) k2 = k;
-	    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+	    var desc = Object.getOwnPropertyDescriptor(m, k);
+	    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+	      desc = { enumerable: true, get: function() { return m[k]; } };
+	    }
+	    Object.defineProperty(o, k2, desc);
 	}) : (function(o, m, k, k2) {
 	    if (k2 === undefined) k2 = k;
 	    o[k2] = m[k];
@@ -26695,13 +26900,23 @@ function requireExec () {
 	}) : function(o, v) {
 	    o["default"] = v;
 	});
-	var __importStar = (exec && exec.__importStar) || function (mod) {
-	    if (mod && mod.__esModule) return mod;
-	    var result = {};
-	    if (mod != null) for (var k in mod) if (k !== "default" && Object.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-	    __setModuleDefault(result, mod);
-	    return result;
-	};
+	var __importStar = (exec && exec.__importStar) || (function () {
+	    var ownKeys = function(o) {
+	        ownKeys = Object.getOwnPropertyNames || function (o) {
+	            var ar = [];
+	            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+	            return ar;
+	        };
+	        return ownKeys(o);
+	    };
+	    return function (mod) {
+	        if (mod && mod.__esModule) return mod;
+	        var result = {};
+	        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+	        __setModuleDefault(result, mod);
+	        return result;
+	    };
+	})();
 	var __awaiter = (exec && exec.__awaiter) || function (thisArg, _arguments, P, generator) {
 	    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 	    return new (P || (P = Promise))(function (resolve, reject) {
@@ -26712,7 +26927,8 @@ function requireExec () {
 	    });
 	};
 	Object.defineProperty(exec, "__esModule", { value: true });
-	exec.getExecOutput = exec.exec = void 0;
+	exec.exec = exec$1;
+	exec.getExecOutput = getExecOutput;
 	const string_decoder_1 = require$$6;
 	const tr = __importStar(requireToolrunner());
 	/**
@@ -26738,7 +26954,6 @@ function requireExec () {
 	        return runner.exec();
 	    });
 	}
-	exec.exec = exec$1;
 	/**
 	 * Exec a command and get the output.
 	 * Output will be streamed to the live console.
@@ -26750,8 +26965,8 @@ function requireExec () {
 	 * @returns   Promise<ExecOutput>   exit code, stdout, and stderr
 	 */
 	function getExecOutput(commandLine, args, options) {
-	    var _a, _b;
 	    return __awaiter(this, void 0, void 0, function* () {
+	        var _a, _b;
 	        let stdout = '';
 	        let stderr = '';
 	        //Using string decoder covers the case where a mult-byte character is split
@@ -26783,7 +26998,6 @@ function requireExec () {
 	        };
 	    });
 	}
-	exec.getExecOutput = getExecOutput;
 	
 	return exec;
 }
@@ -26810,13 +27024,23 @@ function requirePlatform () {
 		}) : function(o, v) {
 		    o["default"] = v;
 		});
-		var __importStar = (platform && platform.__importStar) || function (mod) {
-		    if (mod && mod.__esModule) return mod;
-		    var result = {};
-		    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-		    __setModuleDefault(result, mod);
-		    return result;
-		};
+		var __importStar = (platform && platform.__importStar) || (function () {
+		    var ownKeys = function(o) {
+		        ownKeys = Object.getOwnPropertyNames || function (o) {
+		            var ar = [];
+		            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+		            return ar;
+		        };
+		        return ownKeys(o);
+		    };
+		    return function (mod) {
+		        if (mod && mod.__esModule) return mod;
+		        var result = {};
+		        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+		        __setModuleDefault(result, mod);
+		        return result;
+		    };
+		})();
 		var __awaiter = (platform && platform.__awaiter) || function (thisArg, _arguments, P, generator) {
 		    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 		    return new (P || (P = Promise))(function (resolve, reject) {
@@ -26830,7 +27054,8 @@ function requirePlatform () {
 		    return (mod && mod.__esModule) ? mod : { "default": mod };
 		};
 		Object.defineProperty(exports$1, "__esModule", { value: true });
-		exports$1.getDetails = exports$1.isLinux = exports$1.isMacOS = exports$1.isWindows = exports$1.arch = exports$1.platform = void 0;
+		exports$1.isLinux = exports$1.isMacOS = exports$1.isWindows = exports$1.arch = exports$1.platform = void 0;
+		exports$1.getDetails = getDetails;
 		const os_1 = __importDefault(require$$0);
 		const exec = __importStar(requireExec());
 		const getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -26885,7 +27110,6 @@ function requirePlatform () {
 		            isLinux: exports$1.isLinux });
 		    });
 		}
-		exports$1.getDetails = getDetails;
 		
 	} (platform));
 	return platform;
@@ -26913,13 +27137,23 @@ function requireCore () {
 		}) : function(o, v) {
 		    o["default"] = v;
 		});
-		var __importStar = (core && core.__importStar) || function (mod) {
-		    if (mod && mod.__esModule) return mod;
-		    var result = {};
-		    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-		    __setModuleDefault(result, mod);
-		    return result;
-		};
+		var __importStar = (core && core.__importStar) || (function () {
+		    var ownKeys = function(o) {
+		        ownKeys = Object.getOwnPropertyNames || function (o) {
+		            var ar = [];
+		            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+		            return ar;
+		        };
+		        return ownKeys(o);
+		    };
+		    return function (mod) {
+		        if (mod && mod.__esModule) return mod;
+		        var result = {};
+		        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+		        __setModuleDefault(result, mod);
+		        return result;
+		    };
+		})();
 		var __awaiter = (core && core.__awaiter) || function (thisArg, _arguments, P, generator) {
 		    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
 		    return new (P || (P = Promise))(function (resolve, reject) {
@@ -26930,7 +27164,28 @@ function requireCore () {
 		    });
 		};
 		Object.defineProperty(exports$1, "__esModule", { value: true });
-		exports$1.platform = exports$1.toPlatformPath = exports$1.toWin32Path = exports$1.toPosixPath = exports$1.markdownSummary = exports$1.summary = exports$1.getIDToken = exports$1.getState = exports$1.saveState = exports$1.group = exports$1.endGroup = exports$1.startGroup = exports$1.info = exports$1.notice = exports$1.warning = exports$1.error = exports$1.debug = exports$1.isDebug = exports$1.setFailed = exports$1.setCommandEcho = exports$1.setOutput = exports$1.getBooleanInput = exports$1.getMultilineInput = exports$1.getInput = exports$1.addPath = exports$1.setSecret = exports$1.exportVariable = exports$1.ExitCode = void 0;
+		exports$1.platform = exports$1.toPlatformPath = exports$1.toWin32Path = exports$1.toPosixPath = exports$1.markdownSummary = exports$1.summary = exports$1.ExitCode = void 0;
+		exports$1.exportVariable = exportVariable;
+		exports$1.setSecret = setSecret;
+		exports$1.addPath = addPath;
+		exports$1.getInput = getInput;
+		exports$1.getMultilineInput = getMultilineInput;
+		exports$1.getBooleanInput = getBooleanInput;
+		exports$1.setOutput = setOutput;
+		exports$1.setCommandEcho = setCommandEcho;
+		exports$1.setFailed = setFailed;
+		exports$1.isDebug = isDebug;
+		exports$1.debug = debug;
+		exports$1.error = error;
+		exports$1.warning = warning;
+		exports$1.notice = notice;
+		exports$1.info = info;
+		exports$1.startGroup = startGroup;
+		exports$1.endGroup = endGroup;
+		exports$1.group = group;
+		exports$1.saveState = saveState;
+		exports$1.getState = getState;
+		exports$1.getIDToken = getIDToken;
 		const command_1 = requireCommand();
 		const file_command_1 = requireFileCommand();
 		const utils_1 = requireUtils$1();
@@ -26969,15 +27224,38 @@ function requireCore () {
 		    }
 		    (0, command_1.issueCommand)('set-env', { name }, convertedVal);
 		}
-		exports$1.exportVariable = exportVariable;
 		/**
 		 * Registers a secret which will get masked from logs
-		 * @param secret value of the secret
+		 *
+		 * @param secret - Value of the secret to be masked
+		 * @remarks
+		 * This function instructs the Actions runner to mask the specified value in any
+		 * logs produced during the workflow run. Once registered, the secret value will
+		 * be replaced with asterisks (***) whenever it appears in console output, logs,
+		 * or error messages.
+		 *
+		 * This is useful for protecting sensitive information such as:
+		 * - API keys
+		 * - Access tokens
+		 * - Authentication credentials
+		 * - URL parameters containing signatures (SAS tokens)
+		 *
+		 * Note that masking only affects future logs; any previous appearances of the
+		 * secret in logs before calling this function will remain unmasked.
+		 *
+		 * @example
+		 * ```typescript
+		 * // Register an API token as a secret
+		 * const apiToken = "abc123xyz456";
+		 * setSecret(apiToken);
+		 *
+		 * // Now any logs containing this value will show *** instead
+		 * console.log(`Using token: ${apiToken}`); // Outputs: "Using token: ***"
+		 * ```
 		 */
 		function setSecret(secret) {
 		    (0, command_1.issueCommand)('add-mask', {}, secret);
 		}
-		exports$1.setSecret = setSecret;
 		/**
 		 * Prepends inputPath to the PATH (for this action and future actions)
 		 * @param inputPath
@@ -26992,7 +27270,6 @@ function requireCore () {
 		    }
 		    process.env['PATH'] = `${inputPath}${path.delimiter}${process.env['PATH']}`;
 		}
-		exports$1.addPath = addPath;
 		/**
 		 * Gets the value of an input.
 		 * Unless trimWhitespace is set to false in InputOptions, the value is also trimmed.
@@ -27012,7 +27289,6 @@ function requireCore () {
 		    }
 		    return val.trim();
 		}
-		exports$1.getInput = getInput;
 		/**
 		 * Gets the values of an multiline input.  Each value is also trimmed.
 		 *
@@ -27030,7 +27306,6 @@ function requireCore () {
 		    }
 		    return inputs.map(input => input.trim());
 		}
-		exports$1.getMultilineInput = getMultilineInput;
 		/**
 		 * Gets the input value of the boolean type in the YAML 1.2 "core schema" specification.
 		 * Support boolean input list: `true | True | TRUE | false | False | FALSE` .
@@ -27052,7 +27327,6 @@ function requireCore () {
 		    throw new TypeError(`Input does not meet YAML 1.2 "Core Schema" specification: ${name}\n` +
 		        `Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
 		}
-		exports$1.getBooleanInput = getBooleanInput;
 		/**
 		 * Sets the value of an output.
 		 *
@@ -27068,7 +27342,6 @@ function requireCore () {
 		    process.stdout.write(os.EOL);
 		    (0, command_1.issueCommand)('set-output', { name }, (0, utils_1.toCommandValue)(value));
 		}
-		exports$1.setOutput = setOutput;
 		/**
 		 * Enables or disables the echoing of commands into stdout for the rest of the step.
 		 * Echoing is disabled by default if ACTIONS_STEP_DEBUG is not set.
@@ -27077,7 +27350,6 @@ function requireCore () {
 		function setCommandEcho(enabled) {
 		    (0, command_1.issue)('echo', enabled ? 'on' : 'off');
 		}
-		exports$1.setCommandEcho = setCommandEcho;
 		//-----------------------------------------------------------------------
 		// Results
 		//-----------------------------------------------------------------------
@@ -27090,7 +27362,6 @@ function requireCore () {
 		    process.exitCode = ExitCode.Failure;
 		    error(message);
 		}
-		exports$1.setFailed = setFailed;
 		//-----------------------------------------------------------------------
 		// Logging Commands
 		//-----------------------------------------------------------------------
@@ -27100,7 +27371,6 @@ function requireCore () {
 		function isDebug() {
 		    return process.env['RUNNER_DEBUG'] === '1';
 		}
-		exports$1.isDebug = isDebug;
 		/**
 		 * Writes debug message to user log
 		 * @param message debug message
@@ -27108,7 +27378,6 @@ function requireCore () {
 		function debug(message) {
 		    (0, command_1.issueCommand)('debug', {}, message);
 		}
-		exports$1.debug = debug;
 		/**
 		 * Adds an error issue
 		 * @param message error issue message. Errors will be converted to string via toString()
@@ -27117,7 +27386,6 @@ function requireCore () {
 		function error(message, properties = {}) {
 		    (0, command_1.issueCommand)('error', (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
 		}
-		exports$1.error = error;
 		/**
 		 * Adds a warning issue
 		 * @param message warning issue message. Errors will be converted to string via toString()
@@ -27126,7 +27394,6 @@ function requireCore () {
 		function warning(message, properties = {}) {
 		    (0, command_1.issueCommand)('warning', (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
 		}
-		exports$1.warning = warning;
 		/**
 		 * Adds a notice issue
 		 * @param message notice issue message. Errors will be converted to string via toString()
@@ -27135,7 +27402,6 @@ function requireCore () {
 		function notice(message, properties = {}) {
 		    (0, command_1.issueCommand)('notice', (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
 		}
-		exports$1.notice = notice;
 		/**
 		 * Writes info to log with console.log.
 		 * @param message info message
@@ -27143,7 +27409,6 @@ function requireCore () {
 		function info(message) {
 		    process.stdout.write(message + os.EOL);
 		}
-		exports$1.info = info;
 		/**
 		 * Begin an output group.
 		 *
@@ -27154,14 +27419,12 @@ function requireCore () {
 		function startGroup(name) {
 		    (0, command_1.issue)('group', name);
 		}
-		exports$1.startGroup = startGroup;
 		/**
 		 * End an output group.
 		 */
 		function endGroup() {
 		    (0, command_1.issue)('endgroup');
 		}
-		exports$1.endGroup = endGroup;
 		/**
 		 * Wrap an asynchronous function call in a group.
 		 *
@@ -27183,7 +27446,6 @@ function requireCore () {
 		        return result;
 		    });
 		}
-		exports$1.group = group;
 		//-----------------------------------------------------------------------
 		// Wrapper action state
 		//-----------------------------------------------------------------------
@@ -27201,7 +27463,6 @@ function requireCore () {
 		    }
 		    (0, command_1.issueCommand)('save-state', { name }, (0, utils_1.toCommandValue)(value));
 		}
-		exports$1.saveState = saveState;
 		/**
 		 * Gets the value of an state set by this action's main execution.
 		 *
@@ -27211,13 +27472,11 @@ function requireCore () {
 		function getState(name) {
 		    return process.env[`STATE_${name}`] || '';
 		}
-		exports$1.getState = getState;
 		function getIDToken(aud) {
 		    return __awaiter(this, void 0, void 0, function* () {
 		        return yield oidc_utils_1.OidcClient.getIDToken(aud);
 		    });
 		}
-		exports$1.getIDToken = getIDToken;
 		/**
 		 * Summary exports
 		 */
@@ -27246,42 +27505,18002 @@ function requireCore () {
 
 var coreExports = requireCore();
 
-/**
- * Waits for a number of milliseconds.
- *
- * @param {number} milliseconds The number of milliseconds to wait.
- * @returns {Promise<string>} Resolves with 'done!' after the wait is over.
- */
-async function wait(milliseconds) {
-  return new Promise((resolve) => {
-    if (isNaN(milliseconds)) throw new Error('milliseconds is not a number')
+/** Detect free variable `global` from Node.js. */
+var freeGlobal = typeof global == 'object' && global && global.Object === Object && global;
 
-    setTimeout(() => resolve('done!'), milliseconds);
-  })
+/** Detect free variable `self`. */
+var freeSelf = typeof self == 'object' && self && self.Object === Object && self;
+
+/** Used as a reference to the global object. */
+var root = freeGlobal || freeSelf || Function('return this')();
+
+/** Built-in value references. */
+var Symbol$1 = root.Symbol;
+
+/** Used for built-in method references. */
+var objectProto$j = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$g = objectProto$j.hasOwnProperty;
+
+/**
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
+ * of values.
+ */
+var nativeObjectToString$1 = objectProto$j.toString;
+
+/** Built-in value references. */
+var symToStringTag$1 = Symbol$1 ? Symbol$1.toStringTag : undefined;
+
+/**
+ * A specialized version of `baseGetTag` which ignores `Symbol.toStringTag` values.
+ *
+ * @private
+ * @param {*} value The value to query.
+ * @returns {string} Returns the raw `toStringTag`.
+ */
+function getRawTag(value) {
+  var isOwn = hasOwnProperty$g.call(value, symToStringTag$1),
+      tag = value[symToStringTag$1];
+
+  try {
+    value[symToStringTag$1] = undefined;
+    var unmasked = true;
+  } catch (e) {}
+
+  var result = nativeObjectToString$1.call(value);
+  if (unmasked) {
+    if (isOwn) {
+      value[symToStringTag$1] = tag;
+    } else {
+      delete value[symToStringTag$1];
+    }
+  }
+  return result;
+}
+
+/** Used for built-in method references. */
+var objectProto$i = Object.prototype;
+
+/**
+ * Used to resolve the
+ * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
+ * of values.
+ */
+var nativeObjectToString = objectProto$i.toString;
+
+/**
+ * Converts `value` to a string using `Object.prototype.toString`.
+ *
+ * @private
+ * @param {*} value The value to convert.
+ * @returns {string} Returns the converted string.
+ */
+function objectToString(value) {
+  return nativeObjectToString.call(value);
+}
+
+/** `Object#toString` result references. */
+var nullTag = '[object Null]',
+    undefinedTag = '[object Undefined]';
+
+/** Built-in value references. */
+var symToStringTag = Symbol$1 ? Symbol$1.toStringTag : undefined;
+
+/**
+ * The base implementation of `getTag` without fallbacks for buggy environments.
+ *
+ * @private
+ * @param {*} value The value to query.
+ * @returns {string} Returns the `toStringTag`.
+ */
+function baseGetTag(value) {
+  if (value == null) {
+    return value === undefined ? undefinedTag : nullTag;
+  }
+  return (symToStringTag && symToStringTag in Object(value))
+    ? getRawTag(value)
+    : objectToString(value);
 }
 
 /**
- * The main function for the action.
+ * Checks if `value` is object-like. A value is object-like if it's not `null`
+ * and has a `typeof` result of "object".
  *
- * @returns {Promise<void>} Resolves when the action is complete.
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is object-like, else `false`.
+ * @example
+ *
+ * _.isObjectLike({});
+ * // => true
+ *
+ * _.isObjectLike([1, 2, 3]);
+ * // => true
+ *
+ * _.isObjectLike(_.noop);
+ * // => false
+ *
+ * _.isObjectLike(null);
+ * // => false
+ */
+function isObjectLike(value) {
+  return value != null && typeof value == 'object';
+}
+
+/** `Object#toString` result references. */
+var symbolTag$3 = '[object Symbol]';
+
+/**
+ * Checks if `value` is classified as a `Symbol` primitive or object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a symbol, else `false`.
+ * @example
+ *
+ * _.isSymbol(Symbol.iterator);
+ * // => true
+ *
+ * _.isSymbol('abc');
+ * // => false
+ */
+function isSymbol(value) {
+  return typeof value == 'symbol' ||
+    (isObjectLike(value) && baseGetTag(value) == symbolTag$3);
+}
+
+/**
+ * A specialized version of `_.map` for arrays without support for iteratee
+ * shorthands.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Array} Returns the new mapped array.
+ */
+function arrayMap(array, iteratee) {
+  var index = -1,
+      length = array == null ? 0 : array.length,
+      result = Array(length);
+
+  while (++index < length) {
+    result[index] = iteratee(array[index], index, array);
+  }
+  return result;
+}
+
+/**
+ * Checks if `value` is classified as an `Array` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an array, else `false`.
+ * @example
+ *
+ * _.isArray([1, 2, 3]);
+ * // => true
+ *
+ * _.isArray(document.body.children);
+ * // => false
+ *
+ * _.isArray('abc');
+ * // => false
+ *
+ * _.isArray(_.noop);
+ * // => false
+ */
+var isArray = Array.isArray;
+
+/** Used to convert symbols to primitives and strings. */
+var symbolProto$2 = Symbol$1 ? Symbol$1.prototype : undefined,
+    symbolToString = symbolProto$2 ? symbolProto$2.toString : undefined;
+
+/**
+ * The base implementation of `_.toString` which doesn't convert nullish
+ * values to empty strings.
+ *
+ * @private
+ * @param {*} value The value to process.
+ * @returns {string} Returns the string.
+ */
+function baseToString(value) {
+  // Exit early for strings to avoid a performance hit in some environments.
+  if (typeof value == 'string') {
+    return value;
+  }
+  if (isArray(value)) {
+    // Recursively convert values (susceptible to call stack limits).
+    return arrayMap(value, baseToString) + '';
+  }
+  if (isSymbol(value)) {
+    return symbolToString ? symbolToString.call(value) : '';
+  }
+  var result = (value + '');
+  return (result == '0' && (1 / value) == -Infinity) ? '-0' : result;
+}
+
+/** Used to match a single whitespace character. */
+var reWhitespace = /\s/;
+
+/**
+ * Used by `_.trim` and `_.trimEnd` to get the index of the last non-whitespace
+ * character of `string`.
+ *
+ * @private
+ * @param {string} string The string to inspect.
+ * @returns {number} Returns the index of the last non-whitespace character.
+ */
+function trimmedEndIndex(string) {
+  var index = string.length;
+
+  while (index-- && reWhitespace.test(string.charAt(index))) {}
+  return index;
+}
+
+/** Used to match leading whitespace. */
+var reTrimStart = /^\s+/;
+
+/**
+ * The base implementation of `_.trim`.
+ *
+ * @private
+ * @param {string} string The string to trim.
+ * @returns {string} Returns the trimmed string.
+ */
+function baseTrim(string) {
+  return string
+    ? string.slice(0, trimmedEndIndex(string) + 1).replace(reTrimStart, '')
+    : string;
+}
+
+/**
+ * Checks if `value` is the
+ * [language type](http://www.ecma-international.org/ecma-262/7.0/#sec-ecmascript-language-types)
+ * of `Object`. (e.g. arrays, functions, objects, regexes, `new Number(0)`, and `new String('')`)
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an object, else `false`.
+ * @example
+ *
+ * _.isObject({});
+ * // => true
+ *
+ * _.isObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isObject(_.noop);
+ * // => true
+ *
+ * _.isObject(null);
+ * // => false
+ */
+function isObject(value) {
+  var type = typeof value;
+  return value != null && (type == 'object' || type == 'function');
+}
+
+/** Used as references for various `Number` constants. */
+var NAN = 0 / 0;
+
+/** Used to detect bad signed hexadecimal string values. */
+var reIsBadHex = /^[-+]0x[0-9a-f]+$/i;
+
+/** Used to detect binary string values. */
+var reIsBinary = /^0b[01]+$/i;
+
+/** Used to detect octal string values. */
+var reIsOctal = /^0o[0-7]+$/i;
+
+/** Built-in method references without a dependency on `root`. */
+var freeParseInt = parseInt;
+
+/**
+ * Converts `value` to a number.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to process.
+ * @returns {number} Returns the number.
+ * @example
+ *
+ * _.toNumber(3.2);
+ * // => 3.2
+ *
+ * _.toNumber(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toNumber(Infinity);
+ * // => Infinity
+ *
+ * _.toNumber('3.2');
+ * // => 3.2
+ */
+function toNumber(value) {
+  if (typeof value == 'number') {
+    return value;
+  }
+  if (isSymbol(value)) {
+    return NAN;
+  }
+  if (isObject(value)) {
+    var other = typeof value.valueOf == 'function' ? value.valueOf() : value;
+    value = isObject(other) ? (other + '') : other;
+  }
+  if (typeof value != 'string') {
+    return value === 0 ? value : +value;
+  }
+  value = baseTrim(value);
+  var isBinary = reIsBinary.test(value);
+  return (isBinary || reIsOctal.test(value))
+    ? freeParseInt(value.slice(2), isBinary ? 2 : 8)
+    : (reIsBadHex.test(value) ? NAN : +value);
+}
+
+/** Used as references for various `Number` constants. */
+var INFINITY$1 = 1 / 0,
+    MAX_INTEGER = 1.7976931348623157e+308;
+
+/**
+ * Converts `value` to a finite number.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.12.0
+ * @category Lang
+ * @param {*} value The value to convert.
+ * @returns {number} Returns the converted number.
+ * @example
+ *
+ * _.toFinite(3.2);
+ * // => 3.2
+ *
+ * _.toFinite(Number.MIN_VALUE);
+ * // => 5e-324
+ *
+ * _.toFinite(Infinity);
+ * // => 1.7976931348623157e+308
+ *
+ * _.toFinite('3.2');
+ * // => 3.2
+ */
+function toFinite(value) {
+  if (!value) {
+    return value === 0 ? value : 0;
+  }
+  value = toNumber(value);
+  if (value === INFINITY$1 || value === -INFINITY$1) {
+    var sign = (value < 0 ? -1 : 1);
+    return sign * MAX_INTEGER;
+  }
+  return value === value ? value : 0;
+}
+
+/**
+ * Converts `value` to an integer.
+ *
+ * **Note:** This method is loosely based on
+ * [`ToInteger`](http://www.ecma-international.org/ecma-262/7.0/#sec-tointeger).
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to convert.
+ * @returns {number} Returns the converted integer.
+ * @example
+ *
+ * _.toInteger(3.2);
+ * // => 3
+ *
+ * _.toInteger(Number.MIN_VALUE);
+ * // => 0
+ *
+ * _.toInteger(Infinity);
+ * // => 1.7976931348623157e+308
+ *
+ * _.toInteger('3.2');
+ * // => 3
+ */
+function toInteger(value) {
+  var result = toFinite(value),
+      remainder = result % 1;
+
+  return result === result ? (remainder ? result - remainder : result) : 0;
+}
+
+/**
+ * This method returns the first argument it receives.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Util
+ * @param {*} value Any value.
+ * @returns {*} Returns `value`.
+ * @example
+ *
+ * var object = { 'a': 1 };
+ *
+ * console.log(_.identity(object) === object);
+ * // => true
+ */
+function identity(value) {
+  return value;
+}
+
+/** `Object#toString` result references. */
+var asyncTag = '[object AsyncFunction]',
+    funcTag$2 = '[object Function]',
+    genTag$1 = '[object GeneratorFunction]',
+    proxyTag = '[object Proxy]';
+
+/**
+ * Checks if `value` is classified as a `Function` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a function, else `false`.
+ * @example
+ *
+ * _.isFunction(_);
+ * // => true
+ *
+ * _.isFunction(/abc/);
+ * // => false
+ */
+function isFunction(value) {
+  if (!isObject(value)) {
+    return false;
+  }
+  // The use of `Object#toString` avoids issues with the `typeof` operator
+  // in Safari 9 which returns 'object' for typed arrays and other constructors.
+  var tag = baseGetTag(value);
+  return tag == funcTag$2 || tag == genTag$1 || tag == asyncTag || tag == proxyTag;
+}
+
+/** Used to detect overreaching core-js shims. */
+var coreJsData = root['__core-js_shared__'];
+
+/** Used to detect methods masquerading as native. */
+var maskSrcKey = (function() {
+  var uid = /[^.]+$/.exec(coreJsData && coreJsData.keys && coreJsData.keys.IE_PROTO || '');
+  return uid ? ('Symbol(src)_1.' + uid) : '';
+}());
+
+/**
+ * Checks if `func` has its source masked.
+ *
+ * @private
+ * @param {Function} func The function to check.
+ * @returns {boolean} Returns `true` if `func` is masked, else `false`.
+ */
+function isMasked(func) {
+  return !!maskSrcKey && (maskSrcKey in func);
+}
+
+/** Used for built-in method references. */
+var funcProto$1 = Function.prototype;
+
+/** Used to resolve the decompiled source of functions. */
+var funcToString$1 = funcProto$1.toString;
+
+/**
+ * Converts `func` to its source code.
+ *
+ * @private
+ * @param {Function} func The function to convert.
+ * @returns {string} Returns the source code.
+ */
+function toSource(func) {
+  if (func != null) {
+    try {
+      return funcToString$1.call(func);
+    } catch (e) {}
+    try {
+      return (func + '');
+    } catch (e) {}
+  }
+  return '';
+}
+
+/**
+ * Used to match `RegExp`
+ * [syntax characters](http://ecma-international.org/ecma-262/7.0/#sec-patterns).
+ */
+var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
+
+/** Used to detect host constructors (Safari). */
+var reIsHostCtor = /^\[object .+?Constructor\]$/;
+
+/** Used for built-in method references. */
+var funcProto = Function.prototype,
+    objectProto$h = Object.prototype;
+
+/** Used to resolve the decompiled source of functions. */
+var funcToString = funcProto.toString;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$f = objectProto$h.hasOwnProperty;
+
+/** Used to detect if a method is native. */
+var reIsNative = RegExp('^' +
+  funcToString.call(hasOwnProperty$f).replace(reRegExpChar, '\\$&')
+  .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
+);
+
+/**
+ * The base implementation of `_.isNative` without bad shim checks.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a native function,
+ *  else `false`.
+ */
+function baseIsNative(value) {
+  if (!isObject(value) || isMasked(value)) {
+    return false;
+  }
+  var pattern = isFunction(value) ? reIsNative : reIsHostCtor;
+  return pattern.test(toSource(value));
+}
+
+/**
+ * Gets the value at `key` of `object`.
+ *
+ * @private
+ * @param {Object} [object] The object to query.
+ * @param {string} key The key of the property to get.
+ * @returns {*} Returns the property value.
+ */
+function getValue(object, key) {
+  return object == null ? undefined : object[key];
+}
+
+/**
+ * Gets the native function at `key` of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {string} key The key of the method to get.
+ * @returns {*} Returns the function if it's native, else `undefined`.
+ */
+function getNative(object, key) {
+  var value = getValue(object, key);
+  return baseIsNative(value) ? value : undefined;
+}
+
+/* Built-in method references that are verified to be native. */
+var WeakMap = getNative(root, 'WeakMap');
+
+/** Built-in value references. */
+var objectCreate = Object.create;
+
+/**
+ * The base implementation of `_.create` without support for assigning
+ * properties to the created object.
+ *
+ * @private
+ * @param {Object} proto The object to inherit from.
+ * @returns {Object} Returns the new object.
+ */
+var baseCreate = (function() {
+  function object() {}
+  return function(proto) {
+    if (!isObject(proto)) {
+      return {};
+    }
+    if (objectCreate) {
+      return objectCreate(proto);
+    }
+    object.prototype = proto;
+    var result = new object;
+    object.prototype = undefined;
+    return result;
+  };
+}());
+
+/**
+ * A faster alternative to `Function#apply`, this function invokes `func`
+ * with the `this` binding of `thisArg` and the arguments of `args`.
+ *
+ * @private
+ * @param {Function} func The function to invoke.
+ * @param {*} thisArg The `this` binding of `func`.
+ * @param {Array} args The arguments to invoke `func` with.
+ * @returns {*} Returns the result of `func`.
+ */
+function apply(func, thisArg, args) {
+  switch (args.length) {
+    case 0: return func.call(thisArg);
+    case 1: return func.call(thisArg, args[0]);
+    case 2: return func.call(thisArg, args[0], args[1]);
+    case 3: return func.call(thisArg, args[0], args[1], args[2]);
+  }
+  return func.apply(thisArg, args);
+}
+
+/**
+ * This method returns `undefined`.
+ *
+ * @static
+ * @memberOf _
+ * @since 2.3.0
+ * @category Util
+ * @example
+ *
+ * _.times(2, _.noop);
+ * // => [undefined, undefined]
+ */
+function noop() {
+  // No operation performed.
+}
+
+/**
+ * Copies the values of `source` to `array`.
+ *
+ * @private
+ * @param {Array} source The array to copy values from.
+ * @param {Array} [array=[]] The array to copy values to.
+ * @returns {Array} Returns `array`.
+ */
+function copyArray(source, array) {
+  var index = -1,
+      length = source.length;
+
+  array || (array = Array(length));
+  while (++index < length) {
+    array[index] = source[index];
+  }
+  return array;
+}
+
+/** Used to detect hot functions by number of calls within a span of milliseconds. */
+var HOT_COUNT = 800,
+    HOT_SPAN = 16;
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeNow = Date.now;
+
+/**
+ * Creates a function that'll short out and invoke `identity` instead
+ * of `func` when it's called `HOT_COUNT` or more times in `HOT_SPAN`
+ * milliseconds.
+ *
+ * @private
+ * @param {Function} func The function to restrict.
+ * @returns {Function} Returns the new shortable function.
+ */
+function shortOut(func) {
+  var count = 0,
+      lastCalled = 0;
+
+  return function() {
+    var stamp = nativeNow(),
+        remaining = HOT_SPAN - (stamp - lastCalled);
+
+    lastCalled = stamp;
+    if (remaining > 0) {
+      if (++count >= HOT_COUNT) {
+        return arguments[0];
+      }
+    } else {
+      count = 0;
+    }
+    return func.apply(undefined, arguments);
+  };
+}
+
+/**
+ * Creates a function that returns `value`.
+ *
+ * @static
+ * @memberOf _
+ * @since 2.4.0
+ * @category Util
+ * @param {*} value The value to return from the new function.
+ * @returns {Function} Returns the new constant function.
+ * @example
+ *
+ * var objects = _.times(2, _.constant({ 'a': 1 }));
+ *
+ * console.log(objects);
+ * // => [{ 'a': 1 }, { 'a': 1 }]
+ *
+ * console.log(objects[0] === objects[1]);
+ * // => true
+ */
+function constant(value) {
+  return function() {
+    return value;
+  };
+}
+
+var defineProperty = (function() {
+  try {
+    var func = getNative(Object, 'defineProperty');
+    func({}, '', {});
+    return func;
+  } catch (e) {}
+}());
+
+/**
+ * The base implementation of `setToString` without support for hot loop shorting.
+ *
+ * @private
+ * @param {Function} func The function to modify.
+ * @param {Function} string The `toString` result.
+ * @returns {Function} Returns `func`.
+ */
+var baseSetToString = !defineProperty ? identity : function(func, string) {
+  return defineProperty(func, 'toString', {
+    'configurable': true,
+    'enumerable': false,
+    'value': constant(string),
+    'writable': true
+  });
+};
+
+/**
+ * Sets the `toString` method of `func` to return `string`.
+ *
+ * @private
+ * @param {Function} func The function to modify.
+ * @param {Function} string The `toString` result.
+ * @returns {Function} Returns `func`.
+ */
+var setToString = shortOut(baseSetToString);
+
+/**
+ * A specialized version of `_.forEach` for arrays without support for
+ * iteratee shorthands.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Array} Returns `array`.
+ */
+function arrayEach(array, iteratee) {
+  var index = -1,
+      length = array == null ? 0 : array.length;
+
+  while (++index < length) {
+    if (iteratee(array[index], index, array) === false) {
+      break;
+    }
+  }
+  return array;
+}
+
+/**
+ * The base implementation of `_.findIndex` and `_.findLastIndex` without
+ * support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {Function} predicate The function invoked per iteration.
+ * @param {number} fromIndex The index to search from.
+ * @param {boolean} [fromRight] Specify iterating from right to left.
+ * @returns {number} Returns the index of the matched value, else `-1`.
+ */
+function baseFindIndex(array, predicate, fromIndex, fromRight) {
+  var length = array.length,
+      index = fromIndex + (-1);
+
+  while ((++index < length)) {
+    if (predicate(array[index], index, array)) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+/**
+ * The base implementation of `_.isNaN` without support for number objects.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is `NaN`, else `false`.
+ */
+function baseIsNaN(value) {
+  return value !== value;
+}
+
+/**
+ * A specialized version of `_.indexOf` which performs strict equality
+ * comparisons of values, i.e. `===`.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {*} value The value to search for.
+ * @param {number} fromIndex The index to search from.
+ * @returns {number} Returns the index of the matched value, else `-1`.
+ */
+function strictIndexOf(array, value, fromIndex) {
+  var index = fromIndex - 1,
+      length = array.length;
+
+  while (++index < length) {
+    if (array[index] === value) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+/**
+ * The base implementation of `_.indexOf` without `fromIndex` bounds checks.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {*} value The value to search for.
+ * @param {number} fromIndex The index to search from.
+ * @returns {number} Returns the index of the matched value, else `-1`.
+ */
+function baseIndexOf(array, value, fromIndex) {
+  return value === value
+    ? strictIndexOf(array, value, fromIndex)
+    : baseFindIndex(array, baseIsNaN, fromIndex);
+}
+
+/**
+ * A specialized version of `_.includes` for arrays without support for
+ * specifying an index to search from.
+ *
+ * @private
+ * @param {Array} [array] The array to inspect.
+ * @param {*} target The value to search for.
+ * @returns {boolean} Returns `true` if `target` is found, else `false`.
+ */
+function arrayIncludes(array, value) {
+  var length = array == null ? 0 : array.length;
+  return !!length && baseIndexOf(array, value, 0) > -1;
+}
+
+/** Used as references for various `Number` constants. */
+var MAX_SAFE_INTEGER$1 = 9007199254740991;
+
+/** Used to detect unsigned integer values. */
+var reIsUint = /^(?:0|[1-9]\d*)$/;
+
+/**
+ * Checks if `value` is a valid array-like index.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @param {number} [length=MAX_SAFE_INTEGER] The upper bounds of a valid index.
+ * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
+ */
+function isIndex(value, length) {
+  var type = typeof value;
+  length = length == null ? MAX_SAFE_INTEGER$1 : length;
+
+  return !!length &&
+    (type == 'number' ||
+      (type != 'symbol' && reIsUint.test(value))) &&
+        (value > -1 && value % 1 == 0 && value < length);
+}
+
+/**
+ * The base implementation of `assignValue` and `assignMergeValue` without
+ * value checks.
+ *
+ * @private
+ * @param {Object} object The object to modify.
+ * @param {string} key The key of the property to assign.
+ * @param {*} value The value to assign.
+ */
+function baseAssignValue(object, key, value) {
+  if (key == '__proto__' && defineProperty) {
+    defineProperty(object, key, {
+      'configurable': true,
+      'enumerable': true,
+      'value': value,
+      'writable': true
+    });
+  } else {
+    object[key] = value;
+  }
+}
+
+/**
+ * Performs a
+ * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+ * comparison between two values to determine if they are equivalent.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to compare.
+ * @param {*} other The other value to compare.
+ * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
+ * @example
+ *
+ * var object = { 'a': 1 };
+ * var other = { 'a': 1 };
+ *
+ * _.eq(object, object);
+ * // => true
+ *
+ * _.eq(object, other);
+ * // => false
+ *
+ * _.eq('a', 'a');
+ * // => true
+ *
+ * _.eq('a', Object('a'));
+ * // => false
+ *
+ * _.eq(NaN, NaN);
+ * // => true
+ */
+function eq(value, other) {
+  return value === other || (value !== value && other !== other);
+}
+
+/** Used for built-in method references. */
+var objectProto$g = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$e = objectProto$g.hasOwnProperty;
+
+/**
+ * Assigns `value` to `key` of `object` if the existing value is not equivalent
+ * using [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+ * for equality comparisons.
+ *
+ * @private
+ * @param {Object} object The object to modify.
+ * @param {string} key The key of the property to assign.
+ * @param {*} value The value to assign.
+ */
+function assignValue(object, key, value) {
+  var objValue = object[key];
+  if (!(hasOwnProperty$e.call(object, key) && eq(objValue, value)) ||
+      (value === undefined && !(key in object))) {
+    baseAssignValue(object, key, value);
+  }
+}
+
+/**
+ * Copies properties of `source` to `object`.
+ *
+ * @private
+ * @param {Object} source The object to copy properties from.
+ * @param {Array} props The property identifiers to copy.
+ * @param {Object} [object={}] The object to copy properties to.
+ * @param {Function} [customizer] The function to customize copied values.
+ * @returns {Object} Returns `object`.
+ */
+function copyObject(source, props, object, customizer) {
+  var isNew = !object;
+  object || (object = {});
+
+  var index = -1,
+      length = props.length;
+
+  while (++index < length) {
+    var key = props[index];
+
+    var newValue = undefined;
+
+    if (newValue === undefined) {
+      newValue = source[key];
+    }
+    if (isNew) {
+      baseAssignValue(object, key, newValue);
+    } else {
+      assignValue(object, key, newValue);
+    }
+  }
+  return object;
+}
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeMax$2 = Math.max;
+
+/**
+ * A specialized version of `baseRest` which transforms the rest array.
+ *
+ * @private
+ * @param {Function} func The function to apply a rest parameter to.
+ * @param {number} [start=func.length-1] The start position of the rest parameter.
+ * @param {Function} transform The rest array transform.
+ * @returns {Function} Returns the new function.
+ */
+function overRest(func, start, transform) {
+  start = nativeMax$2(start === undefined ? (func.length - 1) : start, 0);
+  return function() {
+    var args = arguments,
+        index = -1,
+        length = nativeMax$2(args.length - start, 0),
+        array = Array(length);
+
+    while (++index < length) {
+      array[index] = args[start + index];
+    }
+    index = -1;
+    var otherArgs = Array(start + 1);
+    while (++index < start) {
+      otherArgs[index] = args[index];
+    }
+    otherArgs[start] = transform(array);
+    return apply(func, this, otherArgs);
+  };
+}
+
+/**
+ * The base implementation of `_.rest` which doesn't validate or coerce arguments.
+ *
+ * @private
+ * @param {Function} func The function to apply a rest parameter to.
+ * @param {number} [start=func.length-1] The start position of the rest parameter.
+ * @returns {Function} Returns the new function.
+ */
+function baseRest(func, start) {
+  return setToString(overRest(func, start, identity), func + '');
+}
+
+/** Used as references for various `Number` constants. */
+var MAX_SAFE_INTEGER = 9007199254740991;
+
+/**
+ * Checks if `value` is a valid array-like length.
+ *
+ * **Note:** This method is loosely based on
+ * [`ToLength`](http://ecma-international.org/ecma-262/7.0/#sec-tolength).
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a valid length, else `false`.
+ * @example
+ *
+ * _.isLength(3);
+ * // => true
+ *
+ * _.isLength(Number.MIN_VALUE);
+ * // => false
+ *
+ * _.isLength(Infinity);
+ * // => false
+ *
+ * _.isLength('3');
+ * // => false
+ */
+function isLength(value) {
+  return typeof value == 'number' &&
+    value > -1 && value % 1 == 0 && value <= MAX_SAFE_INTEGER;
+}
+
+/**
+ * Checks if `value` is array-like. A value is considered array-like if it's
+ * not a function and has a `value.length` that's an integer greater than or
+ * equal to `0` and less than or equal to `Number.MAX_SAFE_INTEGER`.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is array-like, else `false`.
+ * @example
+ *
+ * _.isArrayLike([1, 2, 3]);
+ * // => true
+ *
+ * _.isArrayLike(document.body.children);
+ * // => true
+ *
+ * _.isArrayLike('abc');
+ * // => true
+ *
+ * _.isArrayLike(_.noop);
+ * // => false
+ */
+function isArrayLike(value) {
+  return value != null && isLength(value.length) && !isFunction(value);
+}
+
+/**
+ * Checks if the given arguments are from an iteratee call.
+ *
+ * @private
+ * @param {*} value The potential iteratee value argument.
+ * @param {*} index The potential iteratee index or key argument.
+ * @param {*} object The potential iteratee object argument.
+ * @returns {boolean} Returns `true` if the arguments are from an iteratee call,
+ *  else `false`.
+ */
+function isIterateeCall(value, index, object) {
+  if (!isObject(object)) {
+    return false;
+  }
+  var type = typeof index;
+  if (type == 'number'
+        ? (isArrayLike(object) && isIndex(index, object.length))
+        : (type == 'string' && index in object)
+      ) {
+    return eq(object[index], value);
+  }
+  return false;
+}
+
+/**
+ * Creates a function like `_.assign`.
+ *
+ * @private
+ * @param {Function} assigner The function to assign values.
+ * @returns {Function} Returns the new assigner function.
+ */
+function createAssigner(assigner) {
+  return baseRest(function(object, sources) {
+    var index = -1,
+        length = sources.length,
+        customizer = length > 1 ? sources[length - 1] : undefined,
+        guard = length > 2 ? sources[2] : undefined;
+
+    customizer = (assigner.length > 3 && typeof customizer == 'function')
+      ? (length--, customizer)
+      : undefined;
+
+    if (guard && isIterateeCall(sources[0], sources[1], guard)) {
+      customizer = length < 3 ? undefined : customizer;
+      length = 1;
+    }
+    object = Object(object);
+    while (++index < length) {
+      var source = sources[index];
+      if (source) {
+        assigner(object, source, index, customizer);
+      }
+    }
+    return object;
+  });
+}
+
+/** Used for built-in method references. */
+var objectProto$f = Object.prototype;
+
+/**
+ * Checks if `value` is likely a prototype object.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a prototype, else `false`.
+ */
+function isPrototype(value) {
+  var Ctor = value && value.constructor,
+      proto = (typeof Ctor == 'function' && Ctor.prototype) || objectProto$f;
+
+  return value === proto;
+}
+
+/**
+ * The base implementation of `_.times` without support for iteratee shorthands
+ * or max array length checks.
+ *
+ * @private
+ * @param {number} n The number of times to invoke `iteratee`.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Array} Returns the array of results.
+ */
+function baseTimes(n, iteratee) {
+  var index = -1,
+      result = Array(n);
+
+  while (++index < n) {
+    result[index] = iteratee(index);
+  }
+  return result;
+}
+
+/** `Object#toString` result references. */
+var argsTag$3 = '[object Arguments]';
+
+/**
+ * The base implementation of `_.isArguments`.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an `arguments` object,
+ */
+function baseIsArguments(value) {
+  return isObjectLike(value) && baseGetTag(value) == argsTag$3;
+}
+
+/** Used for built-in method references. */
+var objectProto$e = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$d = objectProto$e.hasOwnProperty;
+
+/** Built-in value references. */
+var propertyIsEnumerable$1 = objectProto$e.propertyIsEnumerable;
+
+/**
+ * Checks if `value` is likely an `arguments` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an `arguments` object,
+ *  else `false`.
+ * @example
+ *
+ * _.isArguments(function() { return arguments; }());
+ * // => true
+ *
+ * _.isArguments([1, 2, 3]);
+ * // => false
+ */
+var isArguments = baseIsArguments(function() { return arguments; }()) ? baseIsArguments : function(value) {
+  return isObjectLike(value) && hasOwnProperty$d.call(value, 'callee') &&
+    !propertyIsEnumerable$1.call(value, 'callee');
+};
+
+/**
+ * This method returns `false`.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.13.0
+ * @category Util
+ * @returns {boolean} Returns `false`.
+ * @example
+ *
+ * _.times(2, _.stubFalse);
+ * // => [false, false]
+ */
+function stubFalse() {
+  return false;
+}
+
+/** Detect free variable `exports`. */
+var freeExports$2 = typeof exports == 'object' && exports && !exports.nodeType && exports;
+
+/** Detect free variable `module`. */
+var freeModule$2 = freeExports$2 && typeof module == 'object' && module && !module.nodeType && module;
+
+/** Detect the popular CommonJS extension `module.exports`. */
+var moduleExports$2 = freeModule$2 && freeModule$2.exports === freeExports$2;
+
+/** Built-in value references. */
+var Buffer$2 = moduleExports$2 ? root.Buffer : undefined;
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeIsBuffer = Buffer$2 ? Buffer$2.isBuffer : undefined;
+
+/**
+ * Checks if `value` is a buffer.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.3.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a buffer, else `false`.
+ * @example
+ *
+ * _.isBuffer(new Buffer(2));
+ * // => true
+ *
+ * _.isBuffer(new Uint8Array(2));
+ * // => false
+ */
+var isBuffer = nativeIsBuffer || stubFalse;
+
+/** `Object#toString` result references. */
+var argsTag$2 = '[object Arguments]',
+    arrayTag$2 = '[object Array]',
+    boolTag$3 = '[object Boolean]',
+    dateTag$3 = '[object Date]',
+    errorTag$2 = '[object Error]',
+    funcTag$1 = '[object Function]',
+    mapTag$6 = '[object Map]',
+    numberTag$3 = '[object Number]',
+    objectTag$3 = '[object Object]',
+    regexpTag$4 = '[object RegExp]',
+    setTag$6 = '[object Set]',
+    stringTag$4 = '[object String]',
+    weakMapTag$2 = '[object WeakMap]';
+
+var arrayBufferTag$3 = '[object ArrayBuffer]',
+    dataViewTag$4 = '[object DataView]',
+    float32Tag$2 = '[object Float32Array]',
+    float64Tag$2 = '[object Float64Array]',
+    int8Tag$2 = '[object Int8Array]',
+    int16Tag$2 = '[object Int16Array]',
+    int32Tag$2 = '[object Int32Array]',
+    uint8Tag$2 = '[object Uint8Array]',
+    uint8ClampedTag$2 = '[object Uint8ClampedArray]',
+    uint16Tag$2 = '[object Uint16Array]',
+    uint32Tag$2 = '[object Uint32Array]';
+
+/** Used to identify `toStringTag` values of typed arrays. */
+var typedArrayTags = {};
+typedArrayTags[float32Tag$2] = typedArrayTags[float64Tag$2] =
+typedArrayTags[int8Tag$2] = typedArrayTags[int16Tag$2] =
+typedArrayTags[int32Tag$2] = typedArrayTags[uint8Tag$2] =
+typedArrayTags[uint8ClampedTag$2] = typedArrayTags[uint16Tag$2] =
+typedArrayTags[uint32Tag$2] = true;
+typedArrayTags[argsTag$2] = typedArrayTags[arrayTag$2] =
+typedArrayTags[arrayBufferTag$3] = typedArrayTags[boolTag$3] =
+typedArrayTags[dataViewTag$4] = typedArrayTags[dateTag$3] =
+typedArrayTags[errorTag$2] = typedArrayTags[funcTag$1] =
+typedArrayTags[mapTag$6] = typedArrayTags[numberTag$3] =
+typedArrayTags[objectTag$3] = typedArrayTags[regexpTag$4] =
+typedArrayTags[setTag$6] = typedArrayTags[stringTag$4] =
+typedArrayTags[weakMapTag$2] = false;
+
+/**
+ * The base implementation of `_.isTypedArray` without Node.js optimizations.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a typed array, else `false`.
+ */
+function baseIsTypedArray(value) {
+  return isObjectLike(value) &&
+    isLength(value.length) && !!typedArrayTags[baseGetTag(value)];
+}
+
+/**
+ * The base implementation of `_.unary` without support for storing metadata.
+ *
+ * @private
+ * @param {Function} func The function to cap arguments for.
+ * @returns {Function} Returns the new capped function.
+ */
+function baseUnary(func) {
+  return function(value) {
+    return func(value);
+  };
+}
+
+/** Detect free variable `exports`. */
+var freeExports$1 = typeof exports == 'object' && exports && !exports.nodeType && exports;
+
+/** Detect free variable `module`. */
+var freeModule$1 = freeExports$1 && typeof module == 'object' && module && !module.nodeType && module;
+
+/** Detect the popular CommonJS extension `module.exports`. */
+var moduleExports$1 = freeModule$1 && freeModule$1.exports === freeExports$1;
+
+/** Detect free variable `process` from Node.js. */
+var freeProcess = moduleExports$1 && freeGlobal.process;
+
+/** Used to access faster Node.js helpers. */
+var nodeUtil = (function() {
+  try {
+    // Use `util.types` for Node.js 10+.
+    var types = freeModule$1 && freeModule$1.require && freeModule$1.require('util').types;
+
+    if (types) {
+      return types;
+    }
+
+    // Legacy `process.binding('util')` for Node.js < 10.
+    return freeProcess && freeProcess.binding && freeProcess.binding('util');
+  } catch (e) {}
+}());
+
+/* Node.js helper references. */
+var nodeIsTypedArray = nodeUtil && nodeUtil.isTypedArray;
+
+/**
+ * Checks if `value` is classified as a typed array.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a typed array, else `false`.
+ * @example
+ *
+ * _.isTypedArray(new Uint8Array);
+ * // => true
+ *
+ * _.isTypedArray([]);
+ * // => false
+ */
+var isTypedArray = nodeIsTypedArray ? baseUnary(nodeIsTypedArray) : baseIsTypedArray;
+
+/** Used for built-in method references. */
+var objectProto$d = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$c = objectProto$d.hasOwnProperty;
+
+/**
+ * Creates an array of the enumerable property names of the array-like `value`.
+ *
+ * @private
+ * @param {*} value The value to query.
+ * @param {boolean} inherited Specify returning inherited property names.
+ * @returns {Array} Returns the array of property names.
+ */
+function arrayLikeKeys(value, inherited) {
+  var isArr = isArray(value),
+      isArg = !isArr && isArguments(value),
+      isBuff = !isArr && !isArg && isBuffer(value),
+      isType = !isArr && !isArg && !isBuff && isTypedArray(value),
+      skipIndexes = isArr || isArg || isBuff || isType,
+      result = skipIndexes ? baseTimes(value.length, String) : [],
+      length = result.length;
+
+  for (var key in value) {
+    if ((inherited || hasOwnProperty$c.call(value, key)) &&
+        !(skipIndexes && (
+           // Safari 9 has enumerable `arguments.length` in strict mode.
+           key == 'length' ||
+           // Node.js 0.10 has enumerable non-index properties on buffers.
+           (isBuff && (key == 'offset' || key == 'parent')) ||
+           // PhantomJS 2 has enumerable non-index properties on typed arrays.
+           (isType && (key == 'buffer' || key == 'byteLength' || key == 'byteOffset')) ||
+           // Skip index properties.
+           isIndex(key, length)
+        ))) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+/**
+ * Creates a unary function that invokes `func` with its argument transformed.
+ *
+ * @private
+ * @param {Function} func The function to wrap.
+ * @param {Function} transform The argument transform.
+ * @returns {Function} Returns the new function.
+ */
+function overArg(func, transform) {
+  return function(arg) {
+    return func(transform(arg));
+  };
+}
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeKeys = overArg(Object.keys, Object);
+
+/** Used for built-in method references. */
+var objectProto$c = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$b = objectProto$c.hasOwnProperty;
+
+/**
+ * The base implementation of `_.keys` which doesn't treat sparse arrays as dense.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ */
+function baseKeys(object) {
+  if (!isPrototype(object)) {
+    return nativeKeys(object);
+  }
+  var result = [];
+  for (var key in Object(object)) {
+    if (hasOwnProperty$b.call(object, key) && key != 'constructor') {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+/**
+ * Creates an array of the own enumerable property names of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects. See the
+ * [ES spec](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
+ * for more details.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.keys(new Foo);
+ * // => ['a', 'b'] (iteration order is not guaranteed)
+ *
+ * _.keys('hi');
+ * // => ['0', '1']
+ */
+function keys(object) {
+  return isArrayLike(object) ? arrayLikeKeys(object) : baseKeys(object);
+}
+
+/** Used for built-in method references. */
+var objectProto$b = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$a = objectProto$b.hasOwnProperty;
+
+/**
+ * Assigns own enumerable string keyed properties of source objects to the
+ * destination object. Source objects are applied from left to right.
+ * Subsequent sources overwrite property assignments of previous sources.
+ *
+ * **Note:** This method mutates `object` and is loosely based on
+ * [`Object.assign`](https://mdn.io/Object/assign).
+ *
+ * @static
+ * @memberOf _
+ * @since 0.10.0
+ * @category Object
+ * @param {Object} object The destination object.
+ * @param {...Object} [sources] The source objects.
+ * @returns {Object} Returns `object`.
+ * @see _.assignIn
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ * }
+ *
+ * function Bar() {
+ *   this.c = 3;
+ * }
+ *
+ * Foo.prototype.b = 2;
+ * Bar.prototype.d = 4;
+ *
+ * _.assign({ 'a': 0 }, new Foo, new Bar);
+ * // => { 'a': 1, 'c': 3 }
+ */
+var assign = createAssigner(function(object, source) {
+  if (isPrototype(source) || isArrayLike(source)) {
+    copyObject(source, keys(source), object);
+    return;
+  }
+  for (var key in source) {
+    if (hasOwnProperty$a.call(source, key)) {
+      assignValue(object, key, source[key]);
+    }
+  }
+});
+
+/**
+ * This function is like
+ * [`Object.keys`](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
+ * except that it includes inherited enumerable properties.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ */
+function nativeKeysIn(object) {
+  var result = [];
+  if (object != null) {
+    for (var key in Object(object)) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+/** Used for built-in method references. */
+var objectProto$a = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$9 = objectProto$a.hasOwnProperty;
+
+/**
+ * The base implementation of `_.keysIn` which doesn't treat sparse arrays as dense.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ */
+function baseKeysIn(object) {
+  if (!isObject(object)) {
+    return nativeKeysIn(object);
+  }
+  var isProto = isPrototype(object),
+      result = [];
+
+  for (var key in object) {
+    if (!(key == 'constructor' && (isProto || !hasOwnProperty$9.call(object, key)))) {
+      result.push(key);
+    }
+  }
+  return result;
+}
+
+/**
+ * Creates an array of the own and inherited enumerable property names of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.0.0
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.keysIn(new Foo);
+ * // => ['a', 'b', 'c'] (iteration order is not guaranteed)
+ */
+function keysIn(object) {
+  return isArrayLike(object) ? arrayLikeKeys(object, true) : baseKeysIn(object);
+}
+
+/** Used to match property names within property paths. */
+var reIsDeepProp = /\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,
+    reIsPlainProp = /^\w*$/;
+
+/**
+ * Checks if `value` is a property name and not a property path.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @param {Object} [object] The object to query keys on.
+ * @returns {boolean} Returns `true` if `value` is a property name, else `false`.
+ */
+function isKey(value, object) {
+  if (isArray(value)) {
+    return false;
+  }
+  var type = typeof value;
+  if (type == 'number' || type == 'symbol' || type == 'boolean' ||
+      value == null || isSymbol(value)) {
+    return true;
+  }
+  return reIsPlainProp.test(value) || !reIsDeepProp.test(value) ||
+    (object != null && value in Object(object));
+}
+
+/* Built-in method references that are verified to be native. */
+var nativeCreate = getNative(Object, 'create');
+
+/**
+ * Removes all key-value entries from the hash.
+ *
+ * @private
+ * @name clear
+ * @memberOf Hash
+ */
+function hashClear() {
+  this.__data__ = nativeCreate ? nativeCreate(null) : {};
+  this.size = 0;
+}
+
+/**
+ * Removes `key` and its value from the hash.
+ *
+ * @private
+ * @name delete
+ * @memberOf Hash
+ * @param {Object} hash The hash to modify.
+ * @param {string} key The key of the value to remove.
+ * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+ */
+function hashDelete(key) {
+  var result = this.has(key) && delete this.__data__[key];
+  this.size -= result ? 1 : 0;
+  return result;
+}
+
+/** Used to stand-in for `undefined` hash values. */
+var HASH_UNDEFINED$2 = '__lodash_hash_undefined__';
+
+/** Used for built-in method references. */
+var objectProto$9 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$8 = objectProto$9.hasOwnProperty;
+
+/**
+ * Gets the hash value for `key`.
+ *
+ * @private
+ * @name get
+ * @memberOf Hash
+ * @param {string} key The key of the value to get.
+ * @returns {*} Returns the entry value.
+ */
+function hashGet(key) {
+  var data = this.__data__;
+  if (nativeCreate) {
+    var result = data[key];
+    return result === HASH_UNDEFINED$2 ? undefined : result;
+  }
+  return hasOwnProperty$8.call(data, key) ? data[key] : undefined;
+}
+
+/** Used for built-in method references. */
+var objectProto$8 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$7 = objectProto$8.hasOwnProperty;
+
+/**
+ * Checks if a hash value for `key` exists.
+ *
+ * @private
+ * @name has
+ * @memberOf Hash
+ * @param {string} key The key of the entry to check.
+ * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+ */
+function hashHas(key) {
+  var data = this.__data__;
+  return nativeCreate ? (data[key] !== undefined) : hasOwnProperty$7.call(data, key);
+}
+
+/** Used to stand-in for `undefined` hash values. */
+var HASH_UNDEFINED$1 = '__lodash_hash_undefined__';
+
+/**
+ * Sets the hash `key` to `value`.
+ *
+ * @private
+ * @name set
+ * @memberOf Hash
+ * @param {string} key The key of the value to set.
+ * @param {*} value The value to set.
+ * @returns {Object} Returns the hash instance.
+ */
+function hashSet(key, value) {
+  var data = this.__data__;
+  this.size += this.has(key) ? 0 : 1;
+  data[key] = (nativeCreate && value === undefined) ? HASH_UNDEFINED$1 : value;
+  return this;
+}
+
+/**
+ * Creates a hash object.
+ *
+ * @private
+ * @constructor
+ * @param {Array} [entries] The key-value pairs to cache.
+ */
+function Hash(entries) {
+  var index = -1,
+      length = entries == null ? 0 : entries.length;
+
+  this.clear();
+  while (++index < length) {
+    var entry = entries[index];
+    this.set(entry[0], entry[1]);
+  }
+}
+
+// Add methods to `Hash`.
+Hash.prototype.clear = hashClear;
+Hash.prototype['delete'] = hashDelete;
+Hash.prototype.get = hashGet;
+Hash.prototype.has = hashHas;
+Hash.prototype.set = hashSet;
+
+/**
+ * Removes all key-value entries from the list cache.
+ *
+ * @private
+ * @name clear
+ * @memberOf ListCache
+ */
+function listCacheClear() {
+  this.__data__ = [];
+  this.size = 0;
+}
+
+/**
+ * Gets the index at which the `key` is found in `array` of key-value pairs.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {*} key The key to search for.
+ * @returns {number} Returns the index of the matched value, else `-1`.
+ */
+function assocIndexOf(array, key) {
+  var length = array.length;
+  while (length--) {
+    if (eq(array[length][0], key)) {
+      return length;
+    }
+  }
+  return -1;
+}
+
+/** Used for built-in method references. */
+var arrayProto = Array.prototype;
+
+/** Built-in value references. */
+var splice = arrayProto.splice;
+
+/**
+ * Removes `key` and its value from the list cache.
+ *
+ * @private
+ * @name delete
+ * @memberOf ListCache
+ * @param {string} key The key of the value to remove.
+ * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+ */
+function listCacheDelete(key) {
+  var data = this.__data__,
+      index = assocIndexOf(data, key);
+
+  if (index < 0) {
+    return false;
+  }
+  var lastIndex = data.length - 1;
+  if (index == lastIndex) {
+    data.pop();
+  } else {
+    splice.call(data, index, 1);
+  }
+  --this.size;
+  return true;
+}
+
+/**
+ * Gets the list cache value for `key`.
+ *
+ * @private
+ * @name get
+ * @memberOf ListCache
+ * @param {string} key The key of the value to get.
+ * @returns {*} Returns the entry value.
+ */
+function listCacheGet(key) {
+  var data = this.__data__,
+      index = assocIndexOf(data, key);
+
+  return index < 0 ? undefined : data[index][1];
+}
+
+/**
+ * Checks if a list cache value for `key` exists.
+ *
+ * @private
+ * @name has
+ * @memberOf ListCache
+ * @param {string} key The key of the entry to check.
+ * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+ */
+function listCacheHas(key) {
+  return assocIndexOf(this.__data__, key) > -1;
+}
+
+/**
+ * Sets the list cache `key` to `value`.
+ *
+ * @private
+ * @name set
+ * @memberOf ListCache
+ * @param {string} key The key of the value to set.
+ * @param {*} value The value to set.
+ * @returns {Object} Returns the list cache instance.
+ */
+function listCacheSet(key, value) {
+  var data = this.__data__,
+      index = assocIndexOf(data, key);
+
+  if (index < 0) {
+    ++this.size;
+    data.push([key, value]);
+  } else {
+    data[index][1] = value;
+  }
+  return this;
+}
+
+/**
+ * Creates an list cache object.
+ *
+ * @private
+ * @constructor
+ * @param {Array} [entries] The key-value pairs to cache.
+ */
+function ListCache(entries) {
+  var index = -1,
+      length = entries == null ? 0 : entries.length;
+
+  this.clear();
+  while (++index < length) {
+    var entry = entries[index];
+    this.set(entry[0], entry[1]);
+  }
+}
+
+// Add methods to `ListCache`.
+ListCache.prototype.clear = listCacheClear;
+ListCache.prototype['delete'] = listCacheDelete;
+ListCache.prototype.get = listCacheGet;
+ListCache.prototype.has = listCacheHas;
+ListCache.prototype.set = listCacheSet;
+
+/* Built-in method references that are verified to be native. */
+var Map$1 = getNative(root, 'Map');
+
+/**
+ * Removes all key-value entries from the map.
+ *
+ * @private
+ * @name clear
+ * @memberOf MapCache
+ */
+function mapCacheClear() {
+  this.size = 0;
+  this.__data__ = {
+    'hash': new Hash,
+    'map': new (Map$1 || ListCache),
+    'string': new Hash
+  };
+}
+
+/**
+ * Checks if `value` is suitable for use as unique object key.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is suitable, else `false`.
+ */
+function isKeyable(value) {
+  var type = typeof value;
+  return (type == 'string' || type == 'number' || type == 'symbol' || type == 'boolean')
+    ? (value !== '__proto__')
+    : (value === null);
+}
+
+/**
+ * Gets the data for `map`.
+ *
+ * @private
+ * @param {Object} map The map to query.
+ * @param {string} key The reference key.
+ * @returns {*} Returns the map data.
+ */
+function getMapData(map, key) {
+  var data = map.__data__;
+  return isKeyable(key)
+    ? data[typeof key == 'string' ? 'string' : 'hash']
+    : data.map;
+}
+
+/**
+ * Removes `key` and its value from the map.
+ *
+ * @private
+ * @name delete
+ * @memberOf MapCache
+ * @param {string} key The key of the value to remove.
+ * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+ */
+function mapCacheDelete(key) {
+  var result = getMapData(this, key)['delete'](key);
+  this.size -= result ? 1 : 0;
+  return result;
+}
+
+/**
+ * Gets the map value for `key`.
+ *
+ * @private
+ * @name get
+ * @memberOf MapCache
+ * @param {string} key The key of the value to get.
+ * @returns {*} Returns the entry value.
+ */
+function mapCacheGet(key) {
+  return getMapData(this, key).get(key);
+}
+
+/**
+ * Checks if a map value for `key` exists.
+ *
+ * @private
+ * @name has
+ * @memberOf MapCache
+ * @param {string} key The key of the entry to check.
+ * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+ */
+function mapCacheHas(key) {
+  return getMapData(this, key).has(key);
+}
+
+/**
+ * Sets the map `key` to `value`.
+ *
+ * @private
+ * @name set
+ * @memberOf MapCache
+ * @param {string} key The key of the value to set.
+ * @param {*} value The value to set.
+ * @returns {Object} Returns the map cache instance.
+ */
+function mapCacheSet(key, value) {
+  var data = getMapData(this, key),
+      size = data.size;
+
+  data.set(key, value);
+  this.size += data.size == size ? 0 : 1;
+  return this;
+}
+
+/**
+ * Creates a map cache object to store key-value pairs.
+ *
+ * @private
+ * @constructor
+ * @param {Array} [entries] The key-value pairs to cache.
+ */
+function MapCache(entries) {
+  var index = -1,
+      length = entries == null ? 0 : entries.length;
+
+  this.clear();
+  while (++index < length) {
+    var entry = entries[index];
+    this.set(entry[0], entry[1]);
+  }
+}
+
+// Add methods to `MapCache`.
+MapCache.prototype.clear = mapCacheClear;
+MapCache.prototype['delete'] = mapCacheDelete;
+MapCache.prototype.get = mapCacheGet;
+MapCache.prototype.has = mapCacheHas;
+MapCache.prototype.set = mapCacheSet;
+
+/** Error message constants. */
+var FUNC_ERROR_TEXT$1 = 'Expected a function';
+
+/**
+ * Creates a function that memoizes the result of `func`. If `resolver` is
+ * provided, it determines the cache key for storing the result based on the
+ * arguments provided to the memoized function. By default, the first argument
+ * provided to the memoized function is used as the map cache key. The `func`
+ * is invoked with the `this` binding of the memoized function.
+ *
+ * **Note:** The cache is exposed as the `cache` property on the memoized
+ * function. Its creation may be customized by replacing the `_.memoize.Cache`
+ * constructor with one whose instances implement the
+ * [`Map`](http://ecma-international.org/ecma-262/7.0/#sec-properties-of-the-map-prototype-object)
+ * method interface of `clear`, `delete`, `get`, `has`, and `set`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Function
+ * @param {Function} func The function to have its output memoized.
+ * @param {Function} [resolver] The function to resolve the cache key.
+ * @returns {Function} Returns the new memoized function.
+ * @example
+ *
+ * var object = { 'a': 1, 'b': 2 };
+ * var other = { 'c': 3, 'd': 4 };
+ *
+ * var values = _.memoize(_.values);
+ * values(object);
+ * // => [1, 2]
+ *
+ * values(other);
+ * // => [3, 4]
+ *
+ * object.a = 2;
+ * values(object);
+ * // => [1, 2]
+ *
+ * // Modify the result cache.
+ * values.cache.set(object, ['a', 'b']);
+ * values(object);
+ * // => ['a', 'b']
+ *
+ * // Replace `_.memoize.Cache`.
+ * _.memoize.Cache = WeakMap;
+ */
+function memoize(func, resolver) {
+  if (typeof func != 'function' || (resolver != null && typeof resolver != 'function')) {
+    throw new TypeError(FUNC_ERROR_TEXT$1);
+  }
+  var memoized = function() {
+    var args = arguments,
+        key = resolver ? resolver.apply(this, args) : args[0],
+        cache = memoized.cache;
+
+    if (cache.has(key)) {
+      return cache.get(key);
+    }
+    var result = func.apply(this, args);
+    memoized.cache = cache.set(key, result) || cache;
+    return result;
+  };
+  memoized.cache = new (memoize.Cache || MapCache);
+  return memoized;
+}
+
+// Expose `MapCache`.
+memoize.Cache = MapCache;
+
+/** Used as the maximum memoize cache size. */
+var MAX_MEMOIZE_SIZE = 500;
+
+/**
+ * A specialized version of `_.memoize` which clears the memoized function's
+ * cache when it exceeds `MAX_MEMOIZE_SIZE`.
+ *
+ * @private
+ * @param {Function} func The function to have its output memoized.
+ * @returns {Function} Returns the new memoized function.
+ */
+function memoizeCapped(func) {
+  var result = memoize(func, function(key) {
+    if (cache.size === MAX_MEMOIZE_SIZE) {
+      cache.clear();
+    }
+    return key;
+  });
+
+  var cache = result.cache;
+  return result;
+}
+
+/** Used to match property names within property paths. */
+var rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|$))/g;
+
+/** Used to match backslashes in property paths. */
+var reEscapeChar = /\\(\\)?/g;
+
+/**
+ * Converts `string` to a property path array.
+ *
+ * @private
+ * @param {string} string The string to convert.
+ * @returns {Array} Returns the property path array.
+ */
+var stringToPath = memoizeCapped(function(string) {
+  var result = [];
+  if (string.charCodeAt(0) === 46 /* . */) {
+    result.push('');
+  }
+  string.replace(rePropName, function(match, number, quote, subString) {
+    result.push(quote ? subString.replace(reEscapeChar, '$1') : (number || match));
+  });
+  return result;
+});
+
+/**
+ * Converts `value` to a string. An empty string is returned for `null`
+ * and `undefined` values. The sign of `-0` is preserved.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to convert.
+ * @returns {string} Returns the converted string.
+ * @example
+ *
+ * _.toString(null);
+ * // => ''
+ *
+ * _.toString(-0);
+ * // => '-0'
+ *
+ * _.toString([1, 2, 3]);
+ * // => '1,2,3'
+ */
+function toString(value) {
+  return value == null ? '' : baseToString(value);
+}
+
+/**
+ * Casts `value` to a path array if it's not one.
+ *
+ * @private
+ * @param {*} value The value to inspect.
+ * @param {Object} [object] The object to query keys on.
+ * @returns {Array} Returns the cast property path array.
+ */
+function castPath(value, object) {
+  if (isArray(value)) {
+    return value;
+  }
+  return isKey(value, object) ? [value] : stringToPath(toString(value));
+}
+
+/**
+ * Converts `value` to a string key if it's not a string or symbol.
+ *
+ * @private
+ * @param {*} value The value to inspect.
+ * @returns {string|symbol} Returns the key.
+ */
+function toKey(value) {
+  if (typeof value == 'string' || isSymbol(value)) {
+    return value;
+  }
+  var result = (value + '');
+  return (result == '0' && (1 / value) == -Infinity) ? '-0' : result;
+}
+
+/**
+ * The base implementation of `_.get` without support for default values.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {Array|string} path The path of the property to get.
+ * @returns {*} Returns the resolved value.
+ */
+function baseGet(object, path) {
+  path = castPath(path, object);
+
+  var index = 0,
+      length = path.length;
+
+  while (object != null && index < length) {
+    object = object[toKey(path[index++])];
+  }
+  return (index && index == length) ? object : undefined;
+}
+
+/**
+ * Gets the value at `path` of `object`. If the resolved value is
+ * `undefined`, the `defaultValue` is returned in its place.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.7.0
+ * @category Object
+ * @param {Object} object The object to query.
+ * @param {Array|string} path The path of the property to get.
+ * @param {*} [defaultValue] The value returned for `undefined` resolved values.
+ * @returns {*} Returns the resolved value.
+ * @example
+ *
+ * var object = { 'a': [{ 'b': { 'c': 3 } }] };
+ *
+ * _.get(object, 'a[0].b.c');
+ * // => 3
+ *
+ * _.get(object, ['a', '0', 'b', 'c']);
+ * // => 3
+ *
+ * _.get(object, 'a.b.c', 'default');
+ * // => 'default'
+ */
+function get(object, path, defaultValue) {
+  var result = object == null ? undefined : baseGet(object, path);
+  return result === undefined ? defaultValue : result;
+}
+
+/**
+ * Appends the elements of `values` to `array`.
+ *
+ * @private
+ * @param {Array} array The array to modify.
+ * @param {Array} values The values to append.
+ * @returns {Array} Returns `array`.
+ */
+function arrayPush(array, values) {
+  var index = -1,
+      length = values.length,
+      offset = array.length;
+
+  while (++index < length) {
+    array[offset + index] = values[index];
+  }
+  return array;
+}
+
+/** Built-in value references. */
+var spreadableSymbol = Symbol$1 ? Symbol$1.isConcatSpreadable : undefined;
+
+/**
+ * Checks if `value` is a flattenable `arguments` object or array.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is flattenable, else `false`.
+ */
+function isFlattenable(value) {
+  return isArray(value) || isArguments(value) ||
+    !!(spreadableSymbol && value && value[spreadableSymbol]);
+}
+
+/**
+ * The base implementation of `_.flatten` with support for restricting flattening.
+ *
+ * @private
+ * @param {Array} array The array to flatten.
+ * @param {number} depth The maximum recursion depth.
+ * @param {boolean} [predicate=isFlattenable] The function invoked per iteration.
+ * @param {boolean} [isStrict] Restrict to values that pass `predicate` checks.
+ * @param {Array} [result=[]] The initial result value.
+ * @returns {Array} Returns the new flattened array.
+ */
+function baseFlatten(array, depth, predicate, isStrict, result) {
+  var index = -1,
+      length = array.length;
+
+  predicate || (predicate = isFlattenable);
+  result || (result = []);
+
+  while (++index < length) {
+    var value = array[index];
+    if (predicate(value)) {
+      {
+        arrayPush(result, value);
+      }
+    } else if (!isStrict) {
+      result[result.length] = value;
+    }
+  }
+  return result;
+}
+
+/**
+ * Flattens `array` a single level deep.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Array
+ * @param {Array} array The array to flatten.
+ * @returns {Array} Returns the new flattened array.
+ * @example
+ *
+ * _.flatten([1, [2, [3, [4]], 5]]);
+ * // => [1, 2, [3, [4]], 5]
+ */
+function flatten(array) {
+  var length = array == null ? 0 : array.length;
+  return length ? baseFlatten(array) : [];
+}
+
+/** Built-in value references. */
+var getPrototype = overArg(Object.getPrototypeOf, Object);
+
+/**
+ * The base implementation of `_.slice` without an iteratee call guard.
+ *
+ * @private
+ * @param {Array} array The array to slice.
+ * @param {number} [start=0] The start position.
+ * @param {number} [end=array.length] The end position.
+ * @returns {Array} Returns the slice of `array`.
+ */
+function baseSlice(array, start, end) {
+  var index = -1,
+      length = array.length;
+
+  if (start < 0) {
+    start = -start > length ? 0 : (length + start);
+  }
+  end = end > length ? length : end;
+  if (end < 0) {
+    end += length;
+  }
+  length = start > end ? 0 : ((end - start) >>> 0);
+  start >>>= 0;
+
+  var result = Array(length);
+  while (++index < length) {
+    result[index] = array[index + start];
+  }
+  return result;
+}
+
+/**
+ * A specialized version of `_.reduce` for arrays without support for
+ * iteratee shorthands.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @param {*} [accumulator] The initial value.
+ * @param {boolean} [initAccum] Specify using the first element of `array` as
+ *  the initial value.
+ * @returns {*} Returns the accumulated value.
+ */
+function arrayReduce(array, iteratee, accumulator, initAccum) {
+  var index = -1,
+      length = array == null ? 0 : array.length;
+
+  if (initAccum && length) {
+    accumulator = array[++index];
+  }
+  while (++index < length) {
+    accumulator = iteratee(accumulator, array[index], index, array);
+  }
+  return accumulator;
+}
+
+/**
+ * Removes all key-value entries from the stack.
+ *
+ * @private
+ * @name clear
+ * @memberOf Stack
+ */
+function stackClear() {
+  this.__data__ = new ListCache;
+  this.size = 0;
+}
+
+/**
+ * Removes `key` and its value from the stack.
+ *
+ * @private
+ * @name delete
+ * @memberOf Stack
+ * @param {string} key The key of the value to remove.
+ * @returns {boolean} Returns `true` if the entry was removed, else `false`.
+ */
+function stackDelete(key) {
+  var data = this.__data__,
+      result = data['delete'](key);
+
+  this.size = data.size;
+  return result;
+}
+
+/**
+ * Gets the stack value for `key`.
+ *
+ * @private
+ * @name get
+ * @memberOf Stack
+ * @param {string} key The key of the value to get.
+ * @returns {*} Returns the entry value.
+ */
+function stackGet(key) {
+  return this.__data__.get(key);
+}
+
+/**
+ * Checks if a stack value for `key` exists.
+ *
+ * @private
+ * @name has
+ * @memberOf Stack
+ * @param {string} key The key of the entry to check.
+ * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+ */
+function stackHas(key) {
+  return this.__data__.has(key);
+}
+
+/** Used as the size to enable large array optimizations. */
+var LARGE_ARRAY_SIZE$2 = 200;
+
+/**
+ * Sets the stack `key` to `value`.
+ *
+ * @private
+ * @name set
+ * @memberOf Stack
+ * @param {string} key The key of the value to set.
+ * @param {*} value The value to set.
+ * @returns {Object} Returns the stack cache instance.
+ */
+function stackSet(key, value) {
+  var data = this.__data__;
+  if (data instanceof ListCache) {
+    var pairs = data.__data__;
+    if (!Map$1 || (pairs.length < LARGE_ARRAY_SIZE$2 - 1)) {
+      pairs.push([key, value]);
+      this.size = ++data.size;
+      return this;
+    }
+    data = this.__data__ = new MapCache(pairs);
+  }
+  data.set(key, value);
+  this.size = data.size;
+  return this;
+}
+
+/**
+ * Creates a stack cache object to store key-value pairs.
+ *
+ * @private
+ * @constructor
+ * @param {Array} [entries] The key-value pairs to cache.
+ */
+function Stack(entries) {
+  var data = this.__data__ = new ListCache(entries);
+  this.size = data.size;
+}
+
+// Add methods to `Stack`.
+Stack.prototype.clear = stackClear;
+Stack.prototype['delete'] = stackDelete;
+Stack.prototype.get = stackGet;
+Stack.prototype.has = stackHas;
+Stack.prototype.set = stackSet;
+
+/**
+ * The base implementation of `_.assign` without support for multiple sources
+ * or `customizer` functions.
+ *
+ * @private
+ * @param {Object} object The destination object.
+ * @param {Object} source The source object.
+ * @returns {Object} Returns `object`.
+ */
+function baseAssign(object, source) {
+  return object && copyObject(source, keys(source), object);
+}
+
+/** Detect free variable `exports`. */
+var freeExports = typeof exports == 'object' && exports && !exports.nodeType && exports;
+
+/** Detect free variable `module`. */
+var freeModule = freeExports && typeof module == 'object' && module && !module.nodeType && module;
+
+/** Detect the popular CommonJS extension `module.exports`. */
+var moduleExports = freeModule && freeModule.exports === freeExports;
+
+/** Built-in value references. */
+var Buffer$1 = moduleExports ? root.Buffer : undefined,
+    allocUnsafe = Buffer$1 ? Buffer$1.allocUnsafe : undefined;
+
+/**
+ * Creates a clone of  `buffer`.
+ *
+ * @private
+ * @param {Buffer} buffer The buffer to clone.
+ * @param {boolean} [isDeep] Specify a deep clone.
+ * @returns {Buffer} Returns the cloned buffer.
+ */
+function cloneBuffer(buffer, isDeep) {
+  var length = buffer.length,
+      result = allocUnsafe ? allocUnsafe(length) : new buffer.constructor(length);
+
+  buffer.copy(result);
+  return result;
+}
+
+/**
+ * A specialized version of `_.filter` for arrays without support for
+ * iteratee shorthands.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} predicate The function invoked per iteration.
+ * @returns {Array} Returns the new filtered array.
+ */
+function arrayFilter(array, predicate) {
+  var index = -1,
+      length = array == null ? 0 : array.length,
+      resIndex = 0,
+      result = [];
+
+  while (++index < length) {
+    var value = array[index];
+    if (predicate(value, index, array)) {
+      result[resIndex++] = value;
+    }
+  }
+  return result;
+}
+
+/**
+ * This method returns a new empty array.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.13.0
+ * @category Util
+ * @returns {Array} Returns the new empty array.
+ * @example
+ *
+ * var arrays = _.times(2, _.stubArray);
+ *
+ * console.log(arrays);
+ * // => [[], []]
+ *
+ * console.log(arrays[0] === arrays[1]);
+ * // => false
+ */
+function stubArray() {
+  return [];
+}
+
+/** Used for built-in method references. */
+var objectProto$7 = Object.prototype;
+
+/** Built-in value references. */
+var propertyIsEnumerable = objectProto$7.propertyIsEnumerable;
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeGetSymbols$1 = Object.getOwnPropertySymbols;
+
+/**
+ * Creates an array of the own enumerable symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of symbols.
+ */
+var getSymbols = !nativeGetSymbols$1 ? stubArray : function(object) {
+  if (object == null) {
+    return [];
+  }
+  object = Object(object);
+  return arrayFilter(nativeGetSymbols$1(object), function(symbol) {
+    return propertyIsEnumerable.call(object, symbol);
+  });
+};
+
+/**
+ * Copies own symbols of `source` to `object`.
+ *
+ * @private
+ * @param {Object} source The object to copy symbols from.
+ * @param {Object} [object={}] The object to copy symbols to.
+ * @returns {Object} Returns `object`.
+ */
+function copySymbols(source, object) {
+  return copyObject(source, getSymbols(source), object);
+}
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeGetSymbols = Object.getOwnPropertySymbols;
+
+/**
+ * Creates an array of the own and inherited enumerable symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of symbols.
+ */
+var getSymbolsIn = !nativeGetSymbols ? stubArray : function(object) {
+  var result = [];
+  while (object) {
+    arrayPush(result, getSymbols(object));
+    object = getPrototype(object);
+  }
+  return result;
+};
+
+/**
+ * The base implementation of `getAllKeys` and `getAllKeysIn` which uses
+ * `keysFunc` and `symbolsFunc` to get the enumerable property names and
+ * symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {Function} keysFunc The function to get the keys of `object`.
+ * @param {Function} symbolsFunc The function to get the symbols of `object`.
+ * @returns {Array} Returns the array of property names and symbols.
+ */
+function baseGetAllKeys(object, keysFunc, symbolsFunc) {
+  var result = keysFunc(object);
+  return isArray(object) ? result : arrayPush(result, symbolsFunc(object));
+}
+
+/**
+ * Creates an array of own enumerable property names and symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names and symbols.
+ */
+function getAllKeys(object) {
+  return baseGetAllKeys(object, keys, getSymbols);
+}
+
+/**
+ * Creates an array of own and inherited enumerable property names and
+ * symbols of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property names and symbols.
+ */
+function getAllKeysIn(object) {
+  return baseGetAllKeys(object, keysIn, getSymbolsIn);
+}
+
+/* Built-in method references that are verified to be native. */
+var DataView = getNative(root, 'DataView');
+
+/* Built-in method references that are verified to be native. */
+var Promise$1 = getNative(root, 'Promise');
+
+/* Built-in method references that are verified to be native. */
+var Set$1 = getNative(root, 'Set');
+
+/** `Object#toString` result references. */
+var mapTag$5 = '[object Map]',
+    objectTag$2 = '[object Object]',
+    promiseTag = '[object Promise]',
+    setTag$5 = '[object Set]',
+    weakMapTag$1 = '[object WeakMap]';
+
+var dataViewTag$3 = '[object DataView]';
+
+/** Used to detect maps, sets, and weakmaps. */
+var dataViewCtorString = toSource(DataView),
+    mapCtorString = toSource(Map$1),
+    promiseCtorString = toSource(Promise$1),
+    setCtorString = toSource(Set$1),
+    weakMapCtorString = toSource(WeakMap);
+
+/**
+ * Gets the `toStringTag` of `value`.
+ *
+ * @private
+ * @param {*} value The value to query.
+ * @returns {string} Returns the `toStringTag`.
+ */
+var getTag = baseGetTag;
+
+// Fallback for data views, maps, sets, and weak maps in IE 11 and promises in Node.js < 6.
+if ((DataView && getTag(new DataView(new ArrayBuffer(1))) != dataViewTag$3) ||
+    (Map$1 && getTag(new Map$1) != mapTag$5) ||
+    (Promise$1 && getTag(Promise$1.resolve()) != promiseTag) ||
+    (Set$1 && getTag(new Set$1) != setTag$5) ||
+    (WeakMap && getTag(new WeakMap) != weakMapTag$1)) {
+  getTag = function(value) {
+    var result = baseGetTag(value),
+        Ctor = result == objectTag$2 ? value.constructor : undefined,
+        ctorString = Ctor ? toSource(Ctor) : '';
+
+    if (ctorString) {
+      switch (ctorString) {
+        case dataViewCtorString: return dataViewTag$3;
+        case mapCtorString: return mapTag$5;
+        case promiseCtorString: return promiseTag;
+        case setCtorString: return setTag$5;
+        case weakMapCtorString: return weakMapTag$1;
+      }
+    }
+    return result;
+  };
+}
+
+/** Used for built-in method references. */
+var objectProto$6 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$6 = objectProto$6.hasOwnProperty;
+
+/**
+ * Initializes an array clone.
+ *
+ * @private
+ * @param {Array} array The array to clone.
+ * @returns {Array} Returns the initialized clone.
+ */
+function initCloneArray(array) {
+  var length = array.length,
+      result = new array.constructor(length);
+
+  // Add properties assigned by `RegExp#exec`.
+  if (length && typeof array[0] == 'string' && hasOwnProperty$6.call(array, 'index')) {
+    result.index = array.index;
+    result.input = array.input;
+  }
+  return result;
+}
+
+/** Built-in value references. */
+var Uint8Array$1 = root.Uint8Array;
+
+/**
+ * Creates a clone of `arrayBuffer`.
+ *
+ * @private
+ * @param {ArrayBuffer} arrayBuffer The array buffer to clone.
+ * @returns {ArrayBuffer} Returns the cloned array buffer.
+ */
+function cloneArrayBuffer(arrayBuffer) {
+  var result = new arrayBuffer.constructor(arrayBuffer.byteLength);
+  new Uint8Array$1(result).set(new Uint8Array$1(arrayBuffer));
+  return result;
+}
+
+/**
+ * Creates a clone of `dataView`.
+ *
+ * @private
+ * @param {Object} dataView The data view to clone.
+ * @param {boolean} [isDeep] Specify a deep clone.
+ * @returns {Object} Returns the cloned data view.
+ */
+function cloneDataView(dataView, isDeep) {
+  var buffer = dataView.buffer;
+  return new dataView.constructor(buffer, dataView.byteOffset, dataView.byteLength);
+}
+
+/** Used to match `RegExp` flags from their coerced string values. */
+var reFlags = /\w*$/;
+
+/**
+ * Creates a clone of `regexp`.
+ *
+ * @private
+ * @param {Object} regexp The regexp to clone.
+ * @returns {Object} Returns the cloned regexp.
+ */
+function cloneRegExp(regexp) {
+  var result = new regexp.constructor(regexp.source, reFlags.exec(regexp));
+  result.lastIndex = regexp.lastIndex;
+  return result;
+}
+
+/** Used to convert symbols to primitives and strings. */
+var symbolProto$1 = Symbol$1 ? Symbol$1.prototype : undefined,
+    symbolValueOf$1 = symbolProto$1 ? symbolProto$1.valueOf : undefined;
+
+/**
+ * Creates a clone of the `symbol` object.
+ *
+ * @private
+ * @param {Object} symbol The symbol object to clone.
+ * @returns {Object} Returns the cloned symbol object.
+ */
+function cloneSymbol(symbol) {
+  return symbolValueOf$1 ? Object(symbolValueOf$1.call(symbol)) : {};
+}
+
+/**
+ * Creates a clone of `typedArray`.
+ *
+ * @private
+ * @param {Object} typedArray The typed array to clone.
+ * @param {boolean} [isDeep] Specify a deep clone.
+ * @returns {Object} Returns the cloned typed array.
+ */
+function cloneTypedArray(typedArray, isDeep) {
+  var buffer = typedArray.buffer;
+  return new typedArray.constructor(buffer, typedArray.byteOffset, typedArray.length);
+}
+
+/** `Object#toString` result references. */
+var boolTag$2 = '[object Boolean]',
+    dateTag$2 = '[object Date]',
+    mapTag$4 = '[object Map]',
+    numberTag$2 = '[object Number]',
+    regexpTag$3 = '[object RegExp]',
+    setTag$4 = '[object Set]',
+    stringTag$3 = '[object String]',
+    symbolTag$2 = '[object Symbol]';
+
+var arrayBufferTag$2 = '[object ArrayBuffer]',
+    dataViewTag$2 = '[object DataView]',
+    float32Tag$1 = '[object Float32Array]',
+    float64Tag$1 = '[object Float64Array]',
+    int8Tag$1 = '[object Int8Array]',
+    int16Tag$1 = '[object Int16Array]',
+    int32Tag$1 = '[object Int32Array]',
+    uint8Tag$1 = '[object Uint8Array]',
+    uint8ClampedTag$1 = '[object Uint8ClampedArray]',
+    uint16Tag$1 = '[object Uint16Array]',
+    uint32Tag$1 = '[object Uint32Array]';
+
+/**
+ * Initializes an object clone based on its `toStringTag`.
+ *
+ * **Note:** This function only supports cloning values with tags of
+ * `Boolean`, `Date`, `Error`, `Map`, `Number`, `RegExp`, `Set`, or `String`.
+ *
+ * @private
+ * @param {Object} object The object to clone.
+ * @param {string} tag The `toStringTag` of the object to clone.
+ * @param {boolean} [isDeep] Specify a deep clone.
+ * @returns {Object} Returns the initialized clone.
+ */
+function initCloneByTag(object, tag, isDeep) {
+  var Ctor = object.constructor;
+  switch (tag) {
+    case arrayBufferTag$2:
+      return cloneArrayBuffer(object);
+
+    case boolTag$2:
+    case dateTag$2:
+      return new Ctor(+object);
+
+    case dataViewTag$2:
+      return cloneDataView(object);
+
+    case float32Tag$1: case float64Tag$1:
+    case int8Tag$1: case int16Tag$1: case int32Tag$1:
+    case uint8Tag$1: case uint8ClampedTag$1: case uint16Tag$1: case uint32Tag$1:
+      return cloneTypedArray(object);
+
+    case mapTag$4:
+      return new Ctor;
+
+    case numberTag$2:
+    case stringTag$3:
+      return new Ctor(object);
+
+    case regexpTag$3:
+      return cloneRegExp(object);
+
+    case setTag$4:
+      return new Ctor;
+
+    case symbolTag$2:
+      return cloneSymbol(object);
+  }
+}
+
+/**
+ * Initializes an object clone.
+ *
+ * @private
+ * @param {Object} object The object to clone.
+ * @returns {Object} Returns the initialized clone.
+ */
+function initCloneObject(object) {
+  return (typeof object.constructor == 'function' && !isPrototype(object))
+    ? baseCreate(getPrototype(object))
+    : {};
+}
+
+/** `Object#toString` result references. */
+var mapTag$3 = '[object Map]';
+
+/**
+ * The base implementation of `_.isMap` without Node.js optimizations.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a map, else `false`.
+ */
+function baseIsMap(value) {
+  return isObjectLike(value) && getTag(value) == mapTag$3;
+}
+
+/* Node.js helper references. */
+var nodeIsMap = nodeUtil && nodeUtil.isMap;
+
+/**
+ * Checks if `value` is classified as a `Map` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.3.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a map, else `false`.
+ * @example
+ *
+ * _.isMap(new Map);
+ * // => true
+ *
+ * _.isMap(new WeakMap);
+ * // => false
+ */
+var isMap = nodeIsMap ? baseUnary(nodeIsMap) : baseIsMap;
+
+/** `Object#toString` result references. */
+var setTag$3 = '[object Set]';
+
+/**
+ * The base implementation of `_.isSet` without Node.js optimizations.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a set, else `false`.
+ */
+function baseIsSet(value) {
+  return isObjectLike(value) && getTag(value) == setTag$3;
+}
+
+/* Node.js helper references. */
+var nodeIsSet = nodeUtil && nodeUtil.isSet;
+
+/**
+ * Checks if `value` is classified as a `Set` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.3.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a set, else `false`.
+ * @example
+ *
+ * _.isSet(new Set);
+ * // => true
+ *
+ * _.isSet(new WeakSet);
+ * // => false
+ */
+var isSet = nodeIsSet ? baseUnary(nodeIsSet) : baseIsSet;
+
+/** `Object#toString` result references. */
+var argsTag$1 = '[object Arguments]',
+    arrayTag$1 = '[object Array]',
+    boolTag$1 = '[object Boolean]',
+    dateTag$1 = '[object Date]',
+    errorTag$1 = '[object Error]',
+    funcTag = '[object Function]',
+    genTag = '[object GeneratorFunction]',
+    mapTag$2 = '[object Map]',
+    numberTag$1 = '[object Number]',
+    objectTag$1 = '[object Object]',
+    regexpTag$2 = '[object RegExp]',
+    setTag$2 = '[object Set]',
+    stringTag$2 = '[object String]',
+    symbolTag$1 = '[object Symbol]',
+    weakMapTag = '[object WeakMap]';
+
+var arrayBufferTag$1 = '[object ArrayBuffer]',
+    dataViewTag$1 = '[object DataView]',
+    float32Tag = '[object Float32Array]',
+    float64Tag = '[object Float64Array]',
+    int8Tag = '[object Int8Array]',
+    int16Tag = '[object Int16Array]',
+    int32Tag = '[object Int32Array]',
+    uint8Tag = '[object Uint8Array]',
+    uint8ClampedTag = '[object Uint8ClampedArray]',
+    uint16Tag = '[object Uint16Array]',
+    uint32Tag = '[object Uint32Array]';
+
+/** Used to identify `toStringTag` values supported by `_.clone`. */
+var cloneableTags = {};
+cloneableTags[argsTag$1] = cloneableTags[arrayTag$1] =
+cloneableTags[arrayBufferTag$1] = cloneableTags[dataViewTag$1] =
+cloneableTags[boolTag$1] = cloneableTags[dateTag$1] =
+cloneableTags[float32Tag] = cloneableTags[float64Tag] =
+cloneableTags[int8Tag] = cloneableTags[int16Tag] =
+cloneableTags[int32Tag] = cloneableTags[mapTag$2] =
+cloneableTags[numberTag$1] = cloneableTags[objectTag$1] =
+cloneableTags[regexpTag$2] = cloneableTags[setTag$2] =
+cloneableTags[stringTag$2] = cloneableTags[symbolTag$1] =
+cloneableTags[uint8Tag] = cloneableTags[uint8ClampedTag] =
+cloneableTags[uint16Tag] = cloneableTags[uint32Tag] = true;
+cloneableTags[errorTag$1] = cloneableTags[funcTag] =
+cloneableTags[weakMapTag] = false;
+
+/**
+ * The base implementation of `_.clone` and `_.cloneDeep` which tracks
+ * traversed objects.
+ *
+ * @private
+ * @param {*} value The value to clone.
+ * @param {boolean} bitmask The bitmask flags.
+ *  1 - Deep clone
+ *  2 - Flatten inherited properties
+ *  4 - Clone symbols
+ * @param {Function} [customizer] The function to customize cloning.
+ * @param {string} [key] The key of `value`.
+ * @param {Object} [object] The parent object of `value`.
+ * @param {Object} [stack] Tracks traversed objects and their clone counterparts.
+ * @returns {*} Returns the cloned value.
+ */
+function baseClone(value, bitmask, customizer, key, object, stack) {
+  var result;
+  if (result !== undefined) {
+    return result;
+  }
+  if (!isObject(value)) {
+    return value;
+  }
+  var isArr = isArray(value);
+  if (isArr) {
+    result = initCloneArray(value);
+    {
+      return copyArray(value, result);
+    }
+  } else {
+    var tag = getTag(value),
+        isFunc = tag == funcTag || tag == genTag;
+
+    if (isBuffer(value)) {
+      return cloneBuffer(value);
+    }
+    if (tag == objectTag$1 || tag == argsTag$1 || (isFunc && !object)) {
+      result = (isFunc) ? {} : initCloneObject(value);
+      {
+        return copySymbols(value, baseAssign(result, value));
+      }
+    } else {
+      if (!cloneableTags[tag]) {
+        return object ? value : {};
+      }
+      result = initCloneByTag(value, tag);
+    }
+  }
+  // Check for circular references and return its corresponding clone.
+  stack || (stack = new Stack);
+  var stacked = stack.get(value);
+  if (stacked) {
+    return stacked;
+  }
+  stack.set(value, result);
+
+  if (isSet(value)) {
+    value.forEach(function(subValue) {
+      result.add(baseClone(subValue, bitmask, customizer, subValue, value, stack));
+    });
+  } else if (isMap(value)) {
+    value.forEach(function(subValue, key) {
+      result.set(key, baseClone(subValue, bitmask, customizer, key, value, stack));
+    });
+  }
+
+  var keysFunc = (getAllKeys)
+    ;
+
+  var props = isArr ? undefined : keysFunc(value);
+  arrayEach(props || value, function(subValue, key) {
+    if (props) {
+      key = subValue;
+      subValue = value[key];
+    }
+    // Recursively populate clone (susceptible to call stack limits).
+    assignValue(result, key, baseClone(subValue, bitmask, customizer, key, value, stack));
+  });
+  return result;
+}
+
+/** Used to compose bitmasks for cloning. */
+var CLONE_SYMBOLS_FLAG = 4;
+
+/**
+ * Creates a shallow clone of `value`.
+ *
+ * **Note:** This method is loosely based on the
+ * [structured clone algorithm](https://mdn.io/Structured_clone_algorithm)
+ * and supports cloning arrays, array buffers, booleans, date objects, maps,
+ * numbers, `Object` objects, regexes, sets, strings, symbols, and typed
+ * arrays. The own enumerable properties of `arguments` objects are cloned
+ * as plain objects. An empty object is returned for uncloneable values such
+ * as error objects, functions, DOM nodes, and WeakMaps.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to clone.
+ * @returns {*} Returns the cloned value.
+ * @see _.cloneDeep
+ * @example
+ *
+ * var objects = [{ 'a': 1 }, { 'b': 2 }];
+ *
+ * var shallow = _.clone(objects);
+ * console.log(shallow[0] === objects[0]);
+ * // => true
+ */
+function clone(value) {
+  return baseClone(value, CLONE_SYMBOLS_FLAG);
+}
+
+/**
+ * Creates an array with all falsey values removed. The values `false`, `null`,
+ * `0`, `""`, `undefined`, and `NaN` are falsey.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Array
+ * @param {Array} array The array to compact.
+ * @returns {Array} Returns the new array of filtered values.
+ * @example
+ *
+ * _.compact([0, 1, false, 2, '', 3]);
+ * // => [1, 2, 3]
+ */
+function compact(array) {
+  var index = -1,
+      length = array == null ? 0 : array.length,
+      resIndex = 0,
+      result = [];
+
+  while (++index < length) {
+    var value = array[index];
+    if (value) {
+      result[resIndex++] = value;
+    }
+  }
+  return result;
+}
+
+/** Used to stand-in for `undefined` hash values. */
+var HASH_UNDEFINED = '__lodash_hash_undefined__';
+
+/**
+ * Adds `value` to the array cache.
+ *
+ * @private
+ * @name add
+ * @memberOf SetCache
+ * @alias push
+ * @param {*} value The value to cache.
+ * @returns {Object} Returns the cache instance.
+ */
+function setCacheAdd(value) {
+  this.__data__.set(value, HASH_UNDEFINED);
+  return this;
+}
+
+/**
+ * Checks if `value` is in the array cache.
+ *
+ * @private
+ * @name has
+ * @memberOf SetCache
+ * @param {*} value The value to search for.
+ * @returns {number} Returns `true` if `value` is found, else `false`.
+ */
+function setCacheHas(value) {
+  return this.__data__.has(value);
+}
+
+/**
+ *
+ * Creates an array cache object to store unique values.
+ *
+ * @private
+ * @constructor
+ * @param {Array} [values] The values to cache.
+ */
+function SetCache(values) {
+  var index = -1,
+      length = values == null ? 0 : values.length;
+
+  this.__data__ = new MapCache;
+  while (++index < length) {
+    this.add(values[index]);
+  }
+}
+
+// Add methods to `SetCache`.
+SetCache.prototype.add = SetCache.prototype.push = setCacheAdd;
+SetCache.prototype.has = setCacheHas;
+
+/**
+ * A specialized version of `_.some` for arrays without support for iteratee
+ * shorthands.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} predicate The function invoked per iteration.
+ * @returns {boolean} Returns `true` if any element passes the predicate check,
+ *  else `false`.
+ */
+function arraySome(array, predicate) {
+  var index = -1,
+      length = array == null ? 0 : array.length;
+
+  while (++index < length) {
+    if (predicate(array[index], index, array)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Checks if a `cache` value for `key` exists.
+ *
+ * @private
+ * @param {Object} cache The cache to query.
+ * @param {string} key The key of the entry to check.
+ * @returns {boolean} Returns `true` if an entry for `key` exists, else `false`.
+ */
+function cacheHas(cache, key) {
+  return cache.has(key);
+}
+
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG$5 = 1,
+    COMPARE_UNORDERED_FLAG$3 = 2;
+
+/**
+ * A specialized version of `baseIsEqualDeep` for arrays with support for
+ * partial deep comparisons.
+ *
+ * @private
+ * @param {Array} array The array to compare.
+ * @param {Array} other The other array to compare.
+ * @param {number} bitmask The bitmask flags. See `baseIsEqual` for more details.
+ * @param {Function} customizer The function to customize comparisons.
+ * @param {Function} equalFunc The function to determine equivalents of values.
+ * @param {Object} stack Tracks traversed `array` and `other` objects.
+ * @returns {boolean} Returns `true` if the arrays are equivalent, else `false`.
+ */
+function equalArrays(array, other, bitmask, customizer, equalFunc, stack) {
+  var isPartial = bitmask & COMPARE_PARTIAL_FLAG$5,
+      arrLength = array.length,
+      othLength = other.length;
+
+  if (arrLength != othLength && !(isPartial && othLength > arrLength)) {
+    return false;
+  }
+  // Check that cyclic values are equal.
+  var arrStacked = stack.get(array);
+  var othStacked = stack.get(other);
+  if (arrStacked && othStacked) {
+    return arrStacked == other && othStacked == array;
+  }
+  var index = -1,
+      result = true,
+      seen = (bitmask & COMPARE_UNORDERED_FLAG$3) ? new SetCache : undefined;
+
+  stack.set(array, other);
+  stack.set(other, array);
+
+  // Ignore non-index properties.
+  while (++index < arrLength) {
+    var arrValue = array[index],
+        othValue = other[index];
+
+    if (customizer) {
+      var compared = isPartial
+        ? customizer(othValue, arrValue, index, other, array, stack)
+        : customizer(arrValue, othValue, index, array, other, stack);
+    }
+    if (compared !== undefined) {
+      if (compared) {
+        continue;
+      }
+      result = false;
+      break;
+    }
+    // Recursively compare arrays (susceptible to call stack limits).
+    if (seen) {
+      if (!arraySome(other, function(othValue, othIndex) {
+            if (!cacheHas(seen, othIndex) &&
+                (arrValue === othValue || equalFunc(arrValue, othValue, bitmask, customizer, stack))) {
+              return seen.push(othIndex);
+            }
+          })) {
+        result = false;
+        break;
+      }
+    } else if (!(
+          arrValue === othValue ||
+            equalFunc(arrValue, othValue, bitmask, customizer, stack)
+        )) {
+      result = false;
+      break;
+    }
+  }
+  stack['delete'](array);
+  stack['delete'](other);
+  return result;
+}
+
+/**
+ * Converts `map` to its key-value pairs.
+ *
+ * @private
+ * @param {Object} map The map to convert.
+ * @returns {Array} Returns the key-value pairs.
+ */
+function mapToArray(map) {
+  var index = -1,
+      result = Array(map.size);
+
+  map.forEach(function(value, key) {
+    result[++index] = [key, value];
+  });
+  return result;
+}
+
+/**
+ * Converts `set` to an array of its values.
+ *
+ * @private
+ * @param {Object} set The set to convert.
+ * @returns {Array} Returns the values.
+ */
+function setToArray(set) {
+  var index = -1,
+      result = Array(set.size);
+
+  set.forEach(function(value) {
+    result[++index] = value;
+  });
+  return result;
+}
+
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG$4 = 1,
+    COMPARE_UNORDERED_FLAG$2 = 2;
+
+/** `Object#toString` result references. */
+var boolTag = '[object Boolean]',
+    dateTag = '[object Date]',
+    errorTag = '[object Error]',
+    mapTag$1 = '[object Map]',
+    numberTag = '[object Number]',
+    regexpTag$1 = '[object RegExp]',
+    setTag$1 = '[object Set]',
+    stringTag$1 = '[object String]',
+    symbolTag = '[object Symbol]';
+
+var arrayBufferTag = '[object ArrayBuffer]',
+    dataViewTag = '[object DataView]';
+
+/** Used to convert symbols to primitives and strings. */
+var symbolProto = Symbol$1 ? Symbol$1.prototype : undefined,
+    symbolValueOf = symbolProto ? symbolProto.valueOf : undefined;
+
+/**
+ * A specialized version of `baseIsEqualDeep` for comparing objects of
+ * the same `toStringTag`.
+ *
+ * **Note:** This function only supports comparing values with tags of
+ * `Boolean`, `Date`, `Error`, `Number`, `RegExp`, or `String`.
+ *
+ * @private
+ * @param {Object} object The object to compare.
+ * @param {Object} other The other object to compare.
+ * @param {string} tag The `toStringTag` of the objects to compare.
+ * @param {number} bitmask The bitmask flags. See `baseIsEqual` for more details.
+ * @param {Function} customizer The function to customize comparisons.
+ * @param {Function} equalFunc The function to determine equivalents of values.
+ * @param {Object} stack Tracks traversed `object` and `other` objects.
+ * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
+ */
+function equalByTag(object, other, tag, bitmask, customizer, equalFunc, stack) {
+  switch (tag) {
+    case dataViewTag:
+      if ((object.byteLength != other.byteLength) ||
+          (object.byteOffset != other.byteOffset)) {
+        return false;
+      }
+      object = object.buffer;
+      other = other.buffer;
+
+    case arrayBufferTag:
+      if ((object.byteLength != other.byteLength) ||
+          !equalFunc(new Uint8Array$1(object), new Uint8Array$1(other))) {
+        return false;
+      }
+      return true;
+
+    case boolTag:
+    case dateTag:
+    case numberTag:
+      // Coerce booleans to `1` or `0` and dates to milliseconds.
+      // Invalid dates are coerced to `NaN`.
+      return eq(+object, +other);
+
+    case errorTag:
+      return object.name == other.name && object.message == other.message;
+
+    case regexpTag$1:
+    case stringTag$1:
+      // Coerce regexes to strings and treat strings, primitives and objects,
+      // as equal. See http://www.ecma-international.org/ecma-262/7.0/#sec-regexp.prototype.tostring
+      // for more details.
+      return object == (other + '');
+
+    case mapTag$1:
+      var convert = mapToArray;
+
+    case setTag$1:
+      var isPartial = bitmask & COMPARE_PARTIAL_FLAG$4;
+      convert || (convert = setToArray);
+
+      if (object.size != other.size && !isPartial) {
+        return false;
+      }
+      // Assume cyclic values are equal.
+      var stacked = stack.get(object);
+      if (stacked) {
+        return stacked == other;
+      }
+      bitmask |= COMPARE_UNORDERED_FLAG$2;
+
+      // Recursively compare objects (susceptible to call stack limits).
+      stack.set(object, other);
+      var result = equalArrays(convert(object), convert(other), bitmask, customizer, equalFunc, stack);
+      stack['delete'](object);
+      return result;
+
+    case symbolTag:
+      if (symbolValueOf) {
+        return symbolValueOf.call(object) == symbolValueOf.call(other);
+      }
+  }
+  return false;
+}
+
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG$3 = 1;
+
+/** Used for built-in method references. */
+var objectProto$5 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$5 = objectProto$5.hasOwnProperty;
+
+/**
+ * A specialized version of `baseIsEqualDeep` for objects with support for
+ * partial deep comparisons.
+ *
+ * @private
+ * @param {Object} object The object to compare.
+ * @param {Object} other The other object to compare.
+ * @param {number} bitmask The bitmask flags. See `baseIsEqual` for more details.
+ * @param {Function} customizer The function to customize comparisons.
+ * @param {Function} equalFunc The function to determine equivalents of values.
+ * @param {Object} stack Tracks traversed `object` and `other` objects.
+ * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
+ */
+function equalObjects(object, other, bitmask, customizer, equalFunc, stack) {
+  var isPartial = bitmask & COMPARE_PARTIAL_FLAG$3,
+      objProps = getAllKeys(object),
+      objLength = objProps.length,
+      othProps = getAllKeys(other),
+      othLength = othProps.length;
+
+  if (objLength != othLength && !isPartial) {
+    return false;
+  }
+  var index = objLength;
+  while (index--) {
+    var key = objProps[index];
+    if (!(isPartial ? key in other : hasOwnProperty$5.call(other, key))) {
+      return false;
+    }
+  }
+  // Check that cyclic values are equal.
+  var objStacked = stack.get(object);
+  var othStacked = stack.get(other);
+  if (objStacked && othStacked) {
+    return objStacked == other && othStacked == object;
+  }
+  var result = true;
+  stack.set(object, other);
+  stack.set(other, object);
+
+  var skipCtor = isPartial;
+  while (++index < objLength) {
+    key = objProps[index];
+    var objValue = object[key],
+        othValue = other[key];
+
+    if (customizer) {
+      var compared = isPartial
+        ? customizer(othValue, objValue, key, other, object, stack)
+        : customizer(objValue, othValue, key, object, other, stack);
+    }
+    // Recursively compare objects (susceptible to call stack limits).
+    if (!(compared === undefined
+          ? (objValue === othValue || equalFunc(objValue, othValue, bitmask, customizer, stack))
+          : compared
+        )) {
+      result = false;
+      break;
+    }
+    skipCtor || (skipCtor = key == 'constructor');
+  }
+  if (result && !skipCtor) {
+    var objCtor = object.constructor,
+        othCtor = other.constructor;
+
+    // Non `Object` object instances with different constructors are not equal.
+    if (objCtor != othCtor &&
+        ('constructor' in object && 'constructor' in other) &&
+        !(typeof objCtor == 'function' && objCtor instanceof objCtor &&
+          typeof othCtor == 'function' && othCtor instanceof othCtor)) {
+      result = false;
+    }
+  }
+  stack['delete'](object);
+  stack['delete'](other);
+  return result;
+}
+
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG$2 = 1;
+
+/** `Object#toString` result references. */
+var argsTag = '[object Arguments]',
+    arrayTag = '[object Array]',
+    objectTag = '[object Object]';
+
+/** Used for built-in method references. */
+var objectProto$4 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$4 = objectProto$4.hasOwnProperty;
+
+/**
+ * A specialized version of `baseIsEqual` for arrays and objects which performs
+ * deep comparisons and tracks traversed objects enabling objects with circular
+ * references to be compared.
+ *
+ * @private
+ * @param {Object} object The object to compare.
+ * @param {Object} other The other object to compare.
+ * @param {number} bitmask The bitmask flags. See `baseIsEqual` for more details.
+ * @param {Function} customizer The function to customize comparisons.
+ * @param {Function} equalFunc The function to determine equivalents of values.
+ * @param {Object} [stack] Tracks traversed `object` and `other` objects.
+ * @returns {boolean} Returns `true` if the objects are equivalent, else `false`.
+ */
+function baseIsEqualDeep(object, other, bitmask, customizer, equalFunc, stack) {
+  var objIsArr = isArray(object),
+      othIsArr = isArray(other),
+      objTag = objIsArr ? arrayTag : getTag(object),
+      othTag = othIsArr ? arrayTag : getTag(other);
+
+  objTag = objTag == argsTag ? objectTag : objTag;
+  othTag = othTag == argsTag ? objectTag : othTag;
+
+  var objIsObj = objTag == objectTag,
+      othIsObj = othTag == objectTag,
+      isSameTag = objTag == othTag;
+
+  if (isSameTag && isBuffer(object)) {
+    if (!isBuffer(other)) {
+      return false;
+    }
+    objIsArr = true;
+    objIsObj = false;
+  }
+  if (isSameTag && !objIsObj) {
+    stack || (stack = new Stack);
+    return (objIsArr || isTypedArray(object))
+      ? equalArrays(object, other, bitmask, customizer, equalFunc, stack)
+      : equalByTag(object, other, objTag, bitmask, customizer, equalFunc, stack);
+  }
+  if (!(bitmask & COMPARE_PARTIAL_FLAG$2)) {
+    var objIsWrapped = objIsObj && hasOwnProperty$4.call(object, '__wrapped__'),
+        othIsWrapped = othIsObj && hasOwnProperty$4.call(other, '__wrapped__');
+
+    if (objIsWrapped || othIsWrapped) {
+      var objUnwrapped = objIsWrapped ? object.value() : object,
+          othUnwrapped = othIsWrapped ? other.value() : other;
+
+      stack || (stack = new Stack);
+      return equalFunc(objUnwrapped, othUnwrapped, bitmask, customizer, stack);
+    }
+  }
+  if (!isSameTag) {
+    return false;
+  }
+  stack || (stack = new Stack);
+  return equalObjects(object, other, bitmask, customizer, equalFunc, stack);
+}
+
+/**
+ * The base implementation of `_.isEqual` which supports partial comparisons
+ * and tracks traversed objects.
+ *
+ * @private
+ * @param {*} value The value to compare.
+ * @param {*} other The other value to compare.
+ * @param {boolean} bitmask The bitmask flags.
+ *  1 - Unordered comparison
+ *  2 - Partial comparison
+ * @param {Function} [customizer] The function to customize comparisons.
+ * @param {Object} [stack] Tracks traversed `value` and `other` objects.
+ * @returns {boolean} Returns `true` if the values are equivalent, else `false`.
+ */
+function baseIsEqual(value, other, bitmask, customizer, stack) {
+  if (value === other) {
+    return true;
+  }
+  if (value == null || other == null || (!isObjectLike(value) && !isObjectLike(other))) {
+    return value !== value && other !== other;
+  }
+  return baseIsEqualDeep(value, other, bitmask, customizer, baseIsEqual, stack);
+}
+
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG$1 = 1,
+    COMPARE_UNORDERED_FLAG$1 = 2;
+
+/**
+ * The base implementation of `_.isMatch` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Object} object The object to inspect.
+ * @param {Object} source The object of property values to match.
+ * @param {Array} matchData The property names, values, and compare flags to match.
+ * @param {Function} [customizer] The function to customize comparisons.
+ * @returns {boolean} Returns `true` if `object` is a match, else `false`.
+ */
+function baseIsMatch(object, source, matchData, customizer) {
+  var index = matchData.length,
+      length = index;
+
+  if (object == null) {
+    return !length;
+  }
+  object = Object(object);
+  while (index--) {
+    var data = matchData[index];
+    if ((data[2])
+          ? data[1] !== object[data[0]]
+          : !(data[0] in object)
+        ) {
+      return false;
+    }
+  }
+  while (++index < length) {
+    data = matchData[index];
+    var key = data[0],
+        objValue = object[key],
+        srcValue = data[1];
+
+    if (data[2]) {
+      if (objValue === undefined && !(key in object)) {
+        return false;
+      }
+    } else {
+      var stack = new Stack;
+      var result; 
+      if (!(result === undefined
+            ? baseIsEqual(srcValue, objValue, COMPARE_PARTIAL_FLAG$1 | COMPARE_UNORDERED_FLAG$1, customizer, stack)
+            : result
+          )) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Checks if `value` is suitable for strict equality comparisons, i.e. `===`.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` if suitable for strict
+ *  equality comparisons, else `false`.
+ */
+function isStrictComparable(value) {
+  return value === value && !isObject(value);
+}
+
+/**
+ * Gets the property names, values, and compare flags of `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the match data of `object`.
+ */
+function getMatchData(object) {
+  var result = keys(object),
+      length = result.length;
+
+  while (length--) {
+    var key = result[length],
+        value = object[key];
+
+    result[length] = [key, value, isStrictComparable(value)];
+  }
+  return result;
+}
+
+/**
+ * A specialized version of `matchesProperty` for source values suitable
+ * for strict equality comparisons, i.e. `===`.
+ *
+ * @private
+ * @param {string} key The key of the property to get.
+ * @param {*} srcValue The value to match.
+ * @returns {Function} Returns the new spec function.
+ */
+function matchesStrictComparable(key, srcValue) {
+  return function(object) {
+    if (object == null) {
+      return false;
+    }
+    return object[key] === srcValue &&
+      (srcValue !== undefined || (key in Object(object)));
+  };
+}
+
+/**
+ * The base implementation of `_.matches` which doesn't clone `source`.
+ *
+ * @private
+ * @param {Object} source The object of property values to match.
+ * @returns {Function} Returns the new spec function.
+ */
+function baseMatches(source) {
+  var matchData = getMatchData(source);
+  if (matchData.length == 1 && matchData[0][2]) {
+    return matchesStrictComparable(matchData[0][0], matchData[0][1]);
+  }
+  return function(object) {
+    return object === source || baseIsMatch(object, source, matchData);
+  };
+}
+
+/**
+ * The base implementation of `_.hasIn` without support for deep paths.
+ *
+ * @private
+ * @param {Object} [object] The object to query.
+ * @param {Array|string} key The key to check.
+ * @returns {boolean} Returns `true` if `key` exists, else `false`.
+ */
+function baseHasIn(object, key) {
+  return object != null && key in Object(object);
+}
+
+/**
+ * Checks if `path` exists on `object`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {Array|string} path The path to check.
+ * @param {Function} hasFunc The function to check properties.
+ * @returns {boolean} Returns `true` if `path` exists, else `false`.
+ */
+function hasPath(object, path, hasFunc) {
+  path = castPath(path, object);
+
+  var index = -1,
+      length = path.length,
+      result = false;
+
+  while (++index < length) {
+    var key = toKey(path[index]);
+    if (!(result = object != null && hasFunc(object, key))) {
+      break;
+    }
+    object = object[key];
+  }
+  if (result || ++index != length) {
+    return result;
+  }
+  length = object == null ? 0 : object.length;
+  return !!length && isLength(length) && isIndex(key, length) &&
+    (isArray(object) || isArguments(object));
+}
+
+/**
+ * Checks if `path` is a direct or inherited property of `object`.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Object
+ * @param {Object} object The object to query.
+ * @param {Array|string} path The path to check.
+ * @returns {boolean} Returns `true` if `path` exists, else `false`.
+ * @example
+ *
+ * var object = _.create({ 'a': _.create({ 'b': 2 }) });
+ *
+ * _.hasIn(object, 'a');
+ * // => true
+ *
+ * _.hasIn(object, 'a.b');
+ * // => true
+ *
+ * _.hasIn(object, ['a', 'b']);
+ * // => true
+ *
+ * _.hasIn(object, 'b');
+ * // => false
+ */
+function hasIn(object, path) {
+  return object != null && hasPath(object, path, baseHasIn);
+}
+
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG = 1,
+    COMPARE_UNORDERED_FLAG = 2;
+
+/**
+ * The base implementation of `_.matchesProperty` which doesn't clone `srcValue`.
+ *
+ * @private
+ * @param {string} path The path of the property to get.
+ * @param {*} srcValue The value to match.
+ * @returns {Function} Returns the new spec function.
+ */
+function baseMatchesProperty(path, srcValue) {
+  if (isKey(path) && isStrictComparable(srcValue)) {
+    return matchesStrictComparable(toKey(path), srcValue);
+  }
+  return function(object) {
+    var objValue = get(object, path);
+    return (objValue === undefined && objValue === srcValue)
+      ? hasIn(object, path)
+      : baseIsEqual(srcValue, objValue, COMPARE_PARTIAL_FLAG | COMPARE_UNORDERED_FLAG);
+  };
+}
+
+/**
+ * The base implementation of `_.property` without support for deep paths.
+ *
+ * @private
+ * @param {string} key The key of the property to get.
+ * @returns {Function} Returns the new accessor function.
+ */
+function baseProperty(key) {
+  return function(object) {
+    return object == null ? undefined : object[key];
+  };
+}
+
+/**
+ * A specialized version of `baseProperty` which supports deep paths.
+ *
+ * @private
+ * @param {Array|string} path The path of the property to get.
+ * @returns {Function} Returns the new accessor function.
+ */
+function basePropertyDeep(path) {
+  return function(object) {
+    return baseGet(object, path);
+  };
+}
+
+/**
+ * Creates a function that returns the value at `path` of a given object.
+ *
+ * @static
+ * @memberOf _
+ * @since 2.4.0
+ * @category Util
+ * @param {Array|string} path The path of the property to get.
+ * @returns {Function} Returns the new accessor function.
+ * @example
+ *
+ * var objects = [
+ *   { 'a': { 'b': 2 } },
+ *   { 'a': { 'b': 1 } }
+ * ];
+ *
+ * _.map(objects, _.property('a.b'));
+ * // => [2, 1]
+ *
+ * _.map(_.sortBy(objects, _.property(['a', 'b'])), 'a.b');
+ * // => [1, 2]
+ */
+function property(path) {
+  return isKey(path) ? baseProperty(toKey(path)) : basePropertyDeep(path);
+}
+
+/**
+ * The base implementation of `_.iteratee`.
+ *
+ * @private
+ * @param {*} [value=_.identity] The value to convert to an iteratee.
+ * @returns {Function} Returns the iteratee.
+ */
+function baseIteratee(value) {
+  // Don't store the `typeof` result in a variable to avoid a JIT bug in Safari 9.
+  // See https://bugs.webkit.org/show_bug.cgi?id=156034 for more details.
+  if (typeof value == 'function') {
+    return value;
+  }
+  if (value == null) {
+    return identity;
+  }
+  if (typeof value == 'object') {
+    return isArray(value)
+      ? baseMatchesProperty(value[0], value[1])
+      : baseMatches(value);
+  }
+  return property(value);
+}
+
+/**
+ * A specialized version of `baseAggregator` for arrays.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} setter The function to set `accumulator` values.
+ * @param {Function} iteratee The iteratee to transform keys.
+ * @param {Object} accumulator The initial aggregated object.
+ * @returns {Function} Returns `accumulator`.
+ */
+function arrayAggregator(array, setter, iteratee, accumulator) {
+  var index = -1,
+      length = array == null ? 0 : array.length;
+
+  while (++index < length) {
+    var value = array[index];
+    setter(accumulator, value, iteratee(value), array);
+  }
+  return accumulator;
+}
+
+/**
+ * Creates a base function for methods like `_.forIn` and `_.forOwn`.
+ *
+ * @private
+ * @param {boolean} [fromRight] Specify iterating from right to left.
+ * @returns {Function} Returns the new base function.
+ */
+function createBaseFor(fromRight) {
+  return function(object, iteratee, keysFunc) {
+    var index = -1,
+        iterable = Object(object),
+        props = keysFunc(object),
+        length = props.length;
+
+    while (length--) {
+      var key = props[++index];
+      if (iteratee(iterable[key], key, iterable) === false) {
+        break;
+      }
+    }
+    return object;
+  };
+}
+
+/**
+ * The base implementation of `baseForOwn` which iterates over `object`
+ * properties returned by `keysFunc` and invokes `iteratee` for each property.
+ * Iteratee functions may exit iteration early by explicitly returning `false`.
+ *
+ * @private
+ * @param {Object} object The object to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @param {Function} keysFunc The function to get the keys of `object`.
+ * @returns {Object} Returns `object`.
+ */
+var baseFor = createBaseFor();
+
+/**
+ * The base implementation of `_.forOwn` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Object} object The object to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Object} Returns `object`.
+ */
+function baseForOwn(object, iteratee) {
+  return object && baseFor(object, iteratee, keys);
+}
+
+/**
+ * Creates a `baseEach` or `baseEachRight` function.
+ *
+ * @private
+ * @param {Function} eachFunc The function to iterate over a collection.
+ * @param {boolean} [fromRight] Specify iterating from right to left.
+ * @returns {Function} Returns the new base function.
+ */
+function createBaseEach(eachFunc, fromRight) {
+  return function(collection, iteratee) {
+    if (collection == null) {
+      return collection;
+    }
+    if (!isArrayLike(collection)) {
+      return eachFunc(collection, iteratee);
+    }
+    var length = collection.length,
+        index = -1,
+        iterable = Object(collection);
+
+    while ((++index < length)) {
+      if (iteratee(iterable[index], index, iterable) === false) {
+        break;
+      }
+    }
+    return collection;
+  };
+}
+
+/**
+ * The base implementation of `_.forEach` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Array|Object} Returns `collection`.
+ */
+var baseEach = createBaseEach(baseForOwn);
+
+/**
+ * Aggregates elements of `collection` on `accumulator` with keys transformed
+ * by `iteratee` and values set by `setter`.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} setter The function to set `accumulator` values.
+ * @param {Function} iteratee The iteratee to transform keys.
+ * @param {Object} accumulator The initial aggregated object.
+ * @returns {Function} Returns `accumulator`.
+ */
+function baseAggregator(collection, setter, iteratee, accumulator) {
+  baseEach(collection, function(value, key, collection) {
+    setter(accumulator, value, iteratee(value), collection);
+  });
+  return accumulator;
+}
+
+/**
+ * Creates a function like `_.groupBy`.
+ *
+ * @private
+ * @param {Function} setter The function to set accumulator values.
+ * @param {Function} [initializer] The accumulator object initializer.
+ * @returns {Function} Returns the new aggregator function.
+ */
+function createAggregator(setter, initializer) {
+  return function(collection, iteratee) {
+    var func = isArray(collection) ? arrayAggregator : baseAggregator,
+        accumulator = initializer ? initializer() : {};
+
+    return func(collection, setter, baseIteratee(iteratee), accumulator);
+  };
+}
+
+/** Used for built-in method references. */
+var objectProto$3 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$3 = objectProto$3.hasOwnProperty;
+
+/**
+ * Assigns own and inherited enumerable string keyed properties of source
+ * objects to the destination object for all destination properties that
+ * resolve to `undefined`. Source objects are applied from left to right.
+ * Once a property is set, additional values of the same property are ignored.
+ *
+ * **Note:** This method mutates `object`.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The destination object.
+ * @param {...Object} [sources] The source objects.
+ * @returns {Object} Returns `object`.
+ * @see _.defaultsDeep
+ * @example
+ *
+ * _.defaults({ 'a': 1 }, { 'b': 2 }, { 'a': 3 });
+ * // => { 'a': 1, 'b': 2 }
+ */
+var defaults = baseRest(function(object, sources) {
+  object = Object(object);
+
+  var index = -1;
+  var length = sources.length;
+  var guard = length > 2 ? sources[2] : undefined;
+
+  if (guard && isIterateeCall(sources[0], sources[1], guard)) {
+    length = 1;
+  }
+
+  while (++index < length) {
+    var source = sources[index];
+    var props = keysIn(source);
+    var propsIndex = -1;
+    var propsLength = props.length;
+
+    while (++propsIndex < propsLength) {
+      var key = props[propsIndex];
+      var value = object[key];
+
+      if (value === undefined ||
+          (eq(value, objectProto$3[key]) && !hasOwnProperty$3.call(object, key))) {
+        object[key] = source[key];
+      }
+    }
+  }
+
+  return object;
+});
+
+/**
+ * This method is like `_.isArrayLike` except that it also checks if `value`
+ * is an object.
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is an array-like object,
+ *  else `false`.
+ * @example
+ *
+ * _.isArrayLikeObject([1, 2, 3]);
+ * // => true
+ *
+ * _.isArrayLikeObject(document.body.children);
+ * // => true
+ *
+ * _.isArrayLikeObject('abc');
+ * // => false
+ *
+ * _.isArrayLikeObject(_.noop);
+ * // => false
+ */
+function isArrayLikeObject(value) {
+  return isObjectLike(value) && isArrayLike(value);
+}
+
+/** Used as the size to enable large array optimizations. */
+var LARGE_ARRAY_SIZE$1 = 200;
+
+/**
+ * The base implementation of methods like `_.difference` without support
+ * for excluding multiple arrays or iteratee shorthands.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {Array} values The values to exclude.
+ * @param {Function} [iteratee] The iteratee invoked per element.
+ * @param {Function} [comparator] The comparator invoked per element.
+ * @returns {Array} Returns the new array of filtered values.
+ */
+function baseDifference(array, values, iteratee, comparator) {
+  var index = -1,
+      includes = arrayIncludes,
+      isCommon = true,
+      length = array.length,
+      result = [],
+      valuesLength = values.length;
+
+  if (!length) {
+    return result;
+  }
+  if (values.length >= LARGE_ARRAY_SIZE$1) {
+    includes = cacheHas;
+    isCommon = false;
+    values = new SetCache(values);
+  }
+  outer:
+  while (++index < length) {
+    var value = array[index],
+        computed = value ;
+
+    value = (value !== 0) ? value : 0;
+    if (isCommon && computed === computed) {
+      var valuesIndex = valuesLength;
+      while (valuesIndex--) {
+        if (values[valuesIndex] === computed) {
+          continue outer;
+        }
+      }
+      result.push(value);
+    }
+    else if (!includes(values, computed, comparator)) {
+      result.push(value);
+    }
+  }
+  return result;
+}
+
+/**
+ * Creates an array of `array` values not included in the other given arrays
+ * using [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+ * for equality comparisons. The order and references of result values are
+ * determined by the first array.
+ *
+ * **Note:** Unlike `_.pullAll`, this method returns a new array.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Array
+ * @param {Array} array The array to inspect.
+ * @param {...Array} [values] The values to exclude.
+ * @returns {Array} Returns the new array of filtered values.
+ * @see _.without, _.xor
+ * @example
+ *
+ * _.difference([2, 1], [2, 3]);
+ * // => [1]
+ */
+var difference = baseRest(function(array, values) {
+  return isArrayLikeObject(array)
+    ? baseDifference(array, baseFlatten(values, 1, isArrayLikeObject, true))
+    : [];
+});
+
+/**
+ * Gets the last element of `array`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Array
+ * @param {Array} array The array to query.
+ * @returns {*} Returns the last element of `array`.
+ * @example
+ *
+ * _.last([1, 2, 3]);
+ * // => 3
+ */
+function last(array) {
+  var length = array == null ? 0 : array.length;
+  return length ? array[length - 1] : undefined;
+}
+
+/**
+ * Creates a slice of `array` with `n` elements dropped from the beginning.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.5.0
+ * @category Array
+ * @param {Array} array The array to query.
+ * @param {number} [n=1] The number of elements to drop.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
+ * @returns {Array} Returns the slice of `array`.
+ * @example
+ *
+ * _.drop([1, 2, 3]);
+ * // => [2, 3]
+ *
+ * _.drop([1, 2, 3], 2);
+ * // => [3]
+ *
+ * _.drop([1, 2, 3], 5);
+ * // => []
+ *
+ * _.drop([1, 2, 3], 0);
+ * // => [1, 2, 3]
+ */
+function drop(array, n, guard) {
+  var length = array == null ? 0 : array.length;
+  if (!length) {
+    return [];
+  }
+  n = (n === undefined) ? 1 : toInteger(n);
+  return baseSlice(array, n < 0 ? 0 : n, length);
+}
+
+/**
+ * Creates a slice of `array` with `n` elements dropped from the end.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.0.0
+ * @category Array
+ * @param {Array} array The array to query.
+ * @param {number} [n=1] The number of elements to drop.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
+ * @returns {Array} Returns the slice of `array`.
+ * @example
+ *
+ * _.dropRight([1, 2, 3]);
+ * // => [1, 2]
+ *
+ * _.dropRight([1, 2, 3], 2);
+ * // => [1]
+ *
+ * _.dropRight([1, 2, 3], 5);
+ * // => []
+ *
+ * _.dropRight([1, 2, 3], 0);
+ * // => [1, 2, 3]
+ */
+function dropRight(array, n, guard) {
+  var length = array == null ? 0 : array.length;
+  if (!length) {
+    return [];
+  }
+  n = (n === undefined) ? 1 : toInteger(n);
+  n = length - n;
+  return baseSlice(array, 0, n < 0 ? 0 : n);
+}
+
+/**
+ * Casts `value` to `identity` if it's not a function.
+ *
+ * @private
+ * @param {*} value The value to inspect.
+ * @returns {Function} Returns cast function.
+ */
+function castFunction(value) {
+  return typeof value == 'function' ? value : identity;
+}
+
+/**
+ * Iterates over elements of `collection` and invokes `iteratee` for each element.
+ * The iteratee is invoked with three arguments: (value, index|key, collection).
+ * Iteratee functions may exit iteration early by explicitly returning `false`.
+ *
+ * **Note:** As with other "Collections" methods, objects with a "length"
+ * property are iterated like arrays. To avoid this behavior use `_.forIn`
+ * or `_.forOwn` for object iteration.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @alias each
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [iteratee=_.identity] The function invoked per iteration.
+ * @returns {Array|Object} Returns `collection`.
+ * @see _.forEachRight
+ * @example
+ *
+ * _.forEach([1, 2], function(value) {
+ *   console.log(value);
+ * });
+ * // => Logs `1` then `2`.
+ *
+ * _.forEach({ 'a': 1, 'b': 2 }, function(value, key) {
+ *   console.log(key);
+ * });
+ * // => Logs 'a' then 'b' (iteration order is not guaranteed).
+ */
+function forEach(collection, iteratee) {
+  var func = isArray(collection) ? arrayEach : baseEach;
+  return func(collection, castFunction(iteratee));
+}
+
+/**
+ * A specialized version of `_.every` for arrays without support for
+ * iteratee shorthands.
+ *
+ * @private
+ * @param {Array} [array] The array to iterate over.
+ * @param {Function} predicate The function invoked per iteration.
+ * @returns {boolean} Returns `true` if all elements pass the predicate check,
+ *  else `false`.
+ */
+function arrayEvery(array, predicate) {
+  var index = -1,
+      length = array == null ? 0 : array.length;
+
+  while (++index < length) {
+    if (!predicate(array[index], index, array)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The base implementation of `_.every` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} predicate The function invoked per iteration.
+ * @returns {boolean} Returns `true` if all elements pass the predicate check,
+ *  else `false`
+ */
+function baseEvery(collection, predicate) {
+  var result = true;
+  baseEach(collection, function(value, index, collection) {
+    result = !!predicate(value, index, collection);
+    return result;
+  });
+  return result;
+}
+
+/**
+ * Checks if `predicate` returns truthy for **all** elements of `collection`.
+ * Iteration is stopped once `predicate` returns falsey. The predicate is
+ * invoked with three arguments: (value, index|key, collection).
+ *
+ * **Note:** This method returns `true` for
+ * [empty collections](https://en.wikipedia.org/wiki/Empty_set) because
+ * [everything is true](https://en.wikipedia.org/wiki/Vacuous_truth) of
+ * elements of empty collections.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
+ * @returns {boolean} Returns `true` if all elements pass the predicate check,
+ *  else `false`.
+ * @example
+ *
+ * _.every([true, 1, null, 'yes'], Boolean);
+ * // => false
+ *
+ * var users = [
+ *   { 'user': 'barney', 'age': 36, 'active': false },
+ *   { 'user': 'fred',   'age': 40, 'active': false }
+ * ];
+ *
+ * // The `_.matches` iteratee shorthand.
+ * _.every(users, { 'user': 'barney', 'active': false });
+ * // => false
+ *
+ * // The `_.matchesProperty` iteratee shorthand.
+ * _.every(users, ['active', false]);
+ * // => true
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.every(users, 'active');
+ * // => false
+ */
+function every(collection, predicate, guard) {
+  var func = isArray(collection) ? arrayEvery : baseEvery;
+  return func(collection, baseIteratee(predicate));
+}
+
+/**
+ * The base implementation of `_.filter` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} predicate The function invoked per iteration.
+ * @returns {Array} Returns the new filtered array.
+ */
+function baseFilter(collection, predicate) {
+  var result = [];
+  baseEach(collection, function(value, index, collection) {
+    if (predicate(value, index, collection)) {
+      result.push(value);
+    }
+  });
+  return result;
+}
+
+/**
+ * Iterates over elements of `collection`, returning an array of all elements
+ * `predicate` returns truthy for. The predicate is invoked with three
+ * arguments: (value, index|key, collection).
+ *
+ * **Note:** Unlike `_.remove`, this method returns a new array.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @returns {Array} Returns the new filtered array.
+ * @see _.reject
+ * @example
+ *
+ * var users = [
+ *   { 'user': 'barney', 'age': 36, 'active': true },
+ *   { 'user': 'fred',   'age': 40, 'active': false }
+ * ];
+ *
+ * _.filter(users, function(o) { return !o.active; });
+ * // => objects for ['fred']
+ *
+ * // The `_.matches` iteratee shorthand.
+ * _.filter(users, { 'age': 36, 'active': true });
+ * // => objects for ['barney']
+ *
+ * // The `_.matchesProperty` iteratee shorthand.
+ * _.filter(users, ['active', false]);
+ * // => objects for ['fred']
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.filter(users, 'active');
+ * // => objects for ['barney']
+ *
+ * // Combining several predicates using `_.overEvery` or `_.overSome`.
+ * _.filter(users, _.overSome([{ 'age': 36 }, ['age', 40]]));
+ * // => objects for ['fred', 'barney']
+ */
+function filter(collection, predicate) {
+  var func = isArray(collection) ? arrayFilter : baseFilter;
+  return func(collection, baseIteratee(predicate));
+}
+
+/**
+ * Creates a `_.find` or `_.findLast` function.
+ *
+ * @private
+ * @param {Function} findIndexFunc The function to find the collection index.
+ * @returns {Function} Returns the new find function.
+ */
+function createFind(findIndexFunc) {
+  return function(collection, predicate, fromIndex) {
+    var iterable = Object(collection);
+    if (!isArrayLike(collection)) {
+      var iteratee = baseIteratee(predicate);
+      collection = keys(collection);
+      predicate = function(key) { return iteratee(iterable[key], key, iterable); };
+    }
+    var index = findIndexFunc(collection, predicate, fromIndex);
+    return index > -1 ? iterable[iteratee ? collection[index] : index] : undefined;
+  };
+}
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeMax$1 = Math.max;
+
+/**
+ * This method is like `_.find` except that it returns the index of the first
+ * element `predicate` returns truthy for instead of the element itself.
+ *
+ * @static
+ * @memberOf _
+ * @since 1.1.0
+ * @category Array
+ * @param {Array} array The array to inspect.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @param {number} [fromIndex=0] The index to search from.
+ * @returns {number} Returns the index of the found element, else `-1`.
+ * @example
+ *
+ * var users = [
+ *   { 'user': 'barney',  'active': false },
+ *   { 'user': 'fred',    'active': false },
+ *   { 'user': 'pebbles', 'active': true }
+ * ];
+ *
+ * _.findIndex(users, function(o) { return o.user == 'barney'; });
+ * // => 0
+ *
+ * // The `_.matches` iteratee shorthand.
+ * _.findIndex(users, { 'user': 'fred', 'active': false });
+ * // => 1
+ *
+ * // The `_.matchesProperty` iteratee shorthand.
+ * _.findIndex(users, ['active', false]);
+ * // => 0
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.findIndex(users, 'active');
+ * // => 2
+ */
+function findIndex(array, predicate, fromIndex) {
+  var length = array == null ? 0 : array.length;
+  if (!length) {
+    return -1;
+  }
+  var index = fromIndex == null ? 0 : toInteger(fromIndex);
+  if (index < 0) {
+    index = nativeMax$1(length + index, 0);
+  }
+  return baseFindIndex(array, baseIteratee(predicate), index);
+}
+
+/**
+ * Iterates over elements of `collection`, returning the first element
+ * `predicate` returns truthy for. The predicate is invoked with three
+ * arguments: (value, index|key, collection).
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to inspect.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @param {number} [fromIndex=0] The index to search from.
+ * @returns {*} Returns the matched element, else `undefined`.
+ * @example
+ *
+ * var users = [
+ *   { 'user': 'barney',  'age': 36, 'active': true },
+ *   { 'user': 'fred',    'age': 40, 'active': false },
+ *   { 'user': 'pebbles', 'age': 1,  'active': true }
+ * ];
+ *
+ * _.find(users, function(o) { return o.age < 40; });
+ * // => object for 'barney'
+ *
+ * // The `_.matches` iteratee shorthand.
+ * _.find(users, { 'age': 1, 'active': true });
+ * // => object for 'pebbles'
+ *
+ * // The `_.matchesProperty` iteratee shorthand.
+ * _.find(users, ['active', false]);
+ * // => object for 'fred'
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.find(users, 'active');
+ * // => object for 'barney'
+ */
+var find = createFind(findIndex);
+
+/**
+ * Gets the first element of `array`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @alias first
+ * @category Array
+ * @param {Array} array The array to query.
+ * @returns {*} Returns the first element of `array`.
+ * @example
+ *
+ * _.head([1, 2, 3]);
+ * // => 1
+ *
+ * _.head([]);
+ * // => undefined
+ */
+function head(array) {
+  return (array && array.length) ? array[0] : undefined;
+}
+
+/**
+ * The base implementation of `_.map` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @returns {Array} Returns the new mapped array.
+ */
+function baseMap(collection, iteratee) {
+  var index = -1,
+      result = isArrayLike(collection) ? Array(collection.length) : [];
+
+  baseEach(collection, function(value, key, collection) {
+    result[++index] = iteratee(value, key, collection);
+  });
+  return result;
+}
+
+/**
+ * Creates an array of values by running each element in `collection` thru
+ * `iteratee`. The iteratee is invoked with three arguments:
+ * (value, index|key, collection).
+ *
+ * Many lodash methods are guarded to work as iteratees for methods like
+ * `_.every`, `_.filter`, `_.map`, `_.mapValues`, `_.reject`, and `_.some`.
+ *
+ * The guarded methods are:
+ * `ary`, `chunk`, `curry`, `curryRight`, `drop`, `dropRight`, `every`,
+ * `fill`, `invert`, `parseInt`, `random`, `range`, `rangeRight`, `repeat`,
+ * `sampleSize`, `slice`, `some`, `sortBy`, `split`, `take`, `takeRight`,
+ * `template`, `trim`, `trimEnd`, `trimStart`, and `words`
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [iteratee=_.identity] The function invoked per iteration.
+ * @returns {Array} Returns the new mapped array.
+ * @example
+ *
+ * function square(n) {
+ *   return n * n;
+ * }
+ *
+ * _.map([4, 8], square);
+ * // => [16, 64]
+ *
+ * _.map({ 'a': 4, 'b': 8 }, square);
+ * // => [16, 64] (iteration order is not guaranteed)
+ *
+ * var users = [
+ *   { 'user': 'barney' },
+ *   { 'user': 'fred' }
+ * ];
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.map(users, 'user');
+ * // => ['barney', 'fred']
+ */
+function map(collection, iteratee) {
+  var func = isArray(collection) ? arrayMap : baseMap;
+  return func(collection, baseIteratee(iteratee));
+}
+
+/**
+ * Creates a flattened array of values by running each element in `collection`
+ * thru `iteratee` and flattening the mapped results. The iteratee is invoked
+ * with three arguments: (value, index|key, collection).
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [iteratee=_.identity] The function invoked per iteration.
+ * @returns {Array} Returns the new flattened array.
+ * @example
+ *
+ * function duplicate(n) {
+ *   return [n, n];
+ * }
+ *
+ * _.flatMap([1, 2], duplicate);
+ * // => [1, 1, 2, 2]
+ */
+function flatMap(collection, iteratee) {
+  return baseFlatten(map(collection, iteratee));
+}
+
+/** Used for built-in method references. */
+var objectProto$2 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$2 = objectProto$2.hasOwnProperty;
+
+/**
+ * Creates an object composed of keys generated from the results of running
+ * each element of `collection` thru `iteratee`. The order of grouped values
+ * is determined by the order they occur in `collection`. The corresponding
+ * value of each key is an array of elements responsible for generating the
+ * key. The iteratee is invoked with one argument: (value).
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [iteratee=_.identity] The iteratee to transform keys.
+ * @returns {Object} Returns the composed aggregate object.
+ * @example
+ *
+ * _.groupBy([6.1, 4.2, 6.3], Math.floor);
+ * // => { '4': [4.2], '6': [6.1, 6.3] }
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.groupBy(['one', 'two', 'three'], 'length');
+ * // => { '3': ['one', 'two'], '5': ['three'] }
+ */
+var groupBy = createAggregator(function(result, value, key) {
+  if (hasOwnProperty$2.call(result, key)) {
+    result[key].push(value);
+  } else {
+    baseAssignValue(result, key, [value]);
+  }
+});
+
+/** Used for built-in method references. */
+var objectProto$1 = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty$1 = objectProto$1.hasOwnProperty;
+
+/**
+ * The base implementation of `_.has` without support for deep paths.
+ *
+ * @private
+ * @param {Object} [object] The object to query.
+ * @param {Array|string} key The key to check.
+ * @returns {boolean} Returns `true` if `key` exists, else `false`.
+ */
+function baseHas(object, key) {
+  return object != null && hasOwnProperty$1.call(object, key);
+}
+
+/**
+ * Checks if `path` is a direct property of `object`.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @param {Array|string} path The path to check.
+ * @returns {boolean} Returns `true` if `path` exists, else `false`.
+ * @example
+ *
+ * var object = { 'a': { 'b': 2 } };
+ * var other = _.create({ 'a': _.create({ 'b': 2 }) });
+ *
+ * _.has(object, 'a');
+ * // => true
+ *
+ * _.has(object, 'a.b');
+ * // => true
+ *
+ * _.has(object, ['a', 'b']);
+ * // => true
+ *
+ * _.has(other, 'a');
+ * // => false
+ */
+function has(object, path) {
+  return object != null && hasPath(object, path, baseHas);
+}
+
+/** `Object#toString` result references. */
+var stringTag = '[object String]';
+
+/**
+ * Checks if `value` is classified as a `String` primitive or object.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a string, else `false`.
+ * @example
+ *
+ * _.isString('abc');
+ * // => true
+ *
+ * _.isString(1);
+ * // => false
+ */
+function isString(value) {
+  return typeof value == 'string' ||
+    (!isArray(value) && isObjectLike(value) && baseGetTag(value) == stringTag);
+}
+
+/**
+ * The base implementation of `_.values` and `_.valuesIn` which creates an
+ * array of `object` property values corresponding to the property names
+ * of `props`.
+ *
+ * @private
+ * @param {Object} object The object to query.
+ * @param {Array} props The property names to get values for.
+ * @returns {Object} Returns the array of property values.
+ */
+function baseValues(object, props) {
+  return arrayMap(props, function(key) {
+    return object[key];
+  });
+}
+
+/**
+ * Creates an array of the own enumerable string keyed property values of `object`.
+ *
+ * **Note:** Non-object values are coerced to objects.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Object
+ * @param {Object} object The object to query.
+ * @returns {Array} Returns the array of property values.
+ * @example
+ *
+ * function Foo() {
+ *   this.a = 1;
+ *   this.b = 2;
+ * }
+ *
+ * Foo.prototype.c = 3;
+ *
+ * _.values(new Foo);
+ * // => [1, 2] (iteration order is not guaranteed)
+ *
+ * _.values('hi');
+ * // => ['h', 'i']
+ */
+function values(object) {
+  return object == null ? [] : baseValues(object, keys(object));
+}
+
+/* Built-in method references for those with the same name as other `lodash` methods. */
+var nativeMax = Math.max;
+
+/**
+ * Checks if `value` is in `collection`. If `collection` is a string, it's
+ * checked for a substring of `value`, otherwise
+ * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+ * is used for equality comparisons. If `fromIndex` is negative, it's used as
+ * the offset from the end of `collection`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object|string} collection The collection to inspect.
+ * @param {*} value The value to search for.
+ * @param {number} [fromIndex=0] The index to search from.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.reduce`.
+ * @returns {boolean} Returns `true` if `value` is found, else `false`.
+ * @example
+ *
+ * _.includes([1, 2, 3], 1);
+ * // => true
+ *
+ * _.includes([1, 2, 3], 1, 2);
+ * // => false
+ *
+ * _.includes({ 'a': 1, 'b': 2 }, 1);
+ * // => true
+ *
+ * _.includes('abcd', 'bc');
+ * // => true
+ */
+function includes(collection, value, fromIndex, guard) {
+  collection = isArrayLike(collection) ? collection : values(collection);
+  fromIndex = (fromIndex && true) ? toInteger(fromIndex) : 0;
+
+  var length = collection.length;
+  if (fromIndex < 0) {
+    fromIndex = nativeMax(length + fromIndex, 0);
+  }
+  return isString(collection)
+    ? (fromIndex <= length && collection.indexOf(value, fromIndex) > -1)
+    : (!!length && baseIndexOf(collection, value, fromIndex) > -1);
+}
+
+/**
+ * Gets the index at which the first occurrence of `value` is found in `array`
+ * using [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+ * for equality comparisons. If `fromIndex` is negative, it's used as the
+ * offset from the end of `array`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Array
+ * @param {Array} array The array to inspect.
+ * @param {*} value The value to search for.
+ * @param {number} [fromIndex=0] The index to search from.
+ * @returns {number} Returns the index of the matched value, else `-1`.
+ * @example
+ *
+ * _.indexOf([1, 2, 1, 2], 2);
+ * // => 1
+ *
+ * // Search from the `fromIndex`.
+ * _.indexOf([1, 2, 1, 2], 2, 2);
+ * // => 3
+ */
+function indexOf(array, value, fromIndex) {
+  var length = array == null ? 0 : array.length;
+  if (!length) {
+    return -1;
+  }
+  var index = 0 ;
+  return baseIndexOf(array, value, index);
+}
+
+/** `Object#toString` result references. */
+var mapTag = '[object Map]',
+    setTag = '[object Set]';
+
+/** Used for built-in method references. */
+var objectProto = Object.prototype;
+
+/** Used to check objects for own properties. */
+var hasOwnProperty = objectProto.hasOwnProperty;
+
+/**
+ * Checks if `value` is an empty object, collection, map, or set.
+ *
+ * Objects are considered empty if they have no own enumerable string keyed
+ * properties.
+ *
+ * Array-like values such as `arguments` objects, arrays, buffers, strings, or
+ * jQuery-like collections are considered empty if they have a `length` of `0`.
+ * Similarly, maps and sets are considered empty if they have a `size` of `0`.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is empty, else `false`.
+ * @example
+ *
+ * _.isEmpty(null);
+ * // => true
+ *
+ * _.isEmpty(true);
+ * // => true
+ *
+ * _.isEmpty(1);
+ * // => true
+ *
+ * _.isEmpty([1, 2, 3]);
+ * // => false
+ *
+ * _.isEmpty({ 'a': 1 });
+ * // => false
+ */
+function isEmpty(value) {
+  if (value == null) {
+    return true;
+  }
+  if (isArrayLike(value) &&
+      (isArray(value) || typeof value == 'string' || typeof value.splice == 'function' ||
+        isBuffer(value) || isTypedArray(value) || isArguments(value))) {
+    return !value.length;
+  }
+  var tag = getTag(value);
+  if (tag == mapTag || tag == setTag) {
+    return !value.size;
+  }
+  if (isPrototype(value)) {
+    return !baseKeys(value).length;
+  }
+  for (var key in value) {
+    if (hasOwnProperty.call(value, key)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** `Object#toString` result references. */
+var regexpTag = '[object RegExp]';
+
+/**
+ * The base implementation of `_.isRegExp` without Node.js optimizations.
+ *
+ * @private
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a regexp, else `false`.
+ */
+function baseIsRegExp(value) {
+  return isObjectLike(value) && baseGetTag(value) == regexpTag;
+}
+
+/* Node.js helper references. */
+var nodeIsRegExp = nodeUtil && nodeUtil.isRegExp;
+
+/**
+ * Checks if `value` is classified as a `RegExp` object.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is a regexp, else `false`.
+ * @example
+ *
+ * _.isRegExp(/abc/);
+ * // => true
+ *
+ * _.isRegExp('/abc/');
+ * // => false
+ */
+var isRegExp = nodeIsRegExp ? baseUnary(nodeIsRegExp) : baseIsRegExp;
+
+/**
+ * Checks if `value` is `undefined`.
+ *
+ * @static
+ * @since 0.1.0
+ * @memberOf _
+ * @category Lang
+ * @param {*} value The value to check.
+ * @returns {boolean} Returns `true` if `value` is `undefined`, else `false`.
+ * @example
+ *
+ * _.isUndefined(void 0);
+ * // => true
+ *
+ * _.isUndefined(null);
+ * // => false
+ */
+function isUndefined(value) {
+  return value === undefined;
+}
+
+/** Error message constants. */
+var FUNC_ERROR_TEXT = 'Expected a function';
+
+/**
+ * Creates a function that negates the result of the predicate `func`. The
+ * `func` predicate is invoked with the `this` binding and arguments of the
+ * created function.
+ *
+ * @static
+ * @memberOf _
+ * @since 3.0.0
+ * @category Function
+ * @param {Function} predicate The predicate to negate.
+ * @returns {Function} Returns the new negated function.
+ * @example
+ *
+ * function isEven(n) {
+ *   return n % 2 == 0;
+ * }
+ *
+ * _.filter([1, 2, 3, 4, 5, 6], _.negate(isEven));
+ * // => [1, 3, 5]
+ */
+function negate(predicate) {
+  if (typeof predicate != 'function') {
+    throw new TypeError(FUNC_ERROR_TEXT);
+  }
+  return function() {
+    var args = arguments;
+    switch (args.length) {
+      case 0: return !predicate.call(this);
+      case 1: return !predicate.call(this, args[0]);
+      case 2: return !predicate.call(this, args[0], args[1]);
+      case 3: return !predicate.call(this, args[0], args[1], args[2]);
+    }
+    return !predicate.apply(this, args);
+  };
+}
+
+/**
+ * The base implementation of `_.set`.
+ *
+ * @private
+ * @param {Object} object The object to modify.
+ * @param {Array|string} path The path of the property to set.
+ * @param {*} value The value to set.
+ * @param {Function} [customizer] The function to customize path creation.
+ * @returns {Object} Returns `object`.
+ */
+function baseSet(object, path, value, customizer) {
+  if (!isObject(object)) {
+    return object;
+  }
+  path = castPath(path, object);
+
+  var index = -1,
+      length = path.length,
+      lastIndex = length - 1,
+      nested = object;
+
+  while (nested != null && ++index < length) {
+    var key = toKey(path[index]),
+        newValue = value;
+
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return object;
+    }
+
+    if (index != lastIndex) {
+      var objValue = nested[key];
+      newValue = undefined;
+      if (newValue === undefined) {
+        newValue = isObject(objValue)
+          ? objValue
+          : (isIndex(path[index + 1]) ? [] : {});
+      }
+    }
+    assignValue(nested, key, newValue);
+    nested = nested[key];
+  }
+  return object;
+}
+
+/**
+ * The base implementation of  `_.pickBy` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Object} object The source object.
+ * @param {string[]} paths The property paths to pick.
+ * @param {Function} predicate The function invoked per property.
+ * @returns {Object} Returns the new object.
+ */
+function basePickBy(object, paths, predicate) {
+  var index = -1,
+      length = paths.length,
+      result = {};
+
+  while (++index < length) {
+    var path = paths[index],
+        value = baseGet(object, path);
+
+    if (predicate(value, path)) {
+      baseSet(result, castPath(path, object), value);
+    }
+  }
+  return result;
+}
+
+/**
+ * Creates an object composed of the `object` properties `predicate` returns
+ * truthy for. The predicate is invoked with two arguments: (value, key).
+ *
+ * @static
+ * @memberOf _
+ * @since 4.0.0
+ * @category Object
+ * @param {Object} object The source object.
+ * @param {Function} [predicate=_.identity] The function invoked per property.
+ * @returns {Object} Returns the new object.
+ * @example
+ *
+ * var object = { 'a': 1, 'b': '2', 'c': 3 };
+ *
+ * _.pickBy(object, _.isNumber);
+ * // => { 'a': 1, 'c': 3 }
+ */
+function pickBy(object, predicate) {
+  if (object == null) {
+    return {};
+  }
+  var props = arrayMap(getAllKeysIn(object), function(prop) {
+    return [prop];
+  });
+  predicate = baseIteratee(predicate);
+  return basePickBy(object, props, function(value, path) {
+    return predicate(value, path[0]);
+  });
+}
+
+/**
+ * The base implementation of `_.reduce` and `_.reduceRight`, without support
+ * for iteratee shorthands, which iterates over `collection` using `eachFunc`.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} iteratee The function invoked per iteration.
+ * @param {*} accumulator The initial value.
+ * @param {boolean} initAccum Specify using the first or last element of
+ *  `collection` as the initial value.
+ * @param {Function} eachFunc The function to iterate over `collection`.
+ * @returns {*} Returns the accumulated value.
+ */
+function baseReduce(collection, iteratee, accumulator, initAccum, eachFunc) {
+  eachFunc(collection, function(value, index, collection) {
+    accumulator = initAccum
+      ? (initAccum = false, value)
+      : iteratee(accumulator, value, index, collection);
+  });
+  return accumulator;
+}
+
+/**
+ * Reduces `collection` to a value which is the accumulated result of running
+ * each element in `collection` thru `iteratee`, where each successive
+ * invocation is supplied the return value of the previous. If `accumulator`
+ * is not given, the first element of `collection` is used as the initial
+ * value. The iteratee is invoked with four arguments:
+ * (accumulator, value, index|key, collection).
+ *
+ * Many lodash methods are guarded to work as iteratees for methods like
+ * `_.reduce`, `_.reduceRight`, and `_.transform`.
+ *
+ * The guarded methods are:
+ * `assign`, `defaults`, `defaultsDeep`, `includes`, `merge`, `orderBy`,
+ * and `sortBy`
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [iteratee=_.identity] The function invoked per iteration.
+ * @param {*} [accumulator] The initial value.
+ * @returns {*} Returns the accumulated value.
+ * @see _.reduceRight
+ * @example
+ *
+ * _.reduce([1, 2], function(sum, n) {
+ *   return sum + n;
+ * }, 0);
+ * // => 3
+ *
+ * _.reduce({ 'a': 1, 'b': 2, 'c': 1 }, function(result, value, key) {
+ *   (result[value] || (result[value] = [])).push(key);
+ *   return result;
+ * }, {});
+ * // => { '1': ['a', 'c'], '2': ['b'] } (iteration order is not guaranteed)
+ */
+function reduce(collection, iteratee, accumulator) {
+  var func = isArray(collection) ? arrayReduce : baseReduce,
+      initAccum = arguments.length < 3;
+
+  return func(collection, baseIteratee(iteratee), accumulator, initAccum, baseEach);
+}
+
+/**
+ * The opposite of `_.filter`; this method returns the elements of `collection`
+ * that `predicate` does **not** return truthy for.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @returns {Array} Returns the new filtered array.
+ * @see _.filter
+ * @example
+ *
+ * var users = [
+ *   { 'user': 'barney', 'age': 36, 'active': false },
+ *   { 'user': 'fred',   'age': 40, 'active': true }
+ * ];
+ *
+ * _.reject(users, function(o) { return !o.active; });
+ * // => objects for ['fred']
+ *
+ * // The `_.matches` iteratee shorthand.
+ * _.reject(users, { 'age': 40, 'active': true });
+ * // => objects for ['barney']
+ *
+ * // The `_.matchesProperty` iteratee shorthand.
+ * _.reject(users, ['active', false]);
+ * // => objects for ['fred']
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.reject(users, 'active');
+ * // => objects for ['barney']
+ */
+function reject(collection, predicate) {
+  var func = isArray(collection) ? arrayFilter : baseFilter;
+  return func(collection, negate(baseIteratee(predicate)));
+}
+
+/**
+ * The base implementation of `_.some` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} predicate The function invoked per iteration.
+ * @returns {boolean} Returns `true` if any element passes the predicate check,
+ *  else `false`.
+ */
+function baseSome(collection, predicate) {
+  var result;
+
+  baseEach(collection, function(value, index, collection) {
+    result = predicate(value, index, collection);
+    return !result;
+  });
+  return !!result;
+}
+
+/**
+ * Checks if `predicate` returns truthy for **any** element of `collection`.
+ * Iteration is stopped once `predicate` returns truthy. The predicate is
+ * invoked with three arguments: (value, index|key, collection).
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Collection
+ * @param {Array|Object} collection The collection to iterate over.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
+ * @returns {boolean} Returns `true` if any element passes the predicate check,
+ *  else `false`.
+ * @example
+ *
+ * _.some([null, 0, 'yes', false], Boolean);
+ * // => true
+ *
+ * var users = [
+ *   { 'user': 'barney', 'active': true },
+ *   { 'user': 'fred',   'active': false }
+ * ];
+ *
+ * // The `_.matches` iteratee shorthand.
+ * _.some(users, { 'user': 'barney', 'active': false });
+ * // => false
+ *
+ * // The `_.matchesProperty` iteratee shorthand.
+ * _.some(users, ['active', false]);
+ * // => true
+ *
+ * // The `_.property` iteratee shorthand.
+ * _.some(users, 'active');
+ * // => true
+ */
+function some(collection, predicate, guard) {
+  var func = isArray(collection) ? arraySome : baseSome;
+  return func(collection, baseIteratee(predicate));
+}
+
+/** Used as references for various `Number` constants. */
+var INFINITY = 1 / 0;
+
+/**
+ * Creates a set object of `values`.
+ *
+ * @private
+ * @param {Array} values The values to add to the set.
+ * @returns {Object} Returns the new set.
+ */
+var createSet = !(Set$1 && (1 / setToArray(new Set$1([,-0]))[1]) == INFINITY) ? noop : function(values) {
+  return new Set$1(values);
+};
+
+/** Used as the size to enable large array optimizations. */
+var LARGE_ARRAY_SIZE = 200;
+
+/**
+ * The base implementation of `_.uniqBy` without support for iteratee shorthands.
+ *
+ * @private
+ * @param {Array} array The array to inspect.
+ * @param {Function} [iteratee] The iteratee invoked per element.
+ * @param {Function} [comparator] The comparator invoked per element.
+ * @returns {Array} Returns the new duplicate free array.
+ */
+function baseUniq(array, iteratee, comparator) {
+  var index = -1,
+      includes = arrayIncludes,
+      length = array.length,
+      isCommon = true,
+      result = [],
+      seen = result;
+
+  if (length >= LARGE_ARRAY_SIZE) {
+    var set = createSet(array);
+    if (set) {
+      return setToArray(set);
+    }
+    isCommon = false;
+    includes = cacheHas;
+    seen = new SetCache;
+  }
+  else {
+    seen = result;
+  }
+  outer:
+  while (++index < length) {
+    var value = array[index],
+        computed = value;
+
+    value = (value !== 0) ? value : 0;
+    if (isCommon && computed === computed) {
+      var seenIndex = seen.length;
+      while (seenIndex--) {
+        if (seen[seenIndex] === computed) {
+          continue outer;
+        }
+      }
+      result.push(value);
+    }
+    else if (!includes(seen, computed, comparator)) {
+      if (seen !== result) {
+        seen.push(computed);
+      }
+      result.push(value);
+    }
+  }
+  return result;
+}
+
+/**
+ * Creates a duplicate-free version of an array, using
+ * [`SameValueZero`](http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero)
+ * for equality comparisons, in which only the first occurrence of each element
+ * is kept. The order of result values is determined by the order they occur
+ * in the array.
+ *
+ * @static
+ * @memberOf _
+ * @since 0.1.0
+ * @category Array
+ * @param {Array} array The array to inspect.
+ * @returns {Array} Returns the new duplicate free array.
+ * @example
+ *
+ * _.uniq([2, 1, 2]);
+ * // => [2, 1]
+ */
+function uniq(array) {
+  return (array && array.length) ? baseUniq(array) : [];
+}
+
+function PRINT_ERROR(msg) {
+    /* istanbul ignore else - can't override global.console in node.js */
+    if (console && console.error) {
+        console.error(`Error: ${msg}`);
+    }
+}
+function PRINT_WARNING(msg) {
+    /* istanbul ignore else - can't override global.console in node.js*/
+    if (console && console.warn) {
+        // TODO: modify docs accordingly
+        console.warn(`Warning: ${msg}`);
+    }
+}
+
+function timer(func) {
+    const start = new Date().getTime();
+    const val = func();
+    const end = new Date().getTime();
+    const total = end - start;
+    return { time: total, value: val };
+}
+
+// based on: https://github.com/petkaantonov/bluebird/blob/b97c0d2d487e8c5076e8bd897e0dcd4622d31846/src/util.js#L201-L216
+function toFastProperties(toBecomeFast) {
+    function FakeConstructor() { }
+    // If our object is used as a constructor, it would receive
+    FakeConstructor.prototype = toBecomeFast;
+    const fakeInstance = new FakeConstructor();
+    function fakeAccess() {
+        return typeof fakeInstance.bar;
+    }
+    // help V8 understand this is a "real" prototype by actually using
+    // the fake instance.
+    fakeAccess();
+    fakeAccess();
+    // Always true condition to suppress the Firefox warning of unreachable
+    // code after a return statement.
+    return toBecomeFast;
+}
+
+// TODO: duplicated code to avoid extracting another sub-package -- how to avoid?
+function tokenLabel$1(tokType) {
+    if (hasTokenLabel$1(tokType)) {
+        return tokType.LABEL;
+    }
+    else {
+        return tokType.name;
+    }
+}
+// TODO: duplicated code to avoid extracting another sub-package -- how to avoid?
+function hasTokenLabel$1(obj) {
+    return isString(obj.LABEL) && obj.LABEL !== "";
+}
+class AbstractProduction {
+    get definition() {
+        return this._definition;
+    }
+    set definition(value) {
+        this._definition = value;
+    }
+    constructor(_definition) {
+        this._definition = _definition;
+    }
+    accept(visitor) {
+        visitor.visit(this);
+        forEach(this.definition, (prod) => {
+            prod.accept(visitor);
+        });
+    }
+}
+class NonTerminal extends AbstractProduction {
+    constructor(options) {
+        super([]);
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+    set definition(definition) {
+        // immutable
+    }
+    get definition() {
+        if (this.referencedRule !== undefined) {
+            return this.referencedRule.definition;
+        }
+        return [];
+    }
+    accept(visitor) {
+        visitor.visit(this);
+        // don't visit children of a reference, we will get cyclic infinite loops if we do so
+    }
+}
+class Rule extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.orgText = "";
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class Alternative extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.ignoreAmbiguities = false;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class Option extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class RepetitionMandatory extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class RepetitionMandatoryWithSeparator extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class Repetition extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class RepetitionWithSeparator extends AbstractProduction {
+    constructor(options) {
+        super(options.definition);
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class Alternation extends AbstractProduction {
+    get definition() {
+        return this._definition;
+    }
+    set definition(value) {
+        this._definition = value;
+    }
+    constructor(options) {
+        super(options.definition);
+        this.idx = 1;
+        this.ignoreAmbiguities = false;
+        this.hasPredicates = false;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+}
+class Terminal {
+    constructor(options) {
+        this.idx = 1;
+        assign(this, pickBy(options, (v) => v !== undefined));
+    }
+    accept(visitor) {
+        visitor.visit(this);
+    }
+}
+function serializeGrammar(topRules) {
+    return map(topRules, serializeProduction);
+}
+function serializeProduction(node) {
+    function convertDefinition(definition) {
+        return map(definition, serializeProduction);
+    }
+    /* istanbul ignore else */
+    if (node instanceof NonTerminal) {
+        const serializedNonTerminal = {
+            type: "NonTerminal",
+            name: node.nonTerminalName,
+            idx: node.idx,
+        };
+        if (isString(node.label)) {
+            serializedNonTerminal.label = node.label;
+        }
+        return serializedNonTerminal;
+    }
+    else if (node instanceof Alternative) {
+        return {
+            type: "Alternative",
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof Option) {
+        return {
+            type: "Option",
+            idx: node.idx,
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof RepetitionMandatory) {
+        return {
+            type: "RepetitionMandatory",
+            idx: node.idx,
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof RepetitionMandatoryWithSeparator) {
+        return {
+            type: "RepetitionMandatoryWithSeparator",
+            idx: node.idx,
+            separator: (serializeProduction(new Terminal({ terminalType: node.separator }))),
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof RepetitionWithSeparator) {
+        return {
+            type: "RepetitionWithSeparator",
+            idx: node.idx,
+            separator: (serializeProduction(new Terminal({ terminalType: node.separator }))),
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof Repetition) {
+        return {
+            type: "Repetition",
+            idx: node.idx,
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof Alternation) {
+        return {
+            type: "Alternation",
+            idx: node.idx,
+            definition: convertDefinition(node.definition),
+        };
+    }
+    else if (node instanceof Terminal) {
+        const serializedTerminal = {
+            type: "Terminal",
+            name: node.terminalType.name,
+            label: tokenLabel$1(node.terminalType),
+            idx: node.idx,
+        };
+        if (isString(node.label)) {
+            serializedTerminal.terminalLabel = node.label;
+        }
+        const pattern = node.terminalType.PATTERN;
+        if (node.terminalType.PATTERN) {
+            serializedTerminal.pattern = isRegExp(pattern)
+                ? pattern.source
+                : pattern;
+        }
+        return serializedTerminal;
+    }
+    else if (node instanceof Rule) {
+        return {
+            type: "Rule",
+            name: node.name,
+            orgText: node.orgText,
+            definition: convertDefinition(node.definition),
+        };
+        /* c8 ignore next 3 */
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+
+class GAstVisitor {
+    visit(node) {
+        const nodeAny = node;
+        switch (nodeAny.constructor) {
+            case NonTerminal:
+                return this.visitNonTerminal(nodeAny);
+            case Alternative:
+                return this.visitAlternative(nodeAny);
+            case Option:
+                return this.visitOption(nodeAny);
+            case RepetitionMandatory:
+                return this.visitRepetitionMandatory(nodeAny);
+            case RepetitionMandatoryWithSeparator:
+                return this.visitRepetitionMandatoryWithSeparator(nodeAny);
+            case RepetitionWithSeparator:
+                return this.visitRepetitionWithSeparator(nodeAny);
+            case Repetition:
+                return this.visitRepetition(nodeAny);
+            case Alternation:
+                return this.visitAlternation(nodeAny);
+            case Terminal:
+                return this.visitTerminal(nodeAny);
+            case Rule:
+                return this.visitRule(nodeAny);
+            /* c8 ignore next 2 */
+            default:
+                throw Error("non exhaustive match");
+        }
+    }
+    /* c8 ignore next */
+    visitNonTerminal(node) { }
+    /* c8 ignore next */
+    visitAlternative(node) { }
+    /* c8 ignore next */
+    visitOption(node) { }
+    /* c8 ignore next */
+    visitRepetition(node) { }
+    /* c8 ignore next */
+    visitRepetitionMandatory(node) { }
+    /* c8 ignore next 3 */
+    visitRepetitionMandatoryWithSeparator(node) { }
+    /* c8 ignore next */
+    visitRepetitionWithSeparator(node) { }
+    /* c8 ignore next */
+    visitAlternation(node) { }
+    /* c8 ignore next */
+    visitTerminal(node) { }
+    /* c8 ignore next */
+    visitRule(node) { }
+}
+
+function isSequenceProd(prod) {
+    return (prod instanceof Alternative ||
+        prod instanceof Option ||
+        prod instanceof Repetition ||
+        prod instanceof RepetitionMandatory ||
+        prod instanceof RepetitionMandatoryWithSeparator ||
+        prod instanceof RepetitionWithSeparator ||
+        prod instanceof Terminal ||
+        prod instanceof Rule);
+}
+function isOptionalProd(prod, alreadyVisited = []) {
+    const isDirectlyOptional = prod instanceof Option ||
+        prod instanceof Repetition ||
+        prod instanceof RepetitionWithSeparator;
+    if (isDirectlyOptional) {
+        return true;
+    }
+    // note that this can cause infinite loop if one optional empty TOP production has a cyclic dependency with another
+    // empty optional top rule
+    // may be indirectly optional ((A?B?C?) | (D?E?F?))
+    if (prod instanceof Alternation) {
+        // for OR its enough for just one of the alternatives to be optional
+        return some(prod.definition, (subProd) => {
+            return isOptionalProd(subProd, alreadyVisited);
+        });
+    }
+    else if (prod instanceof NonTerminal && includes(alreadyVisited, prod)) {
+        // avoiding stack overflow due to infinite recursion
+        return false;
+    }
+    else if (prod instanceof AbstractProduction) {
+        if (prod instanceof NonTerminal) {
+            alreadyVisited.push(prod);
+        }
+        return every(prod.definition, (subProd) => {
+            return isOptionalProd(subProd, alreadyVisited);
+        });
+    }
+    else {
+        return false;
+    }
+}
+function isBranchingProd(prod) {
+    return prod instanceof Alternation;
+}
+function getProductionDslName(prod) {
+    /* istanbul ignore else */
+    if (prod instanceof NonTerminal) {
+        return "SUBRULE";
+    }
+    else if (prod instanceof Option) {
+        return "OPTION";
+    }
+    else if (prod instanceof Alternation) {
+        return "OR";
+    }
+    else if (prod instanceof RepetitionMandatory) {
+        return "AT_LEAST_ONE";
+    }
+    else if (prod instanceof RepetitionMandatoryWithSeparator) {
+        return "AT_LEAST_ONE_SEP";
+    }
+    else if (prod instanceof RepetitionWithSeparator) {
+        return "MANY_SEP";
+    }
+    else if (prod instanceof Repetition) {
+        return "MANY";
+    }
+    else if (prod instanceof Terminal) {
+        return "CONSUME";
+        /* c8 ignore next 3 */
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+
+/**
+ *  A Grammar Walker that computes the "remaining" grammar "after" a productions in the grammar.
+ */
+class RestWalker {
+    walk(prod, prevRest = []) {
+        forEach(prod.definition, (subProd, index) => {
+            const currRest = drop(prod.definition, index + 1);
+            /* istanbul ignore else */
+            if (subProd instanceof NonTerminal) {
+                this.walkProdRef(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof Terminal) {
+                this.walkTerminal(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof Alternative) {
+                this.walkFlat(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof Option) {
+                this.walkOption(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof RepetitionMandatory) {
+                this.walkAtLeastOne(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof RepetitionMandatoryWithSeparator) {
+                this.walkAtLeastOneSep(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof RepetitionWithSeparator) {
+                this.walkManySep(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof Repetition) {
+                this.walkMany(subProd, currRest, prevRest);
+            }
+            else if (subProd instanceof Alternation) {
+                this.walkOr(subProd, currRest, prevRest);
+            }
+            else {
+                throw Error("non exhaustive match");
+            }
+        });
+    }
+    walkTerminal(terminal, currRest, prevRest) { }
+    walkProdRef(refProd, currRest, prevRest) { }
+    walkFlat(flatProd, currRest, prevRest) {
+        // ABCDEF => after the D the rest is EF
+        const fullOrRest = currRest.concat(prevRest);
+        this.walk(flatProd, fullOrRest);
+    }
+    walkOption(optionProd, currRest, prevRest) {
+        // ABC(DE)?F => after the (DE)? the rest is F
+        const fullOrRest = currRest.concat(prevRest);
+        this.walk(optionProd, fullOrRest);
+    }
+    walkAtLeastOne(atLeastOneProd, currRest, prevRest) {
+        // ABC(DE)+F => after the (DE)+ the rest is (DE)?F
+        const fullAtLeastOneRest = [
+            new Option({ definition: atLeastOneProd.definition }),
+        ].concat(currRest, prevRest);
+        this.walk(atLeastOneProd, fullAtLeastOneRest);
+    }
+    walkAtLeastOneSep(atLeastOneSepProd, currRest, prevRest) {
+        // ABC DE(,DE)* F => after the (,DE)+ the rest is (,DE)?F
+        const fullAtLeastOneSepRest = restForRepetitionWithSeparator(atLeastOneSepProd, currRest, prevRest);
+        this.walk(atLeastOneSepProd, fullAtLeastOneSepRest);
+    }
+    walkMany(manyProd, currRest, prevRest) {
+        // ABC(DE)*F => after the (DE)* the rest is (DE)?F
+        const fullManyRest = [
+            new Option({ definition: manyProd.definition }),
+        ].concat(currRest, prevRest);
+        this.walk(manyProd, fullManyRest);
+    }
+    walkManySep(manySepProd, currRest, prevRest) {
+        // ABC (DE(,DE)*)? F => after the (,DE)* the rest is (,DE)?F
+        const fullManySepRest = restForRepetitionWithSeparator(manySepProd, currRest, prevRest);
+        this.walk(manySepProd, fullManySepRest);
+    }
+    walkOr(orProd, currRest, prevRest) {
+        // ABC(D|E|F)G => when finding the (D|E|F) the rest is G
+        const fullOrRest = currRest.concat(prevRest);
+        // walk all different alternatives
+        forEach(orProd.definition, (alt) => {
+            // wrapping each alternative in a single definition wrapper
+            // to avoid errors in computing the rest of that alternative in the invocation to computeInProdFollows
+            // (otherwise for OR([alt1,alt2]) alt2 will be considered in 'rest' of alt1
+            const prodWrapper = new Alternative({ definition: [alt] });
+            this.walk(prodWrapper, fullOrRest);
+        });
+    }
+}
+function restForRepetitionWithSeparator(repSepProd, currRest, prevRest) {
+    const repSepRest = [
+        new Option({
+            definition: [
+                new Terminal({ terminalType: repSepProd.separator }),
+            ].concat(repSepProd.definition),
+        }),
+    ];
+    const fullRepSepRest = repSepRest.concat(currRest, prevRest);
+    return fullRepSepRest;
+}
+
+function first(prod) {
+    /* istanbul ignore else */
+    if (prod instanceof NonTerminal) {
+        // this could in theory cause infinite loops if
+        // (1) prod A refs prod B.
+        // (2) prod B refs prod A
+        // (3) AB can match the empty set
+        // in other words a cycle where everything is optional so the first will keep
+        // looking ahead for the next optional part and will never exit
+        // currently there is no safeguard for this unique edge case because
+        // (1) not sure a grammar in which this can happen is useful for anything (productive)
+        return first(prod.referencedRule);
+    }
+    else if (prod instanceof Terminal) {
+        return firstForTerminal(prod);
+    }
+    else if (isSequenceProd(prod)) {
+        return firstForSequence(prod);
+    }
+    else if (isBranchingProd(prod)) {
+        return firstForBranching(prod);
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+function firstForSequence(prod) {
+    let firstSet = [];
+    const seq = prod.definition;
+    let nextSubProdIdx = 0;
+    let hasInnerProdsRemaining = seq.length > nextSubProdIdx;
+    let currSubProd;
+    // so we enter the loop at least once (if the definition is not empty
+    let isLastInnerProdOptional = true;
+    // scan a sequence until it's end or until we have found a NONE optional production in it
+    while (hasInnerProdsRemaining && isLastInnerProdOptional) {
+        currSubProd = seq[nextSubProdIdx];
+        isLastInnerProdOptional = isOptionalProd(currSubProd);
+        firstSet = firstSet.concat(first(currSubProd));
+        nextSubProdIdx = nextSubProdIdx + 1;
+        hasInnerProdsRemaining = seq.length > nextSubProdIdx;
+    }
+    return uniq(firstSet);
+}
+function firstForBranching(prod) {
+    const allAlternativesFirsts = map(prod.definition, (innerProd) => {
+        return first(innerProd);
+    });
+    return uniq(flatten(allAlternativesFirsts));
+}
+function firstForTerminal(terminal) {
+    return [terminal.terminalType];
+}
+
+// TODO: can this be removed? where is it used?
+const IN = "_~IN~_";
+
+// This ResyncFollowsWalker computes all of the follows required for RESYNC
+// (skipping reference production).
+class ResyncFollowsWalker extends RestWalker {
+    constructor(topProd) {
+        super();
+        this.topProd = topProd;
+        this.follows = {};
+    }
+    startWalking() {
+        this.walk(this.topProd);
+        return this.follows;
+    }
+    walkTerminal(terminal, currRest, prevRest) {
+        // do nothing! just like in the public sector after 13:00
+    }
+    walkProdRef(refProd, currRest, prevRest) {
+        const followName = buildBetweenProdsFollowPrefix(refProd.referencedRule, refProd.idx) +
+            this.topProd.name;
+        const fullRest = currRest.concat(prevRest);
+        const restProd = new Alternative({ definition: fullRest });
+        const t_in_topProd_follows = first(restProd);
+        this.follows[followName] = t_in_topProd_follows;
+    }
+}
+function computeAllProdsFollows(topProductions) {
+    const reSyncFollows = {};
+    forEach(topProductions, (topProd) => {
+        const currRefsFollow = new ResyncFollowsWalker(topProd).startWalking();
+        assign(reSyncFollows, currRefsFollow);
+    });
+    return reSyncFollows;
+}
+function buildBetweenProdsFollowPrefix(inner, occurenceInParent) {
+    return inner.name + occurenceInParent + IN;
+}
+
+function cc(char) {
+    return char.charCodeAt(0);
+}
+function insertToSet(item, set) {
+    if (Array.isArray(item)) {
+        item.forEach(function (subItem) {
+            set.push(subItem);
+        });
+    }
+    else {
+        set.push(item);
+    }
+}
+function addFlag(flagObj, flagKey) {
+    if (flagObj[flagKey] === true) {
+        throw "duplicate flag " + flagKey;
+    }
+    flagObj[flagKey];
+    flagObj[flagKey] = true;
+}
+function ASSERT_EXISTS(obj) {
+    // istanbul ignore next
+    if (obj === undefined) {
+        throw Error("Internal Error - Should never get here!");
+    }
+    return true;
+}
+// istanbul ignore next
+function ASSERT_NEVER_REACH_HERE() {
+    throw Error("Internal Error - Should never get here!");
+}
+function isCharacter(obj) {
+    return obj["type"] === "Character";
+}
+
+const digitsCharCodes = [];
+for (let i = cc("0"); i <= cc("9"); i++) {
+    digitsCharCodes.push(i);
+}
+const wordCharCodes = [cc("_")].concat(digitsCharCodes);
+for (let i = cc("a"); i <= cc("z"); i++) {
+    wordCharCodes.push(i);
+}
+for (let i = cc("A"); i <= cc("Z"); i++) {
+    wordCharCodes.push(i);
+}
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp#character-classes
+const whitespaceCodes = [
+    cc(" "),
+    cc("\f"),
+    cc("\n"),
+    cc("\r"),
+    cc("\t"),
+    cc("\v"),
+    cc("\t"),
+    cc("\u00a0"),
+    cc("\u1680"),
+    cc("\u2000"),
+    cc("\u2001"),
+    cc("\u2002"),
+    cc("\u2003"),
+    cc("\u2004"),
+    cc("\u2005"),
+    cc("\u2006"),
+    cc("\u2007"),
+    cc("\u2008"),
+    cc("\u2009"),
+    cc("\u200a"),
+    cc("\u2028"),
+    cc("\u2029"),
+    cc("\u202f"),
+    cc("\u205f"),
+    cc("\u3000"),
+    cc("\ufeff"),
+];
+
+// consts and utilities
+const hexDigitPattern = /[0-9a-fA-F]/;
+const decimalPattern = /[0-9]/;
+const decimalPatternNoZero = /[1-9]/;
+// https://hackernoon.com/the-madness-of-parsing-real-world-javascript-regexps-d9ee336df983
+// https://www.ecma-international.org/ecma-262/8.0/index.html#prod-Pattern
+class RegExpParser {
+    constructor() {
+        this.idx = 0;
+        this.input = "";
+        this.groupIdx = 0;
+    }
+    saveState() {
+        return {
+            idx: this.idx,
+            input: this.input,
+            groupIdx: this.groupIdx,
+        };
+    }
+    restoreState(newState) {
+        this.idx = newState.idx;
+        this.input = newState.input;
+        this.groupIdx = newState.groupIdx;
+    }
+    pattern(input) {
+        // parser state
+        this.idx = 0;
+        this.input = input;
+        this.groupIdx = 0;
+        this.consumeChar("/");
+        const value = this.disjunction();
+        this.consumeChar("/");
+        const flags = {
+            type: "Flags",
+            loc: { begin: this.idx, end: input.length },
+            global: false,
+            ignoreCase: false,
+            multiLine: false,
+            unicode: false,
+            sticky: false,
+        };
+        while (this.isRegExpFlag()) {
+            switch (this.popChar()) {
+                case "g":
+                    addFlag(flags, "global");
+                    break;
+                case "i":
+                    addFlag(flags, "ignoreCase");
+                    break;
+                case "m":
+                    addFlag(flags, "multiLine");
+                    break;
+                case "u":
+                    addFlag(flags, "unicode");
+                    break;
+                case "y":
+                    addFlag(flags, "sticky");
+                    break;
+            }
+        }
+        if (this.idx !== this.input.length) {
+            throw Error("Redundant input: " + this.input.substring(this.idx));
+        }
+        return {
+            type: "Pattern",
+            flags: flags,
+            value: value,
+            loc: this.loc(0),
+        };
+    }
+    disjunction() {
+        const alts = [];
+        const begin = this.idx;
+        alts.push(this.alternative());
+        while (this.peekChar() === "|") {
+            this.consumeChar("|");
+            alts.push(this.alternative());
+        }
+        return { type: "Disjunction", value: alts, loc: this.loc(begin) };
+    }
+    alternative() {
+        const terms = [];
+        const begin = this.idx;
+        while (this.isTerm()) {
+            terms.push(this.term());
+        }
+        return { type: "Alternative", value: terms, loc: this.loc(begin) };
+    }
+    term() {
+        if (this.isAssertion()) {
+            return this.assertion();
+        }
+        else {
+            return this.atom();
+        }
+    }
+    assertion() {
+        const begin = this.idx;
+        switch (this.popChar()) {
+            case "^":
+                return {
+                    type: "StartAnchor",
+                    loc: this.loc(begin),
+                };
+            case "$":
+                return { type: "EndAnchor", loc: this.loc(begin) };
+            // '\b' or '\B'
+            case "\\":
+                switch (this.popChar()) {
+                    case "b":
+                        return {
+                            type: "WordBoundary",
+                            loc: this.loc(begin),
+                        };
+                    case "B":
+                        return {
+                            type: "NonWordBoundary",
+                            loc: this.loc(begin),
+                        };
+                }
+                /* c8 ignore next */
+                throw Error("Invalid Assertion Escape");
+            // '(?=' or '(?!'
+            case "(":
+                this.consumeChar("?");
+                let type;
+                switch (this.popChar()) {
+                    case "=":
+                        type = "Lookahead";
+                        break;
+                    case "!":
+                        type = "NegativeLookahead";
+                        break;
+                    case "<": {
+                        switch (this.popChar()) {
+                            case "=":
+                                type = "Lookbehind";
+                                break;
+                            case "!":
+                                type = "NegativeLookbehind";
+                        }
+                        break;
+                    }
+                }
+                ASSERT_EXISTS(type);
+                const disjunction = this.disjunction();
+                this.consumeChar(")");
+                return {
+                    type: type,
+                    value: disjunction,
+                    loc: this.loc(begin),
+                };
+        }
+        // istanbul ignore next
+        return ASSERT_NEVER_REACH_HERE();
+    }
+    quantifier(isBacktracking = false) {
+        let range = undefined;
+        const begin = this.idx;
+        switch (this.popChar()) {
+            case "*":
+                range = {
+                    atLeast: 0,
+                    atMost: Infinity,
+                };
+                break;
+            case "+":
+                range = {
+                    atLeast: 1,
+                    atMost: Infinity,
+                };
+                break;
+            case "?":
+                range = {
+                    atLeast: 0,
+                    atMost: 1,
+                };
+                break;
+            case "{":
+                const atLeast = this.integerIncludingZero();
+                switch (this.popChar()) {
+                    case "}":
+                        range = {
+                            atLeast: atLeast,
+                            atMost: atLeast,
+                        };
+                        break;
+                    case ",":
+                        let atMost;
+                        if (this.isDigit()) {
+                            atMost = this.integerIncludingZero();
+                            range = {
+                                atLeast: atLeast,
+                                atMost: atMost,
+                            };
+                        }
+                        else {
+                            range = {
+                                atLeast: atLeast,
+                                atMost: Infinity,
+                            };
+                        }
+                        this.consumeChar("}");
+                        break;
+                }
+                // throwing exceptions from "ASSERT_EXISTS" during backtracking
+                // causes severe performance degradations
+                if (isBacktracking === true && range === undefined) {
+                    return undefined;
+                }
+                ASSERT_EXISTS(range);
+                break;
+        }
+        // throwing exceptions from "ASSERT_EXISTS" during backtracking
+        // causes severe performance degradations
+        if (isBacktracking === true && range === undefined) {
+            return undefined;
+        }
+        // istanbul ignore else
+        if (ASSERT_EXISTS(range)) {
+            if (this.peekChar(0) === "?") {
+                this.consumeChar("?");
+                range.greedy = false;
+            }
+            else {
+                range.greedy = true;
+            }
+            range.type = "Quantifier";
+            range.loc = this.loc(begin);
+            return range;
+        }
+    }
+    atom() {
+        let atom;
+        const begin = this.idx;
+        switch (this.peekChar()) {
+            case ".":
+                atom = this.dotAll();
+                break;
+            case "\\":
+                atom = this.atomEscape();
+                break;
+            case "[":
+                atom = this.characterClass();
+                break;
+            case "(":
+                atom = this.group();
+                break;
+        }
+        if (atom === undefined && this.isPatternCharacter()) {
+            atom = this.patternCharacter();
+        }
+        // istanbul ignore else
+        if (ASSERT_EXISTS(atom)) {
+            atom.loc = this.loc(begin);
+            if (this.isQuantifier()) {
+                atom.quantifier = this.quantifier();
+            }
+            return atom;
+        }
+    }
+    dotAll() {
+        this.consumeChar(".");
+        return {
+            type: "Set",
+            complement: true,
+            value: [cc("\n"), cc("\r"), cc("\u2028"), cc("\u2029")],
+        };
+    }
+    atomEscape() {
+        this.consumeChar("\\");
+        switch (this.peekChar()) {
+            case "1":
+            case "2":
+            case "3":
+            case "4":
+            case "5":
+            case "6":
+            case "7":
+            case "8":
+            case "9":
+                return this.decimalEscapeAtom();
+            case "d":
+            case "D":
+            case "s":
+            case "S":
+            case "w":
+            case "W":
+                return this.characterClassEscape();
+            case "f":
+            case "n":
+            case "r":
+            case "t":
+            case "v":
+                return this.controlEscapeAtom();
+            case "c":
+                return this.controlLetterEscapeAtom();
+            case "0":
+                return this.nulCharacterAtom();
+            case "x":
+                return this.hexEscapeSequenceAtom();
+            case "u":
+                return this.regExpUnicodeEscapeSequenceAtom();
+            default:
+                return this.identityEscapeAtom();
+        }
+    }
+    decimalEscapeAtom() {
+        const value = this.positiveInteger();
+        return { type: "GroupBackReference", value: value };
+    }
+    characterClassEscape() {
+        let set;
+        let complement = false;
+        switch (this.popChar()) {
+            case "d":
+                set = digitsCharCodes;
+                break;
+            case "D":
+                set = digitsCharCodes;
+                complement = true;
+                break;
+            case "s":
+                set = whitespaceCodes;
+                break;
+            case "S":
+                set = whitespaceCodes;
+                complement = true;
+                break;
+            case "w":
+                set = wordCharCodes;
+                break;
+            case "W":
+                set = wordCharCodes;
+                complement = true;
+                break;
+        }
+        // istanbul ignore else
+        if (ASSERT_EXISTS(set)) {
+            return { type: "Set", value: set, complement: complement };
+        }
+    }
+    controlEscapeAtom() {
+        let escapeCode;
+        switch (this.popChar()) {
+            case "f":
+                escapeCode = cc("\f");
+                break;
+            case "n":
+                escapeCode = cc("\n");
+                break;
+            case "r":
+                escapeCode = cc("\r");
+                break;
+            case "t":
+                escapeCode = cc("\t");
+                break;
+            case "v":
+                escapeCode = cc("\v");
+                break;
+        }
+        // istanbul ignore else
+        if (ASSERT_EXISTS(escapeCode)) {
+            return { type: "Character", value: escapeCode };
+        }
+    }
+    controlLetterEscapeAtom() {
+        this.consumeChar("c");
+        const letter = this.popChar();
+        if (/[a-zA-Z]/.test(letter) === false) {
+            throw Error("Invalid ");
+        }
+        const letterCode = letter.toUpperCase().charCodeAt(0) - 64;
+        return { type: "Character", value: letterCode };
+    }
+    nulCharacterAtom() {
+        // TODO implement '[lookahead ∉ DecimalDigit]'
+        // TODO: for the deprecated octal escape sequence
+        this.consumeChar("0");
+        return { type: "Character", value: cc("\0") };
+    }
+    hexEscapeSequenceAtom() {
+        this.consumeChar("x");
+        return this.parseHexDigits(2);
+    }
+    regExpUnicodeEscapeSequenceAtom() {
+        this.consumeChar("u");
+        return this.parseHexDigits(4);
+    }
+    identityEscapeAtom() {
+        // TODO: implement "SourceCharacter but not UnicodeIDContinue"
+        // // http://unicode.org/reports/tr31/#Specific_Character_Adjustments
+        const escapedChar = this.popChar();
+        return { type: "Character", value: cc(escapedChar) };
+    }
+    classPatternCharacterAtom() {
+        switch (this.peekChar()) {
+            // istanbul ignore next
+            case "\n":
+            // istanbul ignore next
+            case "\r":
+            // istanbul ignore next
+            case "\u2028":
+            // istanbul ignore next
+            case "\u2029":
+            // istanbul ignore next
+            case "\\":
+            // istanbul ignore next
+            case "]":
+                throw Error("TBD");
+            default:
+                const nextChar = this.popChar();
+                return { type: "Character", value: cc(nextChar) };
+        }
+    }
+    characterClass() {
+        const set = [];
+        let complement = false;
+        this.consumeChar("[");
+        if (this.peekChar(0) === "^") {
+            this.consumeChar("^");
+            complement = true;
+        }
+        while (this.isClassAtom()) {
+            const from = this.classAtom();
+            from.type === "Character";
+            if (isCharacter(from) && this.isRangeDash()) {
+                this.consumeChar("-");
+                const to = this.classAtom();
+                to.type === "Character";
+                // a range can only be used when both sides are single characters
+                if (isCharacter(to)) {
+                    if (to.value < from.value) {
+                        throw Error("Range out of order in character class");
+                    }
+                    set.push({ from: from.value, to: to.value });
+                }
+                else {
+                    // literal dash
+                    insertToSet(from.value, set);
+                    set.push(cc("-"));
+                    insertToSet(to.value, set);
+                }
+            }
+            else {
+                insertToSet(from.value, set);
+            }
+        }
+        this.consumeChar("]");
+        return { type: "Set", complement: complement, value: set };
+    }
+    classAtom() {
+        switch (this.peekChar()) {
+            // istanbul ignore next
+            case "]":
+            // istanbul ignore next
+            case "\n":
+            // istanbul ignore next
+            case "\r":
+            // istanbul ignore next
+            case "\u2028":
+            // istanbul ignore next
+            case "\u2029":
+                throw Error("TBD");
+            case "\\":
+                return this.classEscape();
+            default:
+                return this.classPatternCharacterAtom();
+        }
+    }
+    classEscape() {
+        this.consumeChar("\\");
+        switch (this.peekChar()) {
+            // Matches a backspace.
+            // (Not to be confused with \b word boundary outside characterClass)
+            case "b":
+                this.consumeChar("b");
+                return { type: "Character", value: cc("\u0008") };
+            case "d":
+            case "D":
+            case "s":
+            case "S":
+            case "w":
+            case "W":
+                return this.characterClassEscape();
+            case "f":
+            case "n":
+            case "r":
+            case "t":
+            case "v":
+                return this.controlEscapeAtom();
+            case "c":
+                return this.controlLetterEscapeAtom();
+            case "0":
+                return this.nulCharacterAtom();
+            case "x":
+                return this.hexEscapeSequenceAtom();
+            case "u":
+                return this.regExpUnicodeEscapeSequenceAtom();
+            default:
+                return this.identityEscapeAtom();
+        }
+    }
+    group() {
+        let capturing = true;
+        this.consumeChar("(");
+        switch (this.peekChar(0)) {
+            case "?":
+                this.consumeChar("?");
+                this.consumeChar(":");
+                capturing = false;
+                break;
+            default:
+                this.groupIdx++;
+                break;
+        }
+        const value = this.disjunction();
+        this.consumeChar(")");
+        const groupAst = {
+            type: "Group",
+            capturing: capturing,
+            value: value,
+        };
+        if (capturing) {
+            groupAst["idx"] = this.groupIdx;
+        }
+        return groupAst;
+    }
+    positiveInteger() {
+        let number = this.popChar();
+        // istanbul ignore next - can't ever get here due to previous lookahead checks
+        // still implementing this error checking in case this ever changes.
+        if (decimalPatternNoZero.test(number) === false) {
+            throw Error("Expecting a positive integer");
+        }
+        while (decimalPattern.test(this.peekChar(0))) {
+            number += this.popChar();
+        }
+        return parseInt(number, 10);
+    }
+    integerIncludingZero() {
+        let number = this.popChar();
+        if (decimalPattern.test(number) === false) {
+            throw Error("Expecting an integer");
+        }
+        while (decimalPattern.test(this.peekChar(0))) {
+            number += this.popChar();
+        }
+        return parseInt(number, 10);
+    }
+    patternCharacter() {
+        const nextChar = this.popChar();
+        switch (nextChar) {
+            // istanbul ignore next
+            case "\n":
+            // istanbul ignore next
+            case "\r":
+            // istanbul ignore next
+            case "\u2028":
+            // istanbul ignore next
+            case "\u2029":
+            // istanbul ignore next
+            case "^":
+            // istanbul ignore next
+            case "$":
+            // istanbul ignore next
+            case "\\":
+            // istanbul ignore next
+            case ".":
+            // istanbul ignore next
+            case "*":
+            // istanbul ignore next
+            case "+":
+            // istanbul ignore next
+            case "?":
+            // istanbul ignore next
+            case "(":
+            // istanbul ignore next
+            case ")":
+            // istanbul ignore next
+            case "[":
+            // istanbul ignore next
+            case "|":
+                // istanbul ignore next
+                throw Error("TBD");
+            default:
+                return { type: "Character", value: cc(nextChar) };
+        }
+    }
+    isRegExpFlag() {
+        switch (this.peekChar(0)) {
+            case "g":
+            case "i":
+            case "m":
+            case "u":
+            case "y":
+                return true;
+            default:
+                return false;
+        }
+    }
+    isRangeDash() {
+        return this.peekChar() === "-" && this.isClassAtom(1);
+    }
+    isDigit() {
+        return decimalPattern.test(this.peekChar(0));
+    }
+    isClassAtom(howMuch = 0) {
+        switch (this.peekChar(howMuch)) {
+            case "]":
+            case "\n":
+            case "\r":
+            case "\u2028":
+            case "\u2029":
+                return false;
+            default:
+                return true;
+        }
+    }
+    isTerm() {
+        return this.isAtom() || this.isAssertion();
+    }
+    isAtom() {
+        if (this.isPatternCharacter()) {
+            return true;
+        }
+        switch (this.peekChar(0)) {
+            case ".":
+            case "\\": // atomEscape
+            case "[": // characterClass
+            // TODO: isAtom must be called before isAssertion - disambiguate
+            case "(": // group
+                return true;
+            default:
+                return false;
+        }
+    }
+    isAssertion() {
+        switch (this.peekChar(0)) {
+            case "^":
+            case "$":
+                return true;
+            // '\b' or '\B'
+            case "\\":
+                switch (this.peekChar(1)) {
+                    case "b":
+                    case "B":
+                        return true;
+                    default:
+                        return false;
+                }
+            // '(?=' or '(?!' or `(?<=` or `(?<!`
+            case "(":
+                return (this.peekChar(1) === "?" &&
+                    (this.peekChar(2) === "=" ||
+                        this.peekChar(2) === "!" ||
+                        (this.peekChar(2) === "<" &&
+                            (this.peekChar(3) === "=" || this.peekChar(3) === "!"))));
+            default:
+                return false;
+        }
+    }
+    isQuantifier() {
+        const prevState = this.saveState();
+        try {
+            return this.quantifier(true) !== undefined;
+        }
+        catch (e) {
+            return false;
+        }
+        finally {
+            this.restoreState(prevState);
+        }
+    }
+    isPatternCharacter() {
+        switch (this.peekChar()) {
+            case "^":
+            case "$":
+            case "\\":
+            case ".":
+            case "*":
+            case "+":
+            case "?":
+            case "(":
+            case ")":
+            case "[":
+            case "|":
+            case "/":
+            case "\n":
+            case "\r":
+            case "\u2028":
+            case "\u2029":
+                return false;
+            default:
+                return true;
+        }
+    }
+    parseHexDigits(howMany) {
+        let hexString = "";
+        for (let i = 0; i < howMany; i++) {
+            const hexChar = this.popChar();
+            if (hexDigitPattern.test(hexChar) === false) {
+                throw Error("Expecting a HexDecimal digits");
+            }
+            hexString += hexChar;
+        }
+        const charCode = parseInt(hexString, 16);
+        return { type: "Character", value: charCode };
+    }
+    peekChar(howMuch = 0) {
+        return this.input[this.idx + howMuch];
+    }
+    popChar() {
+        const nextChar = this.peekChar(0);
+        this.consumeChar(undefined);
+        return nextChar;
+    }
+    consumeChar(char) {
+        if (char !== undefined && this.input[this.idx] !== char) {
+            throw Error("Expected: '" +
+                char +
+                "' but found: '" +
+                this.input[this.idx] +
+                "' at offset: " +
+                this.idx);
+        }
+        if (this.idx >= this.input.length) {
+            throw Error("Unexpected end of input");
+        }
+        this.idx++;
+    }
+    loc(begin) {
+        return { begin: begin, end: this.idx };
+    }
+}
+
+class BaseRegExpVisitor {
+    visitChildren(node) {
+        for (const key in node) {
+            const child = node[key];
+            /* istanbul ignore else */
+            if (node.hasOwnProperty(key)) {
+                if (child.type !== undefined) {
+                    this.visit(child);
+                }
+                else if (Array.isArray(child)) {
+                    child.forEach((subChild) => {
+                        this.visit(subChild);
+                    }, this);
+                }
+            }
+        }
+    }
+    visit(node) {
+        switch (node.type) {
+            case "Pattern":
+                this.visitPattern(node);
+                break;
+            case "Flags":
+                this.visitFlags(node);
+                break;
+            case "Disjunction":
+                this.visitDisjunction(node);
+                break;
+            case "Alternative":
+                this.visitAlternative(node);
+                break;
+            case "StartAnchor":
+                this.visitStartAnchor(node);
+                break;
+            case "EndAnchor":
+                this.visitEndAnchor(node);
+                break;
+            case "WordBoundary":
+                this.visitWordBoundary(node);
+                break;
+            case "NonWordBoundary":
+                this.visitNonWordBoundary(node);
+                break;
+            case "Lookahead":
+                this.visitLookahead(node);
+                break;
+            case "NegativeLookahead":
+                this.visitNegativeLookahead(node);
+                break;
+            case "Lookbehind":
+                this.visitLookbehind(node);
+                break;
+            case "NegativeLookbehind":
+                this.visitNegativeLookbehind(node);
+                break;
+            case "Character":
+                this.visitCharacter(node);
+                break;
+            case "Set":
+                this.visitSet(node);
+                break;
+            case "Group":
+                this.visitGroup(node);
+                break;
+            case "GroupBackReference":
+                this.visitGroupBackReference(node);
+                break;
+            case "Quantifier":
+                this.visitQuantifier(node);
+                break;
+        }
+        this.visitChildren(node);
+    }
+    visitPattern(node) { }
+    visitFlags(node) { }
+    visitDisjunction(node) { }
+    visitAlternative(node) { }
+    // Assertion
+    visitStartAnchor(node) { }
+    visitEndAnchor(node) { }
+    visitWordBoundary(node) { }
+    visitNonWordBoundary(node) { }
+    visitLookahead(node) { }
+    visitNegativeLookahead(node) { }
+    visitLookbehind(node) { }
+    visitNegativeLookbehind(node) { }
+    // atoms
+    visitCharacter(node) { }
+    visitSet(node) { }
+    visitGroup(node) { }
+    visitGroupBackReference(node) { }
+    visitQuantifier(node) { }
+}
+
+let regExpAstCache = {};
+const regExpParser = new RegExpParser();
+function getRegExpAst(regExp) {
+    const regExpStr = regExp.toString();
+    if (regExpAstCache.hasOwnProperty(regExpStr)) {
+        return regExpAstCache[regExpStr];
+    }
+    else {
+        const regExpAst = regExpParser.pattern(regExpStr);
+        regExpAstCache[regExpStr] = regExpAst;
+        return regExpAst;
+    }
+}
+function clearRegExpParserCache() {
+    regExpAstCache = {};
+}
+
+const complementErrorMessage = "Complement Sets are not supported for first char optimization";
+const failedOptimizationPrefixMsg = 'Unable to use "first char" lexer optimizations:\n';
+function getOptimizedStartCodesIndices(regExp, ensureOptimizations = false) {
+    try {
+        const ast = getRegExpAst(regExp);
+        const firstChars = firstCharOptimizedIndices(ast.value, {}, ast.flags.ignoreCase);
+        return firstChars;
+    }
+    catch (e) {
+        /* istanbul ignore next */
+        // Testing this relies on the regexp-to-ast library having a bug... */
+        // TODO: only the else branch needs to be ignored, try to fix with newer prettier / tsc
+        if (e.message === complementErrorMessage) {
+            if (ensureOptimizations) {
+                PRINT_WARNING(`${failedOptimizationPrefixMsg}` +
+                    `\tUnable to optimize: < ${regExp.toString()} >\n` +
+                    "\tComplement Sets cannot be automatically optimized.\n" +
+                    "\tThis will disable the lexer's first char optimizations.\n" +
+                    "\tSee: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#COMPLEMENT for details.");
+            }
+        }
+        else {
+            let msgSuffix = "";
+            if (ensureOptimizations) {
+                msgSuffix =
+                    "\n\tThis will disable the lexer's first char optimizations.\n" +
+                        "\tSee: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#REGEXP_PARSING for details.";
+            }
+            PRINT_ERROR(`${failedOptimizationPrefixMsg}\n` +
+                `\tFailed parsing: < ${regExp.toString()} >\n` +
+                `\tUsing the @chevrotain/regexp-to-ast library\n` +
+                "\tPlease open an issue at: https://github.com/chevrotain/chevrotain/issues" +
+                msgSuffix);
+        }
+    }
+    return [];
+}
+function firstCharOptimizedIndices(ast, result, ignoreCase) {
+    switch (ast.type) {
+        case "Disjunction":
+            for (let i = 0; i < ast.value.length; i++) {
+                firstCharOptimizedIndices(ast.value[i], result, ignoreCase);
+            }
+            break;
+        case "Alternative":
+            const terms = ast.value;
+            for (let i = 0; i < terms.length; i++) {
+                const term = terms[i];
+                // skip terms that cannot effect the first char results
+                switch (term.type) {
+                    case "EndAnchor":
+                    // A group back reference cannot affect potential starting char.
+                    // because if a back reference is the first production than automatically
+                    // the group being referenced has had to come BEFORE so its codes have already been added
+                    case "GroupBackReference":
+                    // assertions do not affect potential starting codes
+                    case "Lookahead":
+                    case "NegativeLookahead":
+                    case "Lookbehind":
+                    case "NegativeLookbehind":
+                    case "StartAnchor":
+                    case "WordBoundary":
+                    case "NonWordBoundary":
+                        continue;
+                }
+                const atom = term;
+                switch (atom.type) {
+                    case "Character":
+                        addOptimizedIdxToResult(atom.value, result, ignoreCase);
+                        break;
+                    case "Set":
+                        if (atom.complement === true) {
+                            throw Error(complementErrorMessage);
+                        }
+                        forEach(atom.value, (code) => {
+                            if (typeof code === "number") {
+                                addOptimizedIdxToResult(code, result, ignoreCase);
+                            }
+                            else {
+                                // range
+                                const range = code;
+                                // cannot optimize when ignoreCase is
+                                if (ignoreCase === true) {
+                                    for (let rangeCode = range.from; rangeCode <= range.to; rangeCode++) {
+                                        addOptimizedIdxToResult(rangeCode, result, ignoreCase);
+                                    }
+                                }
+                                // Optimization (2 orders of magnitude less work for very large ranges)
+                                else {
+                                    // handle unoptimized values
+                                    for (let rangeCode = range.from; rangeCode <= range.to && rangeCode < minOptimizationVal; rangeCode++) {
+                                        addOptimizedIdxToResult(rangeCode, result, ignoreCase);
+                                    }
+                                    // Less common charCode where we optimize for faster init time, by using larger "buckets"
+                                    if (range.to >= minOptimizationVal) {
+                                        const minUnOptVal = range.from >= minOptimizationVal
+                                            ? range.from
+                                            : minOptimizationVal;
+                                        const maxUnOptVal = range.to;
+                                        const minOptIdx = charCodeToOptimizedIndex(minUnOptVal);
+                                        const maxOptIdx = charCodeToOptimizedIndex(maxUnOptVal);
+                                        for (let currOptIdx = minOptIdx; currOptIdx <= maxOptIdx; currOptIdx++) {
+                                            result[currOptIdx] = currOptIdx;
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        break;
+                    case "Group":
+                        firstCharOptimizedIndices(atom.value, result, ignoreCase);
+                        break;
+                    /* istanbul ignore next */
+                    default:
+                        throw Error("Non Exhaustive Match");
+                }
+                // reached a mandatory production, no more **start** codes can be found on this alternative
+                const isOptionalQuantifier = atom.quantifier !== undefined && atom.quantifier.atLeast === 0;
+                if (
+                // A group may be optional due to empty contents /(?:)/
+                // or if everything inside it is optional /((a)?)/
+                (atom.type === "Group" && isWholeOptional(atom) === false) ||
+                    // If this term is not a group it may only be optional if it has an optional quantifier
+                    (atom.type !== "Group" && isOptionalQuantifier === false)) {
+                    break;
+                }
+            }
+            break;
+        /* istanbul ignore next */
+        default:
+            throw Error("non exhaustive match!");
+    }
+    // console.log(Object.keys(result).length)
+    return values(result);
+}
+function addOptimizedIdxToResult(code, result, ignoreCase) {
+    const optimizedCharIdx = charCodeToOptimizedIndex(code);
+    result[optimizedCharIdx] = optimizedCharIdx;
+    if (ignoreCase === true) {
+        handleIgnoreCase(code, result);
+    }
+}
+function handleIgnoreCase(code, result) {
+    const char = String.fromCharCode(code);
+    const upperChar = char.toUpperCase();
+    /* istanbul ignore else */
+    if (upperChar !== char) {
+        const optimizedCharIdx = charCodeToOptimizedIndex(upperChar.charCodeAt(0));
+        result[optimizedCharIdx] = optimizedCharIdx;
+    }
+    else {
+        const lowerChar = char.toLowerCase();
+        if (lowerChar !== char) {
+            const optimizedCharIdx = charCodeToOptimizedIndex(lowerChar.charCodeAt(0));
+            result[optimizedCharIdx] = optimizedCharIdx;
+        }
+    }
+}
+function findCode(setNode, targetCharCodes) {
+    return find(setNode.value, (codeOrRange) => {
+        if (typeof codeOrRange === "number") {
+            return includes(targetCharCodes, codeOrRange);
+        }
+        else {
+            // range
+            const range = codeOrRange;
+            return (find(targetCharCodes, (targetCode) => range.from <= targetCode && targetCode <= range.to) !== undefined);
+        }
+    });
+}
+function isWholeOptional(ast) {
+    const quantifier = ast.quantifier;
+    if (quantifier && quantifier.atLeast === 0) {
+        return true;
+    }
+    if (!ast.value) {
+        return false;
+    }
+    return isArray(ast.value)
+        ? every(ast.value, isWholeOptional)
+        : isWholeOptional(ast.value);
+}
+class CharCodeFinder extends BaseRegExpVisitor {
+    constructor(targetCharCodes) {
+        super();
+        this.targetCharCodes = targetCharCodes;
+        this.found = false;
+    }
+    visitChildren(node) {
+        // No need to keep looking...
+        if (this.found === true) {
+            return;
+        }
+        // switch lookaheads / lookbehinds as they do not actually consume any characters thus
+        // finding a charCode at lookahead context does not mean that regexp can actually contain it in a match.
+        switch (node.type) {
+            case "Lookahead":
+                this.visitLookahead(node);
+                return;
+            case "NegativeLookahead":
+                this.visitNegativeLookahead(node);
+                return;
+            case "Lookbehind":
+                this.visitLookbehind(node);
+                return;
+            case "NegativeLookbehind":
+                this.visitNegativeLookbehind(node);
+                return;
+        }
+        super.visitChildren(node);
+    }
+    visitCharacter(node) {
+        if (includes(this.targetCharCodes, node.value)) {
+            this.found = true;
+        }
+    }
+    visitSet(node) {
+        if (node.complement) {
+            if (findCode(node, this.targetCharCodes) === undefined) {
+                this.found = true;
+            }
+        }
+        else {
+            if (findCode(node, this.targetCharCodes) !== undefined) {
+                this.found = true;
+            }
+        }
+    }
+}
+function canMatchCharCode(charCodes, pattern) {
+    if (pattern instanceof RegExp) {
+        const ast = getRegExpAst(pattern);
+        const charCodeFinder = new CharCodeFinder(charCodes);
+        charCodeFinder.visit(ast);
+        return charCodeFinder.found;
+    }
+    else {
+        return (find(pattern, (char) => {
+            return includes(charCodes, char.charCodeAt(0));
+        }) !== undefined);
+    }
+}
+
+const PATTERN = "PATTERN";
+const DEFAULT_MODE = "defaultMode";
+const MODES = "modes";
+let SUPPORT_STICKY = typeof new RegExp("(?:)").sticky === "boolean";
+function analyzeTokenTypes(tokenTypes, options) {
+    options = defaults(options, {
+        useSticky: SUPPORT_STICKY,
+        debug: false,
+        safeMode: false,
+        positionTracking: "full",
+        lineTerminatorCharacters: ["\r", "\n"],
+        tracer: (msg, action) => action(),
+    });
+    const tracer = options.tracer;
+    tracer("initCharCodeToOptimizedIndexMap", () => {
+        initCharCodeToOptimizedIndexMap();
+    });
+    let onlyRelevantTypes;
+    tracer("Reject Lexer.NA", () => {
+        onlyRelevantTypes = reject(tokenTypes, (currType) => {
+            return currType[PATTERN] === Lexer.NA;
+        });
+    });
+    let hasCustom = false;
+    let allTransformedPatterns;
+    tracer("Transform Patterns", () => {
+        hasCustom = false;
+        allTransformedPatterns = map(onlyRelevantTypes, (currType) => {
+            const currPattern = currType[PATTERN];
+            /* istanbul ignore else */
+            if (isRegExp(currPattern)) {
+                const regExpSource = currPattern.source;
+                if (regExpSource.length === 1 &&
+                    // only these regExp meta characters which can appear in a length one regExp
+                    regExpSource !== "^" &&
+                    regExpSource !== "$" &&
+                    regExpSource !== "." &&
+                    !currPattern.ignoreCase) {
+                    return regExpSource;
+                }
+                else if (regExpSource.length === 2 &&
+                    regExpSource[0] === "\\" &&
+                    // not a meta character
+                    !includes([
+                        "d",
+                        "D",
+                        "s",
+                        "S",
+                        "t",
+                        "r",
+                        "n",
+                        "t",
+                        "0",
+                        "c",
+                        "b",
+                        "B",
+                        "f",
+                        "v",
+                        "w",
+                        "W",
+                    ], regExpSource[1])) {
+                    // escaped meta Characters: /\+/ /\[/
+                    // or redundant escaping: /\a/
+                    // without the escaping "\"
+                    return regExpSource[1];
+                }
+                else {
+                    return options.useSticky
+                        ? addStickyFlag(currPattern)
+                        : addStartOfInput(currPattern);
+                }
+            }
+            else if (isFunction(currPattern)) {
+                hasCustom = true;
+                // CustomPatternMatcherFunc - custom patterns do not require any transformations, only wrapping in a RegExp Like object
+                return { exec: currPattern };
+            }
+            else if (typeof currPattern === "object") {
+                hasCustom = true;
+                // ICustomPattern
+                return currPattern;
+            }
+            else if (typeof currPattern === "string") {
+                if (currPattern.length === 1) {
+                    return currPattern;
+                }
+                else {
+                    const escapedRegExpString = currPattern.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+                    const wrappedRegExp = new RegExp(escapedRegExpString);
+                    return options.useSticky
+                        ? addStickyFlag(wrappedRegExp)
+                        : addStartOfInput(wrappedRegExp);
+                }
+            }
+            else {
+                throw Error("non exhaustive match");
+            }
+        });
+    });
+    let patternIdxToType;
+    let patternIdxToGroup;
+    let patternIdxToLongerAltIdxArr;
+    let patternIdxToPushMode;
+    let patternIdxToPopMode;
+    tracer("misc mapping", () => {
+        patternIdxToType = map(onlyRelevantTypes, (currType) => currType.tokenTypeIdx);
+        patternIdxToGroup = map(onlyRelevantTypes, (clazz) => {
+            const groupName = clazz.GROUP;
+            /* istanbul ignore next */
+            if (groupName === Lexer.SKIPPED) {
+                return undefined;
+            }
+            else if (isString(groupName)) {
+                return groupName;
+            }
+            else if (isUndefined(groupName)) {
+                return false;
+            }
+            else {
+                throw Error("non exhaustive match");
+            }
+        });
+        patternIdxToLongerAltIdxArr = map(onlyRelevantTypes, (clazz) => {
+            const longerAltType = clazz.LONGER_ALT;
+            if (longerAltType) {
+                const longerAltIdxArr = isArray(longerAltType)
+                    ? map(longerAltType, (type) => indexOf(onlyRelevantTypes, type))
+                    : [indexOf(onlyRelevantTypes, longerAltType)];
+                return longerAltIdxArr;
+            }
+        });
+        patternIdxToPushMode = map(onlyRelevantTypes, (clazz) => clazz.PUSH_MODE);
+        patternIdxToPopMode = map(onlyRelevantTypes, (clazz) => has(clazz, "POP_MODE"));
+    });
+    let patternIdxToCanLineTerminator;
+    tracer("Line Terminator Handling", () => {
+        const lineTerminatorCharCodes = getCharCodes(options.lineTerminatorCharacters);
+        patternIdxToCanLineTerminator = map(onlyRelevantTypes, (tokType) => false);
+        if (options.positionTracking !== "onlyOffset") {
+            patternIdxToCanLineTerminator = map(onlyRelevantTypes, (tokType) => {
+                if (has(tokType, "LINE_BREAKS")) {
+                    return !!tokType.LINE_BREAKS;
+                }
+                else {
+                    return (checkLineBreaksIssues(tokType, lineTerminatorCharCodes) === false &&
+                        canMatchCharCode(lineTerminatorCharCodes, tokType.PATTERN));
+                }
+            });
+        }
+    });
+    let patternIdxToIsCustom;
+    let patternIdxToShort;
+    let emptyGroups;
+    let patternIdxToConfig;
+    tracer("Misc Mapping #2", () => {
+        patternIdxToIsCustom = map(onlyRelevantTypes, isCustomPattern);
+        patternIdxToShort = map(allTransformedPatterns, isShortPattern);
+        emptyGroups = reduce(onlyRelevantTypes, (acc, clazz) => {
+            const groupName = clazz.GROUP;
+            if (isString(groupName) && !(groupName === Lexer.SKIPPED)) {
+                acc[groupName] = [];
+            }
+            return acc;
+        }, {});
+        patternIdxToConfig = map(allTransformedPatterns, (x, idx) => {
+            return {
+                pattern: allTransformedPatterns[idx],
+                longerAlt: patternIdxToLongerAltIdxArr[idx],
+                canLineTerminator: patternIdxToCanLineTerminator[idx],
+                isCustom: patternIdxToIsCustom[idx],
+                short: patternIdxToShort[idx],
+                group: patternIdxToGroup[idx],
+                push: patternIdxToPushMode[idx],
+                pop: patternIdxToPopMode[idx],
+                tokenTypeIdx: patternIdxToType[idx],
+                tokenType: onlyRelevantTypes[idx],
+            };
+        });
+    });
+    let canBeOptimized = true;
+    let charCodeToPatternIdxToConfig = [];
+    if (!options.safeMode) {
+        tracer("First Char Optimization", () => {
+            charCodeToPatternIdxToConfig = reduce(onlyRelevantTypes, (result, currTokType, idx) => {
+                if (typeof currTokType.PATTERN === "string") {
+                    const charCode = currTokType.PATTERN.charCodeAt(0);
+                    const optimizedIdx = charCodeToOptimizedIndex(charCode);
+                    addToMapOfArrays(result, optimizedIdx, patternIdxToConfig[idx]);
+                }
+                else if (isArray(currTokType.START_CHARS_HINT)) {
+                    let lastOptimizedIdx;
+                    forEach(currTokType.START_CHARS_HINT, (charOrInt) => {
+                        const charCode = typeof charOrInt === "string"
+                            ? charOrInt.charCodeAt(0)
+                            : charOrInt;
+                        const currOptimizedIdx = charCodeToOptimizedIndex(charCode);
+                        // Avoid adding the config multiple times
+                        /* istanbul ignore else */
+                        // - Difficult to check this scenario effects as it is only a performance
+                        //   optimization that does not change correctness
+                        if (lastOptimizedIdx !== currOptimizedIdx) {
+                            lastOptimizedIdx = currOptimizedIdx;
+                            addToMapOfArrays(result, currOptimizedIdx, patternIdxToConfig[idx]);
+                        }
+                    });
+                }
+                else if (isRegExp(currTokType.PATTERN)) {
+                    if (currTokType.PATTERN.unicode) {
+                        canBeOptimized = false;
+                        if (options.ensureOptimizations) {
+                            PRINT_ERROR(`${failedOptimizationPrefixMsg}` +
+                                `\tUnable to analyze < ${currTokType.PATTERN.toString()} > pattern.\n` +
+                                "\tThe regexp unicode flag is not currently supported by the regexp-to-ast library.\n" +
+                                "\tThis will disable the lexer's first char optimizations.\n" +
+                                "\tFor details See: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#UNICODE_OPTIMIZE");
+                        }
+                    }
+                    else {
+                        const optimizedCodes = getOptimizedStartCodesIndices(currTokType.PATTERN, options.ensureOptimizations);
+                        /* istanbul ignore if */
+                        // start code will only be empty given an empty regExp or failure of regexp-to-ast library
+                        // the first should be a different validation and the second cannot be tested.
+                        if (isEmpty(optimizedCodes)) {
+                            // we cannot understand what codes may start possible matches
+                            // The optimization correctness requires knowing start codes for ALL patterns.
+                            // Not actually sure this is an error, no debug message
+                            canBeOptimized = false;
+                        }
+                        forEach(optimizedCodes, (code) => {
+                            addToMapOfArrays(result, code, patternIdxToConfig[idx]);
+                        });
+                    }
+                }
+                else {
+                    if (options.ensureOptimizations) {
+                        PRINT_ERROR(`${failedOptimizationPrefixMsg}` +
+                            `\tTokenType: <${currTokType.name}> is using a custom token pattern without providing <start_chars_hint> parameter.\n` +
+                            "\tThis will disable the lexer's first char optimizations.\n" +
+                            "\tFor details See: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#CUSTOM_OPTIMIZE");
+                    }
+                    canBeOptimized = false;
+                }
+                return result;
+            }, []);
+        });
+    }
+    return {
+        emptyGroups: emptyGroups,
+        patternIdxToConfig: patternIdxToConfig,
+        charCodeToPatternIdxToConfig: charCodeToPatternIdxToConfig,
+        hasCustom: hasCustom,
+        canBeOptimized: canBeOptimized,
+    };
+}
+function validatePatterns(tokenTypes, validModesNames) {
+    let errors = [];
+    const missingResult = findMissingPatterns(tokenTypes);
+    errors = errors.concat(missingResult.errors);
+    const invalidResult = findInvalidPatterns(missingResult.valid);
+    const validTokenTypes = invalidResult.valid;
+    errors = errors.concat(invalidResult.errors);
+    errors = errors.concat(validateRegExpPattern(validTokenTypes));
+    errors = errors.concat(findInvalidGroupType(validTokenTypes));
+    errors = errors.concat(findModesThatDoNotExist(validTokenTypes, validModesNames));
+    errors = errors.concat(findUnreachablePatterns(validTokenTypes));
+    return errors;
+}
+function validateRegExpPattern(tokenTypes) {
+    let errors = [];
+    const withRegExpPatterns = filter(tokenTypes, (currTokType) => isRegExp(currTokType[PATTERN]));
+    errors = errors.concat(findEndOfInputAnchor(withRegExpPatterns));
+    errors = errors.concat(findStartOfInputAnchor(withRegExpPatterns));
+    errors = errors.concat(findUnsupportedFlags(withRegExpPatterns));
+    errors = errors.concat(findDuplicatePatterns(withRegExpPatterns));
+    errors = errors.concat(findEmptyMatchRegExps(withRegExpPatterns));
+    return errors;
+}
+function findMissingPatterns(tokenTypes) {
+    const tokenTypesWithMissingPattern = filter(tokenTypes, (currType) => {
+        return !has(currType, PATTERN);
+    });
+    const errors = map(tokenTypesWithMissingPattern, (currType) => {
+        return {
+            message: "Token Type: ->" +
+                currType.name +
+                "<- missing static 'PATTERN' property",
+            type: LexerDefinitionErrorType.MISSING_PATTERN,
+            tokenTypes: [currType],
+        };
+    });
+    const valid = difference(tokenTypes, tokenTypesWithMissingPattern);
+    return { errors, valid };
+}
+function findInvalidPatterns(tokenTypes) {
+    const tokenTypesWithInvalidPattern = filter(tokenTypes, (currType) => {
+        const pattern = currType[PATTERN];
+        return (!isRegExp(pattern) &&
+            !isFunction(pattern) &&
+            !has(pattern, "exec") &&
+            !isString(pattern));
+    });
+    const errors = map(tokenTypesWithInvalidPattern, (currType) => {
+        return {
+            message: "Token Type: ->" +
+                currType.name +
+                "<- static 'PATTERN' can only be a RegExp, a" +
+                " Function matching the {CustomPatternMatcherFunc} type or an Object matching the {ICustomPattern} interface.",
+            type: LexerDefinitionErrorType.INVALID_PATTERN,
+            tokenTypes: [currType],
+        };
+    });
+    const valid = difference(tokenTypes, tokenTypesWithInvalidPattern);
+    return { errors, valid };
+}
+const end_of_input = /[^\\][$]/;
+function findEndOfInputAnchor(tokenTypes) {
+    class EndAnchorFinder extends BaseRegExpVisitor {
+        constructor() {
+            super(...arguments);
+            this.found = false;
+        }
+        visitEndAnchor(node) {
+            this.found = true;
+        }
+    }
+    const invalidRegex = filter(tokenTypes, (currType) => {
+        const pattern = currType.PATTERN;
+        try {
+            const regexpAst = getRegExpAst(pattern);
+            const endAnchorVisitor = new EndAnchorFinder();
+            endAnchorVisitor.visit(regexpAst);
+            return endAnchorVisitor.found;
+        }
+        catch (e) {
+            // old behavior in case of runtime exceptions with regexp-to-ast.
+            /* istanbul ignore next - cannot ensure an error in regexp-to-ast*/
+            return end_of_input.test(pattern.source);
+        }
+    });
+    const errors = map(invalidRegex, (currType) => {
+        return {
+            message: "Unexpected RegExp Anchor Error:\n" +
+                "\tToken Type: ->" +
+                currType.name +
+                "<- static 'PATTERN' cannot contain end of input anchor '$'\n" +
+                "\tSee chevrotain.io/docs/guide/resolving_lexer_errors.html#ANCHORS" +
+                "\tfor details.",
+            type: LexerDefinitionErrorType.EOI_ANCHOR_FOUND,
+            tokenTypes: [currType],
+        };
+    });
+    return errors;
+}
+function findEmptyMatchRegExps(tokenTypes) {
+    const matchesEmptyString = filter(tokenTypes, (currType) => {
+        const pattern = currType.PATTERN;
+        return pattern.test("");
+    });
+    const errors = map(matchesEmptyString, (currType) => {
+        return {
+            message: "Token Type: ->" +
+                currType.name +
+                "<- static 'PATTERN' must not match an empty string",
+            type: LexerDefinitionErrorType.EMPTY_MATCH_PATTERN,
+            tokenTypes: [currType],
+        };
+    });
+    return errors;
+}
+const start_of_input = /[^\\[][\^]|^\^/;
+function findStartOfInputAnchor(tokenTypes) {
+    class StartAnchorFinder extends BaseRegExpVisitor {
+        constructor() {
+            super(...arguments);
+            this.found = false;
+        }
+        visitStartAnchor(node) {
+            this.found = true;
+        }
+    }
+    const invalidRegex = filter(tokenTypes, (currType) => {
+        const pattern = currType.PATTERN;
+        try {
+            const regexpAst = getRegExpAst(pattern);
+            const startAnchorVisitor = new StartAnchorFinder();
+            startAnchorVisitor.visit(regexpAst);
+            return startAnchorVisitor.found;
+        }
+        catch (e) {
+            // old behavior in case of runtime exceptions with regexp-to-ast.
+            /* istanbul ignore next - cannot ensure an error in regexp-to-ast*/
+            return start_of_input.test(pattern.source);
+        }
+    });
+    const errors = map(invalidRegex, (currType) => {
+        return {
+            message: "Unexpected RegExp Anchor Error:\n" +
+                "\tToken Type: ->" +
+                currType.name +
+                "<- static 'PATTERN' cannot contain start of input anchor '^'\n" +
+                "\tSee https://chevrotain.io/docs/guide/resolving_lexer_errors.html#ANCHORS" +
+                "\tfor details.",
+            type: LexerDefinitionErrorType.SOI_ANCHOR_FOUND,
+            tokenTypes: [currType],
+        };
+    });
+    return errors;
+}
+function findUnsupportedFlags(tokenTypes) {
+    const invalidFlags = filter(tokenTypes, (currType) => {
+        const pattern = currType[PATTERN];
+        return pattern instanceof RegExp && (pattern.multiline || pattern.global);
+    });
+    const errors = map(invalidFlags, (currType) => {
+        return {
+            message: "Token Type: ->" +
+                currType.name +
+                "<- static 'PATTERN' may NOT contain global('g') or multiline('m')",
+            type: LexerDefinitionErrorType.UNSUPPORTED_FLAGS_FOUND,
+            tokenTypes: [currType],
+        };
+    });
+    return errors;
+}
+// This can only test for identical duplicate RegExps, not semantically equivalent ones.
+function findDuplicatePatterns(tokenTypes) {
+    const found = [];
+    let identicalPatterns = map(tokenTypes, (outerType) => {
+        return reduce(tokenTypes, (result, innerType) => {
+            if (outerType.PATTERN.source === innerType.PATTERN.source &&
+                !includes(found, innerType) &&
+                innerType.PATTERN !== Lexer.NA) {
+                // this avoids duplicates in the result, each Token Type may only appear in one "set"
+                // in essence we are creating Equivalence classes on equality relation.
+                found.push(innerType);
+                result.push(innerType);
+                return result;
+            }
+            return result;
+        }, []);
+    });
+    identicalPatterns = compact(identicalPatterns);
+    const duplicatePatterns = filter(identicalPatterns, (currIdenticalSet) => {
+        return currIdenticalSet.length > 1;
+    });
+    const errors = map(duplicatePatterns, (setOfIdentical) => {
+        const tokenTypeNames = map(setOfIdentical, (currType) => {
+            return currType.name;
+        });
+        const dupPatternSrc = head(setOfIdentical).PATTERN;
+        return {
+            message: `The same RegExp pattern ->${dupPatternSrc}<-` +
+                `has been used in all of the following Token Types: ${tokenTypeNames.join(", ")} <-`,
+            type: LexerDefinitionErrorType.DUPLICATE_PATTERNS_FOUND,
+            tokenTypes: setOfIdentical,
+        };
+    });
+    return errors;
+}
+function findInvalidGroupType(tokenTypes) {
+    const invalidTypes = filter(tokenTypes, (clazz) => {
+        if (!has(clazz, "GROUP")) {
+            return false;
+        }
+        const group = clazz.GROUP;
+        return group !== Lexer.SKIPPED && group !== Lexer.NA && !isString(group);
+    });
+    const errors = map(invalidTypes, (currType) => {
+        return {
+            message: "Token Type: ->" +
+                currType.name +
+                "<- static 'GROUP' can only be Lexer.SKIPPED/Lexer.NA/A String",
+            type: LexerDefinitionErrorType.INVALID_GROUP_TYPE_FOUND,
+            tokenTypes: [currType],
+        };
+    });
+    return errors;
+}
+function findModesThatDoNotExist(tokenTypes, validModes) {
+    const invalidModes = filter(tokenTypes, (clazz) => {
+        return (clazz.PUSH_MODE !== undefined && !includes(validModes, clazz.PUSH_MODE));
+    });
+    const errors = map(invalidModes, (tokType) => {
+        const msg = `Token Type: ->${tokType.name}<- static 'PUSH_MODE' value cannot refer to a Lexer Mode ->${tokType.PUSH_MODE}<-` +
+            `which does not exist`;
+        return {
+            message: msg,
+            type: LexerDefinitionErrorType.PUSH_MODE_DOES_NOT_EXIST,
+            tokenTypes: [tokType],
+        };
+    });
+    return errors;
+}
+function findUnreachablePatterns(tokenTypes) {
+    const errors = [];
+    const canBeTested = reduce(tokenTypes, (result, tokType, idx) => {
+        const pattern = tokType.PATTERN;
+        if (pattern === Lexer.NA) {
+            return result;
+        }
+        // a more comprehensive validation for all forms of regExps would require
+        // deeper regExp analysis capabilities
+        if (isString(pattern)) {
+            result.push({ str: pattern, idx, tokenType: tokType });
+        }
+        else if (isRegExp(pattern) && noMetaChar(pattern)) {
+            result.push({ str: pattern.source, idx, tokenType: tokType });
+        }
+        return result;
+    }, []);
+    forEach(tokenTypes, (aTokType, aIdx) => {
+        forEach(canBeTested, ({ str: bStr, idx: bIdx, tokenType: bTokType }) => {
+            if (aIdx < bIdx && tryToMatchStrToPattern(bStr, aTokType.PATTERN)) {
+                const msg = `Token: ->${bTokType.name}<- can never be matched.\n` +
+                    `Because it appears AFTER the Token Type ->${aTokType.name}<-` +
+                    `in the lexer's definition.\n` +
+                    `See https://chevrotain.io/docs/guide/resolving_lexer_errors.html#UNREACHABLE`;
+                errors.push({
+                    message: msg,
+                    type: LexerDefinitionErrorType.UNREACHABLE_PATTERN,
+                    tokenTypes: [aTokType, bTokType],
+                });
+            }
+        });
+    });
+    return errors;
+}
+function tryToMatchStrToPattern(str, pattern) {
+    if (isRegExp(pattern)) {
+        if (usesLookAheadOrBehind(pattern)) {
+            // if lookahead or lookbehind assertions are used
+            // we assume they would be responsible for disambiguating the match
+            // The alternative is to risk false positive unreachable pattern errors.
+            // e.g.: /(?<!a)b/ and /b/ tokens would cause such false positives.
+            return false;
+        }
+        const regExpArray = pattern.exec(str);
+        return regExpArray !== null && regExpArray.index === 0;
+    }
+    else if (isFunction(pattern)) {
+        // maintain the API of custom patterns
+        return pattern(str, 0, [], {});
+    }
+    else if (has(pattern, "exec")) {
+        // maintain the API of custom patterns
+        return pattern.exec(str, 0, [], {});
+    }
+    else if (typeof pattern === "string") {
+        return pattern === str;
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+function noMetaChar(regExp) {
+    //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp
+    const metaChars = [
+        ".",
+        "\\",
+        "[",
+        "]",
+        "|",
+        "^",
+        "$",
+        "(",
+        ")",
+        "?",
+        "*",
+        "+",
+        "{",
+    ];
+    return (find(metaChars, (char) => regExp.source.indexOf(char) !== -1) === undefined);
+}
+function usesLookAheadOrBehind(regExp) {
+    return /(\(\?=)|(\(\?!)|(\(\?<=)|(\(\?<!)/.test(regExp.source);
+}
+function addStartOfInput(pattern) {
+    const flags = pattern.ignoreCase ? "i" : "";
+    // always wrapping in a none capturing group preceded by '^' to make sure matching can only work on start of input.
+    // duplicate/redundant start of input markers have no meaning (/^^^^A/ === /^A/)
+    return new RegExp(`^(?:${pattern.source})`, flags);
+}
+function addStickyFlag(pattern) {
+    const flags = pattern.ignoreCase ? "iy" : "y";
+    // always wrapping in a none capturing group preceded by '^' to make sure matching can only work on start of input.
+    // duplicate/redundant start of input markers have no meaning (/^^^^A/ === /^A/)
+    return new RegExp(`${pattern.source}`, flags);
+}
+function performRuntimeChecks(lexerDefinition, trackLines, lineTerminatorCharacters) {
+    const errors = [];
+    // some run time checks to help the end users.
+    if (!has(lexerDefinition, DEFAULT_MODE)) {
+        errors.push({
+            message: "A MultiMode Lexer cannot be initialized without a <" +
+                DEFAULT_MODE +
+                "> property in its definition\n",
+            type: LexerDefinitionErrorType.MULTI_MODE_LEXER_WITHOUT_DEFAULT_MODE,
+        });
+    }
+    if (!has(lexerDefinition, MODES)) {
+        errors.push({
+            message: "A MultiMode Lexer cannot be initialized without a <" +
+                MODES +
+                "> property in its definition\n",
+            type: LexerDefinitionErrorType.MULTI_MODE_LEXER_WITHOUT_MODES_PROPERTY,
+        });
+    }
+    if (has(lexerDefinition, MODES) &&
+        has(lexerDefinition, DEFAULT_MODE) &&
+        !has(lexerDefinition.modes, lexerDefinition.defaultMode)) {
+        errors.push({
+            message: `A MultiMode Lexer cannot be initialized with a ${DEFAULT_MODE}: <${lexerDefinition.defaultMode}>` +
+                `which does not exist\n`,
+            type: LexerDefinitionErrorType.MULTI_MODE_LEXER_DEFAULT_MODE_VALUE_DOES_NOT_EXIST,
+        });
+    }
+    if (has(lexerDefinition, MODES)) {
+        forEach(lexerDefinition.modes, (currModeValue, currModeName) => {
+            forEach(currModeValue, (currTokType, currIdx) => {
+                if (isUndefined(currTokType)) {
+                    errors.push({
+                        message: `A Lexer cannot be initialized using an undefined Token Type. Mode:` +
+                            `<${currModeName}> at index: <${currIdx}>\n`,
+                        type: LexerDefinitionErrorType.LEXER_DEFINITION_CANNOT_CONTAIN_UNDEFINED,
+                    });
+                }
+                else if (has(currTokType, "LONGER_ALT")) {
+                    const longerAlt = isArray(currTokType.LONGER_ALT)
+                        ? currTokType.LONGER_ALT
+                        : [currTokType.LONGER_ALT];
+                    forEach(longerAlt, (currLongerAlt) => {
+                        if (!isUndefined(currLongerAlt) &&
+                            !includes(currModeValue, currLongerAlt)) {
+                            errors.push({
+                                message: `A MultiMode Lexer cannot be initialized with a longer_alt <${currLongerAlt.name}> on token <${currTokType.name}> outside of mode <${currModeName}>\n`,
+                                type: LexerDefinitionErrorType.MULTI_MODE_LEXER_LONGER_ALT_NOT_IN_CURRENT_MODE,
+                            });
+                        }
+                    });
+                }
+            });
+        });
+    }
+    return errors;
+}
+function performWarningRuntimeChecks(lexerDefinition, trackLines, lineTerminatorCharacters) {
+    const warnings = [];
+    let hasAnyLineBreak = false;
+    const allTokenTypes = compact(flatten(values(lexerDefinition.modes)));
+    const concreteTokenTypes = reject(allTokenTypes, (currType) => currType[PATTERN] === Lexer.NA);
+    const terminatorCharCodes = getCharCodes(lineTerminatorCharacters);
+    if (trackLines) {
+        forEach(concreteTokenTypes, (tokType) => {
+            const currIssue = checkLineBreaksIssues(tokType, terminatorCharCodes);
+            if (currIssue !== false) {
+                const message = buildLineBreakIssueMessage(tokType, currIssue);
+                const warningDescriptor = {
+                    message,
+                    type: currIssue.issue,
+                    tokenType: tokType,
+                };
+                warnings.push(warningDescriptor);
+            }
+            else {
+                // we don't want to attempt to scan if the user explicitly specified the line_breaks option.
+                if (has(tokType, "LINE_BREAKS")) {
+                    if (tokType.LINE_BREAKS === true) {
+                        hasAnyLineBreak = true;
+                    }
+                }
+                else {
+                    if (canMatchCharCode(terminatorCharCodes, tokType.PATTERN)) {
+                        hasAnyLineBreak = true;
+                    }
+                }
+            }
+        });
+    }
+    if (trackLines && !hasAnyLineBreak) {
+        warnings.push({
+            message: "Warning: No LINE_BREAKS Found.\n" +
+                "\tThis Lexer has been defined to track line and column information,\n" +
+                "\tBut none of the Token Types can be identified as matching a line terminator.\n" +
+                "\tSee https://chevrotain.io/docs/guide/resolving_lexer_errors.html#LINE_BREAKS \n" +
+                "\tfor details.",
+            type: LexerDefinitionErrorType.NO_LINE_BREAKS_FLAGS,
+        });
+    }
+    return warnings;
+}
+function cloneEmptyGroups(emptyGroups) {
+    const clonedResult = {};
+    const groupKeys = keys(emptyGroups);
+    forEach(groupKeys, (currKey) => {
+        const currGroupValue = emptyGroups[currKey];
+        /* istanbul ignore else */
+        if (isArray(currGroupValue)) {
+            clonedResult[currKey] = [];
+        }
+        else {
+            throw Error("non exhaustive match");
+        }
+    });
+    return clonedResult;
+}
+// TODO: refactor to avoid duplication
+function isCustomPattern(tokenType) {
+    const pattern = tokenType.PATTERN;
+    /* istanbul ignore else */
+    if (isRegExp(pattern)) {
+        return false;
+    }
+    else if (isFunction(pattern)) {
+        // CustomPatternMatcherFunc - custom patterns do not require any transformations, only wrapping in a RegExp Like object
+        return true;
+    }
+    else if (has(pattern, "exec")) {
+        // ICustomPattern
+        return true;
+    }
+    else if (isString(pattern)) {
+        return false;
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+function isShortPattern(pattern) {
+    if (isString(pattern) && pattern.length === 1) {
+        return pattern.charCodeAt(0);
+    }
+    else {
+        return false;
+    }
+}
+/**
+ * Faster than using a RegExp for default newline detection during lexing.
+ */
+const LineTerminatorOptimizedTester = {
+    // implements /\n|\r\n?/g.test
+    test: function (text) {
+        const len = text.length;
+        for (let i = this.lastIndex; i < len; i++) {
+            const c = text.charCodeAt(i);
+            if (c === 10) {
+                this.lastIndex = i + 1;
+                return true;
+            }
+            else if (c === 13) {
+                if (text.charCodeAt(i + 1) === 10) {
+                    this.lastIndex = i + 2;
+                }
+                else {
+                    this.lastIndex = i + 1;
+                }
+                return true;
+            }
+        }
+        return false;
+    },
+    lastIndex: 0,
+};
+function checkLineBreaksIssues(tokType, lineTerminatorCharCodes) {
+    if (has(tokType, "LINE_BREAKS")) {
+        // if the user explicitly declared the line_breaks option we will respect their choice
+        // and assume it is correct.
+        return false;
+    }
+    else {
+        /* istanbul ignore else */
+        if (isRegExp(tokType.PATTERN)) {
+            try {
+                // TODO: why is the casting suddenly needed?
+                canMatchCharCode(lineTerminatorCharCodes, tokType.PATTERN);
+            }
+            catch (e) {
+                /* istanbul ignore next - to test this we would have to mock <canMatchCharCode> to throw an error */
+                return {
+                    issue: LexerDefinitionErrorType.IDENTIFY_TERMINATOR,
+                    errMsg: e.message,
+                };
+            }
+            return false;
+        }
+        else if (isString(tokType.PATTERN)) {
+            // string literal patterns can always be analyzed to detect line terminator usage
+            return false;
+        }
+        else if (isCustomPattern(tokType)) {
+            // custom token types
+            return { issue: LexerDefinitionErrorType.CUSTOM_LINE_BREAK };
+        }
+        else {
+            throw Error("non exhaustive match");
+        }
+    }
+}
+function buildLineBreakIssueMessage(tokType, details) {
+    /* istanbul ignore else */
+    if (details.issue === LexerDefinitionErrorType.IDENTIFY_TERMINATOR) {
+        return ("Warning: unable to identify line terminator usage in pattern.\n" +
+            `\tThe problem is in the <${tokType.name}> Token Type\n` +
+            `\t Root cause: ${details.errMsg}.\n` +
+            "\tFor details See: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#IDENTIFY_TERMINATOR");
+    }
+    else if (details.issue === LexerDefinitionErrorType.CUSTOM_LINE_BREAK) {
+        return ("Warning: A Custom Token Pattern should specify the <line_breaks> option.\n" +
+            `\tThe problem is in the <${tokType.name}> Token Type\n` +
+            "\tFor details See: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#CUSTOM_LINE_BREAK");
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+function getCharCodes(charsOrCodes) {
+    const charCodes = map(charsOrCodes, (numOrString) => {
+        if (isString(numOrString)) {
+            return numOrString.charCodeAt(0);
+        }
+        else {
+            return numOrString;
+        }
+    });
+    return charCodes;
+}
+function addToMapOfArrays(map, key, value) {
+    if (map[key] === undefined) {
+        map[key] = [value];
+    }
+    else {
+        map[key].push(value);
+    }
+}
+const minOptimizationVal = 256;
+/**
+ * We are mapping charCode above ASCI (256) into buckets each in the size of 256.
+ * This is because ASCI are the most common start chars so each one of those will get its own
+ * possible token configs vector.
+ *
+ * Tokens starting with charCodes "above" ASCI are uncommon, so we can "afford"
+ * to place these into buckets of possible token configs, What we gain from
+ * this is avoiding the case of creating an optimization 'charCodeToPatternIdxToConfig'
+ * which would contain 10,000+ arrays of small size (e.g unicode Identifiers scenario).
+ * Our 'charCodeToPatternIdxToConfig' max size will now be:
+ * 256 + (2^16 / 2^8) - 1 === 511
+ *
+ * note the hack for fast division integer part extraction
+ * See: https://stackoverflow.com/a/4228528
+ */
+let charCodeToOptimizedIdxMap = [];
+function charCodeToOptimizedIndex(charCode) {
+    return charCode < minOptimizationVal
+        ? charCode
+        : charCodeToOptimizedIdxMap[charCode];
+}
+/**
+ * This is a compromise between cold start / hot running performance
+ * Creating this array takes ~3ms on a modern machine,
+ * But if we perform the computation at runtime as needed the CSS Lexer benchmark
+ * performance degrades by ~10%
+ *
+ * TODO: Perhaps it should be lazy initialized only if a charCode > 255 is used.
+ */
+function initCharCodeToOptimizedIndexMap() {
+    if (isEmpty(charCodeToOptimizedIdxMap)) {
+        charCodeToOptimizedIdxMap = new Array(65536);
+        for (let i = 0; i < 65536; i++) {
+            charCodeToOptimizedIdxMap[i] = i > 255 ? 255 + ~~(i / 255) : i;
+        }
+    }
+}
+
+function tokenStructuredMatcher(tokInstance, tokConstructor) {
+    const instanceType = tokInstance.tokenTypeIdx;
+    if (instanceType === tokConstructor.tokenTypeIdx) {
+        return true;
+    }
+    else {
+        return (tokConstructor.isParent === true &&
+            tokConstructor.categoryMatchesMap[instanceType] === true);
+    }
+}
+// Optimized tokenMatcher in case our grammar does not use token categories
+// Being so tiny it is much more likely to be in-lined and this avoid the function call overhead
+function tokenStructuredMatcherNoCategories(token, tokType) {
+    return token.tokenTypeIdx === tokType.tokenTypeIdx;
+}
+let tokenShortNameIdx = 1;
+const tokenIdxToClass = {};
+function augmentTokenTypes(tokenTypes) {
+    // collect the parent Token Types as well.
+    const tokenTypesAndParents = expandCategories(tokenTypes);
+    // add required tokenType and categoryMatches properties
+    assignTokenDefaultProps(tokenTypesAndParents);
+    // fill up the categoryMatches
+    assignCategoriesMapProp(tokenTypesAndParents);
+    assignCategoriesTokensProp(tokenTypesAndParents);
+    forEach(tokenTypesAndParents, (tokType) => {
+        tokType.isParent = tokType.categoryMatches.length > 0;
+    });
+}
+function expandCategories(tokenTypes) {
+    let result = clone(tokenTypes);
+    let categories = tokenTypes;
+    let searching = true;
+    while (searching) {
+        categories = compact(flatten(map(categories, (currTokType) => currTokType.CATEGORIES)));
+        const newCategories = difference(categories, result);
+        result = result.concat(newCategories);
+        if (isEmpty(newCategories)) {
+            searching = false;
+        }
+        else {
+            categories = newCategories;
+        }
+    }
+    return result;
+}
+function assignTokenDefaultProps(tokenTypes) {
+    forEach(tokenTypes, (currTokType) => {
+        if (!hasShortKeyProperty(currTokType)) {
+            tokenIdxToClass[tokenShortNameIdx] = currTokType;
+            currTokType.tokenTypeIdx = tokenShortNameIdx++;
+        }
+        // CATEGORIES? : TokenType | TokenType[]
+        if (hasCategoriesProperty(currTokType) &&
+            !isArray(currTokType.CATEGORIES)
+        // &&
+        // !isUndefined(currTokType.CATEGORIES.PATTERN)
+        ) {
+            currTokType.CATEGORIES = [currTokType.CATEGORIES];
+        }
+        if (!hasCategoriesProperty(currTokType)) {
+            currTokType.CATEGORIES = [];
+        }
+        if (!hasExtendingTokensTypesProperty(currTokType)) {
+            currTokType.categoryMatches = [];
+        }
+        if (!hasExtendingTokensTypesMapProperty(currTokType)) {
+            currTokType.categoryMatchesMap = {};
+        }
+    });
+}
+function assignCategoriesTokensProp(tokenTypes) {
+    forEach(tokenTypes, (currTokType) => {
+        // avoid duplications
+        currTokType.categoryMatches = [];
+        forEach(currTokType.categoryMatchesMap, (val, key) => {
+            currTokType.categoryMatches.push(tokenIdxToClass[key].tokenTypeIdx);
+        });
+    });
+}
+function assignCategoriesMapProp(tokenTypes) {
+    forEach(tokenTypes, (currTokType) => {
+        singleAssignCategoriesToksMap([], currTokType);
+    });
+}
+function singleAssignCategoriesToksMap(path, nextNode) {
+    forEach(path, (pathNode) => {
+        nextNode.categoryMatchesMap[pathNode.tokenTypeIdx] = true;
+    });
+    forEach(nextNode.CATEGORIES, (nextCategory) => {
+        const newPath = path.concat(nextNode);
+        // avoids infinite loops due to cyclic categories.
+        if (!includes(newPath, nextCategory)) {
+            singleAssignCategoriesToksMap(newPath, nextCategory);
+        }
+    });
+}
+function hasShortKeyProperty(tokType) {
+    return has(tokType, "tokenTypeIdx");
+}
+function hasCategoriesProperty(tokType) {
+    return has(tokType, "CATEGORIES");
+}
+function hasExtendingTokensTypesProperty(tokType) {
+    return has(tokType, "categoryMatches");
+}
+function hasExtendingTokensTypesMapProperty(tokType) {
+    return has(tokType, "categoryMatchesMap");
+}
+function isTokenType(tokType) {
+    return has(tokType, "tokenTypeIdx");
+}
+
+const defaultLexerErrorProvider = {
+    buildUnableToPopLexerModeMessage(token) {
+        return `Unable to pop Lexer Mode after encountering Token ->${token.image}<- The Mode Stack is empty`;
+    },
+    buildUnexpectedCharactersMessage(fullText, startOffset, length, line, column, mode) {
+        return (`unexpected character: ->${fullText.charAt(startOffset)}<- at offset: ${startOffset},` + ` skipped ${length} characters.`);
+    },
+};
+
+var LexerDefinitionErrorType;
+(function (LexerDefinitionErrorType) {
+    LexerDefinitionErrorType[LexerDefinitionErrorType["MISSING_PATTERN"] = 0] = "MISSING_PATTERN";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["INVALID_PATTERN"] = 1] = "INVALID_PATTERN";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["EOI_ANCHOR_FOUND"] = 2] = "EOI_ANCHOR_FOUND";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["UNSUPPORTED_FLAGS_FOUND"] = 3] = "UNSUPPORTED_FLAGS_FOUND";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["DUPLICATE_PATTERNS_FOUND"] = 4] = "DUPLICATE_PATTERNS_FOUND";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["INVALID_GROUP_TYPE_FOUND"] = 5] = "INVALID_GROUP_TYPE_FOUND";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["PUSH_MODE_DOES_NOT_EXIST"] = 6] = "PUSH_MODE_DOES_NOT_EXIST";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["MULTI_MODE_LEXER_WITHOUT_DEFAULT_MODE"] = 7] = "MULTI_MODE_LEXER_WITHOUT_DEFAULT_MODE";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["MULTI_MODE_LEXER_WITHOUT_MODES_PROPERTY"] = 8] = "MULTI_MODE_LEXER_WITHOUT_MODES_PROPERTY";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["MULTI_MODE_LEXER_DEFAULT_MODE_VALUE_DOES_NOT_EXIST"] = 9] = "MULTI_MODE_LEXER_DEFAULT_MODE_VALUE_DOES_NOT_EXIST";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["LEXER_DEFINITION_CANNOT_CONTAIN_UNDEFINED"] = 10] = "LEXER_DEFINITION_CANNOT_CONTAIN_UNDEFINED";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["SOI_ANCHOR_FOUND"] = 11] = "SOI_ANCHOR_FOUND";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["EMPTY_MATCH_PATTERN"] = 12] = "EMPTY_MATCH_PATTERN";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["NO_LINE_BREAKS_FLAGS"] = 13] = "NO_LINE_BREAKS_FLAGS";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["UNREACHABLE_PATTERN"] = 14] = "UNREACHABLE_PATTERN";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["IDENTIFY_TERMINATOR"] = 15] = "IDENTIFY_TERMINATOR";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["CUSTOM_LINE_BREAK"] = 16] = "CUSTOM_LINE_BREAK";
+    LexerDefinitionErrorType[LexerDefinitionErrorType["MULTI_MODE_LEXER_LONGER_ALT_NOT_IN_CURRENT_MODE"] = 17] = "MULTI_MODE_LEXER_LONGER_ALT_NOT_IN_CURRENT_MODE";
+})(LexerDefinitionErrorType || (LexerDefinitionErrorType = {}));
+const DEFAULT_LEXER_CONFIG = {
+    deferDefinitionErrorsHandling: false,
+    positionTracking: "full",
+    lineTerminatorsPattern: /\n|\r\n?/g,
+    lineTerminatorCharacters: ["\n", "\r"],
+    ensureOptimizations: false,
+    safeMode: false,
+    errorMessageProvider: defaultLexerErrorProvider,
+    traceInitPerf: false,
+    skipValidations: false,
+    recoveryEnabled: true,
+};
+Object.freeze(DEFAULT_LEXER_CONFIG);
+class Lexer {
+    constructor(lexerDefinition, config = DEFAULT_LEXER_CONFIG) {
+        this.lexerDefinition = lexerDefinition;
+        this.lexerDefinitionErrors = [];
+        this.lexerDefinitionWarning = [];
+        this.patternIdxToConfig = {};
+        this.charCodeToPatternIdxToConfig = {};
+        this.modes = [];
+        this.emptyGroups = {};
+        this.trackStartLines = true;
+        this.trackEndLines = true;
+        this.hasCustom = false;
+        this.canModeBeOptimized = {};
+        // Duplicated from the parser's perf trace trait to allow future extraction
+        // of the lexer to a separate package.
+        this.TRACE_INIT = (phaseDesc, phaseImpl) => {
+            // No need to optimize this using NOOP pattern because
+            // It is not called in a hot spot...
+            if (this.traceInitPerf === true) {
+                this.traceInitIndent++;
+                const indent = new Array(this.traceInitIndent + 1).join("\t");
+                if (this.traceInitIndent < this.traceInitMaxIdent) {
+                    console.log(`${indent}--> <${phaseDesc}>`);
+                }
+                const { time, value } = timer(phaseImpl);
+                /* istanbul ignore next - Difficult to reproduce specific performance behavior (>10ms) in tests */
+                const traceMethod = time > 10 ? console.warn : console.log;
+                if (this.traceInitIndent < this.traceInitMaxIdent) {
+                    traceMethod(`${indent}<-- <${phaseDesc}> time: ${time}ms`);
+                }
+                this.traceInitIndent--;
+                return value;
+            }
+            else {
+                return phaseImpl();
+            }
+        };
+        if (typeof config === "boolean") {
+            throw Error("The second argument to the Lexer constructor is now an ILexerConfig Object.\n" +
+                "a boolean 2nd argument is no longer supported");
+        }
+        // todo: defaults func?
+        this.config = assign({}, DEFAULT_LEXER_CONFIG, config);
+        const traceInitVal = this.config.traceInitPerf;
+        if (traceInitVal === true) {
+            this.traceInitMaxIdent = Infinity;
+            this.traceInitPerf = true;
+        }
+        else if (typeof traceInitVal === "number") {
+            this.traceInitMaxIdent = traceInitVal;
+            this.traceInitPerf = true;
+        }
+        this.traceInitIndent = -1;
+        this.TRACE_INIT("Lexer Constructor", () => {
+            let actualDefinition;
+            let hasOnlySingleMode = true;
+            this.TRACE_INIT("Lexer Config handling", () => {
+                if (this.config.lineTerminatorsPattern ===
+                    DEFAULT_LEXER_CONFIG.lineTerminatorsPattern) {
+                    // optimized built-in implementation for the defaults definition of lineTerminators
+                    this.config.lineTerminatorsPattern = LineTerminatorOptimizedTester;
+                }
+                else {
+                    if (this.config.lineTerminatorCharacters ===
+                        DEFAULT_LEXER_CONFIG.lineTerminatorCharacters) {
+                        throw Error("Error: Missing <lineTerminatorCharacters> property on the Lexer config.\n" +
+                            "\tFor details See: https://chevrotain.io/docs/guide/resolving_lexer_errors.html#MISSING_LINE_TERM_CHARS");
+                    }
+                }
+                if (config.safeMode && config.ensureOptimizations) {
+                    throw Error('"safeMode" and "ensureOptimizations" flags are mutually exclusive.');
+                }
+                this.trackStartLines = /full|onlyStart/i.test(this.config.positionTracking);
+                this.trackEndLines = /full/i.test(this.config.positionTracking);
+                // Convert SingleModeLexerDefinition into a IMultiModeLexerDefinition.
+                if (isArray(lexerDefinition)) {
+                    actualDefinition = {
+                        modes: { defaultMode: clone(lexerDefinition) },
+                        defaultMode: DEFAULT_MODE,
+                    };
+                }
+                else {
+                    // no conversion needed, input should already be a IMultiModeLexerDefinition
+                    hasOnlySingleMode = false;
+                    actualDefinition = clone(lexerDefinition);
+                }
+            });
+            if (this.config.skipValidations === false) {
+                this.TRACE_INIT("performRuntimeChecks", () => {
+                    this.lexerDefinitionErrors = this.lexerDefinitionErrors.concat(performRuntimeChecks(actualDefinition, this.trackStartLines, this.config.lineTerminatorCharacters));
+                });
+                this.TRACE_INIT("performWarningRuntimeChecks", () => {
+                    this.lexerDefinitionWarning = this.lexerDefinitionWarning.concat(performWarningRuntimeChecks(actualDefinition, this.trackStartLines, this.config.lineTerminatorCharacters));
+                });
+            }
+            // for extra robustness to avoid throwing an none informative error message
+            actualDefinition.modes = actualDefinition.modes
+                ? actualDefinition.modes
+                : {};
+            // an error of undefined TokenTypes will be detected in "performRuntimeChecks" above.
+            // this transformation is to increase robustness in the case of partially invalid lexer definition.
+            forEach(actualDefinition.modes, (currModeValue, currModeName) => {
+                actualDefinition.modes[currModeName] = reject(currModeValue, (currTokType) => isUndefined(currTokType));
+            });
+            const allModeNames = keys(actualDefinition.modes);
+            forEach(actualDefinition.modes, (currModDef, currModName) => {
+                this.TRACE_INIT(`Mode: <${currModName}> processing`, () => {
+                    this.modes.push(currModName);
+                    if (this.config.skipValidations === false) {
+                        this.TRACE_INIT(`validatePatterns`, () => {
+                            this.lexerDefinitionErrors = this.lexerDefinitionErrors.concat(validatePatterns(currModDef, allModeNames));
+                        });
+                    }
+                    // If definition errors were encountered, the analysis phase may fail unexpectedly/
+                    // Considering a lexer with definition errors may never be used, there is no point
+                    // to performing the analysis anyhow...
+                    if (isEmpty(this.lexerDefinitionErrors)) {
+                        augmentTokenTypes(currModDef);
+                        let currAnalyzeResult;
+                        this.TRACE_INIT(`analyzeTokenTypes`, () => {
+                            currAnalyzeResult = analyzeTokenTypes(currModDef, {
+                                lineTerminatorCharacters: this.config.lineTerminatorCharacters,
+                                positionTracking: config.positionTracking,
+                                ensureOptimizations: config.ensureOptimizations,
+                                safeMode: config.safeMode,
+                                tracer: this.TRACE_INIT,
+                            });
+                        });
+                        this.patternIdxToConfig[currModName] =
+                            currAnalyzeResult.patternIdxToConfig;
+                        this.charCodeToPatternIdxToConfig[currModName] =
+                            currAnalyzeResult.charCodeToPatternIdxToConfig;
+                        this.emptyGroups = assign({}, this.emptyGroups, currAnalyzeResult.emptyGroups);
+                        this.hasCustom = currAnalyzeResult.hasCustom || this.hasCustom;
+                        this.canModeBeOptimized[currModName] =
+                            currAnalyzeResult.canBeOptimized;
+                    }
+                });
+            });
+            this.defaultMode = actualDefinition.defaultMode;
+            if (!isEmpty(this.lexerDefinitionErrors) &&
+                !this.config.deferDefinitionErrorsHandling) {
+                const allErrMessages = map(this.lexerDefinitionErrors, (error) => {
+                    return error.message;
+                });
+                const allErrMessagesString = allErrMessages.join("-----------------------\n");
+                throw new Error("Errors detected in definition of Lexer:\n" + allErrMessagesString);
+            }
+            // Only print warning if there are no errors, This will avoid pl
+            forEach(this.lexerDefinitionWarning, (warningDescriptor) => {
+                PRINT_WARNING(warningDescriptor.message);
+            });
+            this.TRACE_INIT("Choosing sub-methods implementations", () => {
+                // Choose the relevant internal implementations for this specific parser.
+                // These implementations should be in-lined by the JavaScript engine
+                // to provide optimal performance in each scenario.
+                if (SUPPORT_STICKY) {
+                    this.chopInput = identity;
+                    this.match = this.matchWithTest;
+                }
+                else {
+                    this.updateLastIndex = noop;
+                    this.match = this.matchWithExec;
+                }
+                if (hasOnlySingleMode) {
+                    this.handleModes = noop;
+                }
+                if (this.trackStartLines === false) {
+                    this.computeNewColumn = identity;
+                }
+                if (this.trackEndLines === false) {
+                    this.updateTokenEndLineColumnLocation = noop;
+                }
+                if (/full/i.test(this.config.positionTracking)) {
+                    this.createTokenInstance = this.createFullToken;
+                }
+                else if (/onlyStart/i.test(this.config.positionTracking)) {
+                    this.createTokenInstance = this.createStartOnlyToken;
+                }
+                else if (/onlyOffset/i.test(this.config.positionTracking)) {
+                    this.createTokenInstance = this.createOffsetOnlyToken;
+                }
+                else {
+                    throw Error(`Invalid <positionTracking> config option: "${this.config.positionTracking}"`);
+                }
+                if (this.hasCustom) {
+                    this.addToken = this.addTokenUsingPush;
+                    this.handlePayload = this.handlePayloadWithCustom;
+                }
+                else {
+                    this.addToken = this.addTokenUsingMemberAccess;
+                    this.handlePayload = this.handlePayloadNoCustom;
+                }
+            });
+            this.TRACE_INIT("Failed Optimization Warnings", () => {
+                const unOptimizedModes = reduce(this.canModeBeOptimized, (cannotBeOptimized, canBeOptimized, modeName) => {
+                    if (canBeOptimized === false) {
+                        cannotBeOptimized.push(modeName);
+                    }
+                    return cannotBeOptimized;
+                }, []);
+                if (config.ensureOptimizations && !isEmpty(unOptimizedModes)) {
+                    throw Error(`Lexer Modes: < ${unOptimizedModes.join(", ")} > cannot be optimized.\n` +
+                        '\t Disable the "ensureOptimizations" lexer config flag to silently ignore this and run the lexer in an un-optimized mode.\n' +
+                        "\t Or inspect the console log for details on how to resolve these issues.");
+                }
+            });
+            this.TRACE_INIT("clearRegExpParserCache", () => {
+                clearRegExpParserCache();
+            });
+            this.TRACE_INIT("toFastProperties", () => {
+                toFastProperties(this);
+            });
+        });
+    }
+    tokenize(text, initialMode = this.defaultMode) {
+        if (!isEmpty(this.lexerDefinitionErrors)) {
+            const allErrMessages = map(this.lexerDefinitionErrors, (error) => {
+                return error.message;
+            });
+            const allErrMessagesString = allErrMessages.join("-----------------------\n");
+            throw new Error("Unable to Tokenize because Errors detected in definition of Lexer:\n" +
+                allErrMessagesString);
+        }
+        return this.tokenizeInternal(text, initialMode);
+    }
+    // There is quite a bit of duplication between this and "tokenizeInternalLazy"
+    // This is intentional due to performance considerations.
+    // this method also used quite a bit of `!` none null assertions because it is too optimized
+    // for `tsc` to always understand it is "safe"
+    tokenizeInternal(text, initialMode) {
+        let i, j, k, matchAltImage, longerAlt, matchedImage, payload, altPayload, imageLength, group, tokType, newToken, errLength, msg, match;
+        const orgText = text;
+        const orgLength = orgText.length;
+        let offset = 0;
+        let matchedTokensIndex = 0;
+        // initializing the tokensArray to the "guessed" size.
+        // guessing too little will still reduce the number of array re-sizes on pushes.
+        // guessing too large (Tested by guessing x4 too large) may cost a bit more of memory
+        // but would still have a faster runtime by avoiding (All but one) array resizing.
+        const guessedNumberOfTokens = this.hasCustom
+            ? 0 // will break custom token pattern APIs the matchedTokens array will contain undefined elements.
+            : Math.floor(text.length / 10);
+        const matchedTokens = new Array(guessedNumberOfTokens);
+        const errors = [];
+        let line = this.trackStartLines ? 1 : undefined;
+        let column = this.trackStartLines ? 1 : undefined;
+        const groups = cloneEmptyGroups(this.emptyGroups);
+        const trackLines = this.trackStartLines;
+        const lineTerminatorPattern = this.config.lineTerminatorsPattern;
+        let currModePatternsLength = 0;
+        let patternIdxToConfig = [];
+        let currCharCodeToPatternIdxToConfig = [];
+        const modeStack = [];
+        const emptyArray = [];
+        Object.freeze(emptyArray);
+        let getPossiblePatterns;
+        function getPossiblePatternsSlow() {
+            return patternIdxToConfig;
+        }
+        function getPossiblePatternsOptimized(charCode) {
+            const optimizedCharIdx = charCodeToOptimizedIndex(charCode);
+            const possiblePatterns = currCharCodeToPatternIdxToConfig[optimizedCharIdx];
+            if (possiblePatterns === undefined) {
+                return emptyArray;
+            }
+            else {
+                return possiblePatterns;
+            }
+        }
+        const pop_mode = (popToken) => {
+            // TODO: perhaps avoid this error in the edge case there is no more input?
+            if (modeStack.length === 1 &&
+                // if we have both a POP_MODE and a PUSH_MODE this is in-fact a "transition"
+                // So no error should occur.
+                popToken.tokenType.PUSH_MODE === undefined) {
+                // if we try to pop the last mode there lexer will no longer have ANY mode.
+                // thus the pop is ignored, an error will be created and the lexer will continue parsing in the previous mode.
+                const msg = this.config.errorMessageProvider.buildUnableToPopLexerModeMessage(popToken);
+                errors.push({
+                    offset: popToken.startOffset,
+                    line: popToken.startLine,
+                    column: popToken.startColumn,
+                    length: popToken.image.length,
+                    message: msg,
+                });
+            }
+            else {
+                modeStack.pop();
+                const newMode = last(modeStack);
+                patternIdxToConfig = this.patternIdxToConfig[newMode];
+                currCharCodeToPatternIdxToConfig =
+                    this.charCodeToPatternIdxToConfig[newMode];
+                currModePatternsLength = patternIdxToConfig.length;
+                const modeCanBeOptimized = this.canModeBeOptimized[newMode] && this.config.safeMode === false;
+                if (currCharCodeToPatternIdxToConfig && modeCanBeOptimized) {
+                    getPossiblePatterns = getPossiblePatternsOptimized;
+                }
+                else {
+                    getPossiblePatterns = getPossiblePatternsSlow;
+                }
+            }
+        };
+        function push_mode(newMode) {
+            modeStack.push(newMode);
+            currCharCodeToPatternIdxToConfig =
+                this.charCodeToPatternIdxToConfig[newMode];
+            patternIdxToConfig = this.patternIdxToConfig[newMode];
+            currModePatternsLength = patternIdxToConfig.length;
+            currModePatternsLength = patternIdxToConfig.length;
+            const modeCanBeOptimized = this.canModeBeOptimized[newMode] && this.config.safeMode === false;
+            if (currCharCodeToPatternIdxToConfig && modeCanBeOptimized) {
+                getPossiblePatterns = getPossiblePatternsOptimized;
+            }
+            else {
+                getPossiblePatterns = getPossiblePatternsSlow;
+            }
+        }
+        // this pattern seems to avoid a V8 de-optimization, although that de-optimization does not
+        // seem to matter performance wise.
+        push_mode.call(this, initialMode);
+        let currConfig;
+        const recoveryEnabled = this.config.recoveryEnabled;
+        while (offset < orgLength) {
+            matchedImage = null;
+            const nextCharCode = orgText.charCodeAt(offset);
+            const chosenPatternIdxToConfig = getPossiblePatterns(nextCharCode);
+            const chosenPatternsLength = chosenPatternIdxToConfig.length;
+            for (i = 0; i < chosenPatternsLength; i++) {
+                currConfig = chosenPatternIdxToConfig[i];
+                const currPattern = currConfig.pattern;
+                payload = null;
+                // manually in-lined because > 600 chars won't be in-lined in V8
+                const singleCharCode = currConfig.short;
+                if (singleCharCode !== false) {
+                    if (nextCharCode === singleCharCode) {
+                        // single character string
+                        matchedImage = currPattern;
+                    }
+                }
+                else if (currConfig.isCustom === true) {
+                    match = currPattern.exec(orgText, offset, matchedTokens, groups);
+                    if (match !== null) {
+                        matchedImage = match[0];
+                        if (match.payload !== undefined) {
+                            payload = match.payload;
+                        }
+                    }
+                    else {
+                        matchedImage = null;
+                    }
+                }
+                else {
+                    this.updateLastIndex(currPattern, offset);
+                    matchedImage = this.match(currPattern, text, offset);
+                }
+                if (matchedImage !== null) {
+                    // even though this pattern matched we must try a another longer alternative.
+                    // this can be used to prioritize keywords over identifiers
+                    longerAlt = currConfig.longerAlt;
+                    if (longerAlt !== undefined) {
+                        // TODO: micro optimize, avoid extra prop access
+                        // by saving/linking longerAlt on the original config?
+                        const longerAltLength = longerAlt.length;
+                        for (k = 0; k < longerAltLength; k++) {
+                            const longerAltConfig = patternIdxToConfig[longerAlt[k]];
+                            const longerAltPattern = longerAltConfig.pattern;
+                            altPayload = null;
+                            // single Char can never be a longer alt so no need to test it.
+                            // manually in-lined because > 600 chars won't be in-lined in V8
+                            if (longerAltConfig.isCustom === true) {
+                                match = longerAltPattern.exec(orgText, offset, matchedTokens, groups);
+                                if (match !== null) {
+                                    matchAltImage = match[0];
+                                    if (match.payload !== undefined) {
+                                        altPayload = match.payload;
+                                    }
+                                }
+                                else {
+                                    matchAltImage = null;
+                                }
+                            }
+                            else {
+                                this.updateLastIndex(longerAltPattern, offset);
+                                matchAltImage = this.match(longerAltPattern, text, offset);
+                            }
+                            if (matchAltImage && matchAltImage.length > matchedImage.length) {
+                                matchedImage = matchAltImage;
+                                payload = altPayload;
+                                currConfig = longerAltConfig;
+                                // Exit the loop early after matching one of the longer alternatives
+                                // The first matched alternative takes precedence
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+            // successful match
+            if (matchedImage !== null) {
+                imageLength = matchedImage.length;
+                group = currConfig.group;
+                if (group !== undefined) {
+                    tokType = currConfig.tokenTypeIdx;
+                    // TODO: "offset + imageLength" and the new column may be computed twice in case of "full" location information inside
+                    // createFullToken method
+                    newToken = this.createTokenInstance(matchedImage, offset, tokType, currConfig.tokenType, line, column, imageLength);
+                    this.handlePayload(newToken, payload);
+                    // TODO: optimize NOOP in case there are no special groups?
+                    if (group === false) {
+                        matchedTokensIndex = this.addToken(matchedTokens, matchedTokensIndex, newToken);
+                    }
+                    else {
+                        groups[group].push(newToken);
+                    }
+                }
+                text = this.chopInput(text, imageLength);
+                offset = offset + imageLength;
+                // TODO: with newlines the column may be assigned twice
+                column = this.computeNewColumn(column, imageLength);
+                if (trackLines === true && currConfig.canLineTerminator === true) {
+                    let numOfLTsInMatch = 0;
+                    let foundTerminator;
+                    let lastLTEndOffset;
+                    lineTerminatorPattern.lastIndex = 0;
+                    do {
+                        foundTerminator = lineTerminatorPattern.test(matchedImage);
+                        if (foundTerminator === true) {
+                            lastLTEndOffset = lineTerminatorPattern.lastIndex - 1;
+                            numOfLTsInMatch++;
+                        }
+                    } while (foundTerminator === true);
+                    if (numOfLTsInMatch !== 0) {
+                        line = line + numOfLTsInMatch;
+                        column = imageLength - lastLTEndOffset;
+                        this.updateTokenEndLineColumnLocation(newToken, group, lastLTEndOffset, numOfLTsInMatch, line, column, imageLength);
+                    }
+                }
+                // will be NOOP if no modes present
+                this.handleModes(currConfig, pop_mode, push_mode, newToken);
+            }
+            else {
+                // error recovery, drop characters until we identify a valid token's start point
+                const errorStartOffset = offset;
+                const errorLine = line;
+                const errorColumn = column;
+                let foundResyncPoint = recoveryEnabled === false;
+                while (foundResyncPoint === false && offset < orgLength) {
+                    // Identity Func (when sticky flag is enabled)
+                    text = this.chopInput(text, 1);
+                    offset++;
+                    for (j = 0; j < currModePatternsLength; j++) {
+                        const currConfig = patternIdxToConfig[j];
+                        const currPattern = currConfig.pattern;
+                        // manually in-lined because > 600 chars won't be in-lined in V8
+                        const singleCharCode = currConfig.short;
+                        if (singleCharCode !== false) {
+                            if (orgText.charCodeAt(offset) === singleCharCode) {
+                                // single character string
+                                foundResyncPoint = true;
+                            }
+                        }
+                        else if (currConfig.isCustom === true) {
+                            foundResyncPoint =
+                                currPattern.exec(orgText, offset, matchedTokens, groups) !== null;
+                        }
+                        else {
+                            this.updateLastIndex(currPattern, offset);
+                            foundResyncPoint = currPattern.exec(text) !== null;
+                        }
+                        if (foundResyncPoint === true) {
+                            break;
+                        }
+                    }
+                }
+                errLength = offset - errorStartOffset;
+                column = this.computeNewColumn(column, errLength);
+                // at this point we either re-synced or reached the end of the input text
+                msg = this.config.errorMessageProvider.buildUnexpectedCharactersMessage(orgText, errorStartOffset, errLength, errorLine, errorColumn, last(modeStack));
+                errors.push({
+                    offset: errorStartOffset,
+                    line: errorLine,
+                    column: errorColumn,
+                    length: errLength,
+                    message: msg,
+                });
+                if (recoveryEnabled === false) {
+                    break;
+                }
+            }
+        }
+        // if we do have custom patterns which push directly into the
+        // TODO: custom tokens should not push directly??
+        if (!this.hasCustom) {
+            // if we guessed a too large size for the tokens array this will shrink it to the right size.
+            matchedTokens.length = matchedTokensIndex;
+        }
+        return {
+            tokens: matchedTokens,
+            groups: groups,
+            errors: errors,
+        };
+    }
+    handleModes(config, pop_mode, push_mode, newToken) {
+        if (config.pop === true) {
+            // need to save the PUSH_MODE property as if the mode is popped
+            // patternIdxToPopMode is updated to reflect the new mode after popping the stack
+            const pushMode = config.push;
+            pop_mode(newToken);
+            if (pushMode !== undefined) {
+                push_mode.call(this, pushMode);
+            }
+        }
+        else if (config.push !== undefined) {
+            push_mode.call(this, config.push);
+        }
+    }
+    chopInput(text, length) {
+        return text.substring(length);
+    }
+    updateLastIndex(regExp, newLastIndex) {
+        regExp.lastIndex = newLastIndex;
+    }
+    // TODO: decrease this under 600 characters? inspect stripping comments option in TSC compiler
+    updateTokenEndLineColumnLocation(newToken, group, lastLTIdx, numOfLTsInMatch, line, column, imageLength) {
+        let lastCharIsLT, fixForEndingInLT;
+        if (group !== undefined) {
+            // a none skipped multi line Token, need to update endLine/endColumn
+            lastCharIsLT = lastLTIdx === imageLength - 1;
+            fixForEndingInLT = lastCharIsLT ? -1 : 0;
+            if (!(numOfLTsInMatch === 1 && lastCharIsLT === true)) {
+                // if a token ends in a LT that last LT only affects the line numbering of following Tokens
+                newToken.endLine = line + fixForEndingInLT;
+                // the last LT in a token does not affect the endColumn either as the [columnStart ... columnEnd)
+                // inclusive to exclusive range.
+                newToken.endColumn = column - 1 + -fixForEndingInLT;
+            }
+            // else single LT in the last character of a token, no need to modify the endLine/EndColumn
+        }
+    }
+    computeNewColumn(oldColumn, imageLength) {
+        return oldColumn + imageLength;
+    }
+    createOffsetOnlyToken(image, startOffset, tokenTypeIdx, tokenType) {
+        return {
+            image,
+            startOffset,
+            tokenTypeIdx,
+            tokenType,
+        };
+    }
+    createStartOnlyToken(image, startOffset, tokenTypeIdx, tokenType, startLine, startColumn) {
+        return {
+            image,
+            startOffset,
+            startLine,
+            startColumn,
+            tokenTypeIdx,
+            tokenType,
+        };
+    }
+    createFullToken(image, startOffset, tokenTypeIdx, tokenType, startLine, startColumn, imageLength) {
+        return {
+            image,
+            startOffset,
+            endOffset: startOffset + imageLength - 1,
+            startLine,
+            endLine: startLine,
+            startColumn,
+            endColumn: startColumn + imageLength - 1,
+            tokenTypeIdx,
+            tokenType,
+        };
+    }
+    addTokenUsingPush(tokenVector, index, tokenToAdd) {
+        tokenVector.push(tokenToAdd);
+        return index;
+    }
+    addTokenUsingMemberAccess(tokenVector, index, tokenToAdd) {
+        tokenVector[index] = tokenToAdd;
+        index++;
+        return index;
+    }
+    handlePayloadNoCustom(token, payload) { }
+    handlePayloadWithCustom(token, payload) {
+        if (payload !== null) {
+            token.payload = payload;
+        }
+    }
+    matchWithTest(pattern, text, offset) {
+        const found = pattern.test(text);
+        if (found === true) {
+            return text.substring(offset, pattern.lastIndex);
+        }
+        return null;
+    }
+    matchWithExec(pattern, text) {
+        const regExpArray = pattern.exec(text);
+        return regExpArray !== null ? regExpArray[0] : null;
+    }
+}
+Lexer.SKIPPED = "This marks a skipped Token pattern, this means each token identified by it will " +
+    "be consumed and then thrown into oblivion, this can be used to for example to completely ignore whitespace.";
+Lexer.NA = /NOT_APPLICABLE/;
+
+function tokenLabel(tokType) {
+    if (hasTokenLabel(tokType)) {
+        return tokType.LABEL;
+    }
+    else {
+        return tokType.name;
+    }
+}
+function hasTokenLabel(obj) {
+    return isString(obj.LABEL) && obj.LABEL !== "";
+}
+const PARENT = "parent";
+const CATEGORIES = "categories";
+const LABEL = "label";
+const GROUP = "group";
+const PUSH_MODE = "push_mode";
+const POP_MODE = "pop_mode";
+const LONGER_ALT = "longer_alt";
+const LINE_BREAKS = "line_breaks";
+const START_CHARS_HINT = "start_chars_hint";
+function createToken(config) {
+    return createTokenInternal(config);
+}
+function createTokenInternal(config) {
+    const pattern = config.pattern;
+    const tokenType = {};
+    tokenType.name = config.name;
+    if (!isUndefined(pattern)) {
+        tokenType.PATTERN = pattern;
+    }
+    if (has(config, PARENT)) {
+        throw ("The parent property is no longer supported.\n" +
+            "See: https://github.com/chevrotain/chevrotain/issues/564#issuecomment-349062346 for details.");
+    }
+    if (has(config, CATEGORIES)) {
+        // casting to ANY as this will be fixed inside `augmentTokenTypes``
+        tokenType.CATEGORIES = config[CATEGORIES];
+    }
+    augmentTokenTypes([tokenType]);
+    if (has(config, LABEL)) {
+        tokenType.LABEL = config[LABEL];
+    }
+    if (has(config, GROUP)) {
+        tokenType.GROUP = config[GROUP];
+    }
+    if (has(config, POP_MODE)) {
+        tokenType.POP_MODE = config[POP_MODE];
+    }
+    if (has(config, PUSH_MODE)) {
+        tokenType.PUSH_MODE = config[PUSH_MODE];
+    }
+    if (has(config, LONGER_ALT)) {
+        tokenType.LONGER_ALT = config[LONGER_ALT];
+    }
+    if (has(config, LINE_BREAKS)) {
+        tokenType.LINE_BREAKS = config[LINE_BREAKS];
+    }
+    if (has(config, START_CHARS_HINT)) {
+        tokenType.START_CHARS_HINT = config[START_CHARS_HINT];
+    }
+    return tokenType;
+}
+const EOF = createToken({ name: "EOF", pattern: Lexer.NA });
+augmentTokenTypes([EOF]);
+function createTokenInstance(tokType, image, startOffset, endOffset, startLine, endLine, startColumn, endColumn) {
+    return {
+        image,
+        startOffset,
+        endOffset,
+        startLine,
+        endLine,
+        startColumn,
+        endColumn,
+        tokenTypeIdx: tokType.tokenTypeIdx,
+        tokenType: tokType,
+    };
+}
+function tokenMatcher(token, tokType) {
+    return tokenStructuredMatcher(token, tokType);
+}
+
+const defaultParserErrorProvider = {
+    buildMismatchTokenMessage({ expected, actual, previous, ruleName }) {
+        const hasLabel = hasTokenLabel(expected);
+        const expectedMsg = hasLabel
+            ? `--> ${tokenLabel(expected)} <--`
+            : `token of type --> ${expected.name} <--`;
+        const msg = `Expecting ${expectedMsg} but found --> '${actual.image}' <--`;
+        return msg;
+    },
+    buildNotAllInputParsedMessage({ firstRedundant, ruleName }) {
+        return "Redundant input, expecting EOF but found: " + firstRedundant.image;
+    },
+    buildNoViableAltMessage({ expectedPathsPerAlt, actual, previous, customUserDescription, ruleName, }) {
+        const errPrefix = "Expecting: ";
+        // TODO: issue: No Viable Alternative Error may have incomplete details. #502
+        const actualText = head(actual).image;
+        const errSuffix = "\nbut found: '" + actualText + "'";
+        if (customUserDescription) {
+            return errPrefix + customUserDescription + errSuffix;
+        }
+        else {
+            const allLookAheadPaths = reduce(expectedPathsPerAlt, (result, currAltPaths) => result.concat(currAltPaths), []);
+            const nextValidTokenSequences = map(allLookAheadPaths, (currPath) => `[${map(currPath, (currTokenType) => tokenLabel(currTokenType)).join(", ")}]`);
+            const nextValidSequenceItems = map(nextValidTokenSequences, (itemMsg, idx) => `  ${idx + 1}. ${itemMsg}`);
+            const calculatedDescription = `one of these possible Token sequences:\n${nextValidSequenceItems.join("\n")}`;
+            return errPrefix + calculatedDescription + errSuffix;
+        }
+    },
+    buildEarlyExitMessage({ expectedIterationPaths, actual, customUserDescription, ruleName, }) {
+        const errPrefix = "Expecting: ";
+        // TODO: issue: No Viable Alternative Error may have incomplete details. #502
+        const actualText = head(actual).image;
+        const errSuffix = "\nbut found: '" + actualText + "'";
+        if (customUserDescription) {
+            return errPrefix + customUserDescription + errSuffix;
+        }
+        else {
+            const nextValidTokenSequences = map(expectedIterationPaths, (currPath) => `[${map(currPath, (currTokenType) => tokenLabel(currTokenType)).join(",")}]`);
+            const calculatedDescription = `expecting at least one iteration which starts with one of these possible Token sequences::\n  ` +
+                `<${nextValidTokenSequences.join(" ,")}>`;
+            return errPrefix + calculatedDescription + errSuffix;
+        }
+    },
+};
+Object.freeze(defaultParserErrorProvider);
+const defaultGrammarResolverErrorProvider = {
+    buildRuleNotFoundError(topLevelRule, undefinedRule) {
+        const msg = "Invalid grammar, reference to a rule which is not defined: ->" +
+            undefinedRule.nonTerminalName +
+            "<-\n" +
+            "inside top level rule: ->" +
+            topLevelRule.name +
+            "<-";
+        return msg;
+    },
+};
+const defaultGrammarValidatorErrorProvider = {
+    buildDuplicateFoundError(topLevelRule, duplicateProds) {
+        function getExtraProductionArgument(prod) {
+            if (prod instanceof Terminal) {
+                return prod.terminalType.name;
+            }
+            else if (prod instanceof NonTerminal) {
+                return prod.nonTerminalName;
+            }
+            else {
+                return "";
+            }
+        }
+        const topLevelName = topLevelRule.name;
+        const duplicateProd = head(duplicateProds);
+        const index = duplicateProd.idx;
+        const dslName = getProductionDslName(duplicateProd);
+        const extraArgument = getExtraProductionArgument(duplicateProd);
+        const hasExplicitIndex = index > 0;
+        let msg = `->${dslName}${hasExplicitIndex ? index : ""}<- ${extraArgument ? `with argument: ->${extraArgument}<-` : ""}
+                  appears more than once (${duplicateProds.length} times) in the top level rule: ->${topLevelName}<-.                  
+                  For further details see: https://chevrotain.io/docs/FAQ.html#NUMERICAL_SUFFIXES 
+                  `;
+        // white space trimming time! better to trim afterwards as it allows to use WELL formatted multi line template strings...
+        msg = msg.replace(/[ \t]+/g, " ");
+        msg = msg.replace(/\s\s+/g, "\n");
+        return msg;
+    },
+    buildNamespaceConflictError(rule) {
+        const errMsg = `Namespace conflict found in grammar.\n` +
+            `The grammar has both a Terminal(Token) and a Non-Terminal(Rule) named: <${rule.name}>.\n` +
+            `To resolve this make sure each Terminal and Non-Terminal names are unique\n` +
+            `This is easy to accomplish by using the convention that Terminal names start with an uppercase letter\n` +
+            `and Non-Terminal names start with a lower case letter.`;
+        return errMsg;
+    },
+    buildAlternationPrefixAmbiguityError(options) {
+        const pathMsg = map(options.prefixPath, (currTok) => tokenLabel(currTok)).join(", ");
+        const occurrence = options.alternation.idx === 0 ? "" : options.alternation.idx;
+        const errMsg = `Ambiguous alternatives: <${options.ambiguityIndices.join(" ,")}> due to common lookahead prefix\n` +
+            `in <OR${occurrence}> inside <${options.topLevelRule.name}> Rule,\n` +
+            `<${pathMsg}> may appears as a prefix path in all these alternatives.\n` +
+            `See: https://chevrotain.io/docs/guide/resolving_grammar_errors.html#COMMON_PREFIX\n` +
+            `For Further details.`;
+        return errMsg;
+    },
+    buildAlternationAmbiguityError(options) {
+        const pathMsg = map(options.prefixPath, (currtok) => tokenLabel(currtok)).join(", ");
+        const occurrence = options.alternation.idx === 0 ? "" : options.alternation.idx;
+        let currMessage = `Ambiguous Alternatives Detected: <${options.ambiguityIndices.join(" ,")}> in <OR${occurrence}>` +
+            ` inside <${options.topLevelRule.name}> Rule,\n` +
+            `<${pathMsg}> may appears as a prefix path in all these alternatives.\n`;
+        currMessage =
+            currMessage +
+                `See: https://chevrotain.io/docs/guide/resolving_grammar_errors.html#AMBIGUOUS_ALTERNATIVES\n` +
+                `For Further details.`;
+        return currMessage;
+    },
+    buildEmptyRepetitionError(options) {
+        let dslName = getProductionDslName(options.repetition);
+        if (options.repetition.idx !== 0) {
+            dslName += options.repetition.idx;
+        }
+        const errMsg = `The repetition <${dslName}> within Rule <${options.topLevelRule.name}> can never consume any tokens.\n` +
+            `This could lead to an infinite loop.`;
+        return errMsg;
+    },
+    // TODO: remove - `errors_public` from nyc.config.js exclude
+    //       once this method is fully removed from this file
+    buildTokenNameError(options) {
+        /* istanbul ignore next */
+        return "deprecated";
+    },
+    buildEmptyAlternationError(options) {
+        const errMsg = `Ambiguous empty alternative: <${options.emptyChoiceIdx + 1}>` +
+            ` in <OR${options.alternation.idx}> inside <${options.topLevelRule.name}> Rule.\n` +
+            `Only the last alternative may be an empty alternative.`;
+        return errMsg;
+    },
+    buildTooManyAlternativesError(options) {
+        const errMsg = `An Alternation cannot have more than 256 alternatives:\n` +
+            `<OR${options.alternation.idx}> inside <${options.topLevelRule.name}> Rule.\n has ${options.alternation.definition.length + 1} alternatives.`;
+        return errMsg;
+    },
+    buildLeftRecursionError(options) {
+        const ruleName = options.topLevelRule.name;
+        const pathNames = map(options.leftRecursionPath, (currRule) => currRule.name);
+        const leftRecursivePath = `${ruleName} --> ${pathNames
+            .concat([ruleName])
+            .join(" --> ")}`;
+        const errMsg = `Left Recursion found in grammar.\n` +
+            `rule: <${ruleName}> can be invoked from itself (directly or indirectly)\n` +
+            `without consuming any Tokens. The grammar path that causes this is: \n ${leftRecursivePath}\n` +
+            ` To fix this refactor your grammar to remove the left recursion.\n` +
+            `see: https://en.wikipedia.org/wiki/LL_parser#Left_factoring.`;
+        return errMsg;
+    },
+    // TODO: remove - `errors_public` from nyc.config.js exclude
+    //       once this method is fully removed from this file
+    buildInvalidRuleNameError(options) {
+        /* istanbul ignore next */
+        return "deprecated";
+    },
+    buildDuplicateRuleNameError(options) {
+        let ruleName;
+        if (options.topLevelRule instanceof Rule) {
+            ruleName = options.topLevelRule.name;
+        }
+        else {
+            ruleName = options.topLevelRule;
+        }
+        const errMsg = `Duplicate definition, rule: ->${ruleName}<- is already defined in the grammar: ->${options.grammarName}<-`;
+        return errMsg;
+    },
+};
+
+function resolveGrammar$1(topLevels, errMsgProvider) {
+    const refResolver = new GastRefResolverVisitor(topLevels, errMsgProvider);
+    refResolver.resolveRefs();
+    return refResolver.errors;
+}
+class GastRefResolverVisitor extends GAstVisitor {
+    constructor(nameToTopRule, errMsgProvider) {
+        super();
+        this.nameToTopRule = nameToTopRule;
+        this.errMsgProvider = errMsgProvider;
+        this.errors = [];
+    }
+    resolveRefs() {
+        forEach(values(this.nameToTopRule), (prod) => {
+            this.currTopLevel = prod;
+            prod.accept(this);
+        });
+    }
+    visitNonTerminal(node) {
+        const ref = this.nameToTopRule[node.nonTerminalName];
+        if (!ref) {
+            const msg = this.errMsgProvider.buildRuleNotFoundError(this.currTopLevel, node);
+            this.errors.push({
+                message: msg,
+                type: ParserDefinitionErrorType.UNRESOLVED_SUBRULE_REF,
+                ruleName: this.currTopLevel.name,
+                unresolvedRefName: node.nonTerminalName,
+            });
+        }
+        else {
+            node.referencedRule = ref;
+        }
+    }
+}
+
+class AbstractNextPossibleTokensWalker extends RestWalker {
+    constructor(topProd, path) {
+        super();
+        this.topProd = topProd;
+        this.path = path;
+        this.possibleTokTypes = [];
+        this.nextProductionName = "";
+        this.nextProductionOccurrence = 0;
+        this.found = false;
+        this.isAtEndOfPath = false;
+    }
+    startWalking() {
+        this.found = false;
+        if (this.path.ruleStack[0] !== this.topProd.name) {
+            throw Error("The path does not start with the walker's top Rule!");
+        }
+        // immutable for the win
+        this.ruleStack = clone(this.path.ruleStack).reverse(); // intelij bug requires assertion
+        this.occurrenceStack = clone(this.path.occurrenceStack).reverse(); // intelij bug requires assertion
+        // already verified that the first production is valid, we now seek the 2nd production
+        this.ruleStack.pop();
+        this.occurrenceStack.pop();
+        this.updateExpectedNext();
+        this.walk(this.topProd);
+        return this.possibleTokTypes;
+    }
+    walk(prod, prevRest = []) {
+        // stop scanning once we found the path
+        if (!this.found) {
+            super.walk(prod, prevRest);
+        }
+    }
+    walkProdRef(refProd, currRest, prevRest) {
+        // found the next production, need to keep walking in it
+        if (refProd.referencedRule.name === this.nextProductionName &&
+            refProd.idx === this.nextProductionOccurrence) {
+            const fullRest = currRest.concat(prevRest);
+            this.updateExpectedNext();
+            this.walk(refProd.referencedRule, fullRest);
+        }
+    }
+    updateExpectedNext() {
+        // need to consume the Terminal
+        if (isEmpty(this.ruleStack)) {
+            // must reset nextProductionXXX to avoid walking down another Top Level production while what we are
+            // really seeking is the last Terminal...
+            this.nextProductionName = "";
+            this.nextProductionOccurrence = 0;
+            this.isAtEndOfPath = true;
+        }
+        else {
+            this.nextProductionName = this.ruleStack.pop();
+            this.nextProductionOccurrence = this.occurrenceStack.pop();
+        }
+    }
+}
+class NextAfterTokenWalker extends AbstractNextPossibleTokensWalker {
+    constructor(topProd, path) {
+        super(topProd, path);
+        this.path = path;
+        this.nextTerminalName = "";
+        this.nextTerminalOccurrence = 0;
+        this.nextTerminalName = this.path.lastTok.name;
+        this.nextTerminalOccurrence = this.path.lastTokOccurrence;
+    }
+    walkTerminal(terminal, currRest, prevRest) {
+        if (this.isAtEndOfPath &&
+            terminal.terminalType.name === this.nextTerminalName &&
+            terminal.idx === this.nextTerminalOccurrence &&
+            !this.found) {
+            const fullRest = currRest.concat(prevRest);
+            const restProd = new Alternative({ definition: fullRest });
+            this.possibleTokTypes = first(restProd);
+            this.found = true;
+        }
+    }
+}
+/**
+ * This walker only "walks" a single "TOP" level in the Grammar Ast, this means
+ * it never "follows" production refs
+ */
+class AbstractNextTerminalAfterProductionWalker extends RestWalker {
+    constructor(topRule, occurrence) {
+        super();
+        this.topRule = topRule;
+        this.occurrence = occurrence;
+        this.result = {
+            token: undefined,
+            occurrence: undefined,
+            isEndOfRule: undefined,
+        };
+    }
+    startWalking() {
+        this.walk(this.topRule);
+        return this.result;
+    }
+}
+class NextTerminalAfterManyWalker extends AbstractNextTerminalAfterProductionWalker {
+    walkMany(manyProd, currRest, prevRest) {
+        if (manyProd.idx === this.occurrence) {
+            const firstAfterMany = head(currRest.concat(prevRest));
+            this.result.isEndOfRule = firstAfterMany === undefined;
+            if (firstAfterMany instanceof Terminal) {
+                this.result.token = firstAfterMany.terminalType;
+                this.result.occurrence = firstAfterMany.idx;
+            }
+        }
+        else {
+            super.walkMany(manyProd, currRest, prevRest);
+        }
+    }
+}
+class NextTerminalAfterManySepWalker extends AbstractNextTerminalAfterProductionWalker {
+    walkManySep(manySepProd, currRest, prevRest) {
+        if (manySepProd.idx === this.occurrence) {
+            const firstAfterManySep = head(currRest.concat(prevRest));
+            this.result.isEndOfRule = firstAfterManySep === undefined;
+            if (firstAfterManySep instanceof Terminal) {
+                this.result.token = firstAfterManySep.terminalType;
+                this.result.occurrence = firstAfterManySep.idx;
+            }
+        }
+        else {
+            super.walkManySep(manySepProd, currRest, prevRest);
+        }
+    }
+}
+class NextTerminalAfterAtLeastOneWalker extends AbstractNextTerminalAfterProductionWalker {
+    walkAtLeastOne(atLeastOneProd, currRest, prevRest) {
+        if (atLeastOneProd.idx === this.occurrence) {
+            const firstAfterAtLeastOne = head(currRest.concat(prevRest));
+            this.result.isEndOfRule = firstAfterAtLeastOne === undefined;
+            if (firstAfterAtLeastOne instanceof Terminal) {
+                this.result.token = firstAfterAtLeastOne.terminalType;
+                this.result.occurrence = firstAfterAtLeastOne.idx;
+            }
+        }
+        else {
+            super.walkAtLeastOne(atLeastOneProd, currRest, prevRest);
+        }
+    }
+}
+// TODO: reduce code duplication in the AfterWalkers
+class NextTerminalAfterAtLeastOneSepWalker extends AbstractNextTerminalAfterProductionWalker {
+    walkAtLeastOneSep(atleastOneSepProd, currRest, prevRest) {
+        if (atleastOneSepProd.idx === this.occurrence) {
+            const firstAfterfirstAfterAtLeastOneSep = head(currRest.concat(prevRest));
+            this.result.isEndOfRule = firstAfterfirstAfterAtLeastOneSep === undefined;
+            if (firstAfterfirstAfterAtLeastOneSep instanceof Terminal) {
+                this.result.token = firstAfterfirstAfterAtLeastOneSep.terminalType;
+                this.result.occurrence = firstAfterfirstAfterAtLeastOneSep.idx;
+            }
+        }
+        else {
+            super.walkAtLeastOneSep(atleastOneSepProd, currRest, prevRest);
+        }
+    }
+}
+function possiblePathsFrom(targetDef, maxLength, currPath = []) {
+    // avoid side effects
+    currPath = clone(currPath);
+    let result = [];
+    let i = 0;
+    // TODO: avoid inner funcs
+    function remainingPathWith(nextDef) {
+        return nextDef.concat(drop(targetDef, i + 1));
+    }
+    // TODO: avoid inner funcs
+    function getAlternativesForProd(definition) {
+        const alternatives = possiblePathsFrom(remainingPathWith(definition), maxLength, currPath);
+        return result.concat(alternatives);
+    }
+    /**
+     * Mandatory productions will halt the loop as the paths computed from their recursive calls will already contain the
+     * following (rest) of the targetDef.
+     *
+     * For optional productions (Option/Repetition/...) the loop will continue to represent the paths that do not include the
+     * the optional production.
+     */
+    while (currPath.length < maxLength && i < targetDef.length) {
+        const prod = targetDef[i];
+        /* istanbul ignore else */
+        if (prod instanceof Alternative) {
+            return getAlternativesForProd(prod.definition);
+        }
+        else if (prod instanceof NonTerminal) {
+            return getAlternativesForProd(prod.definition);
+        }
+        else if (prod instanceof Option) {
+            result = getAlternativesForProd(prod.definition);
+        }
+        else if (prod instanceof RepetitionMandatory) {
+            const newDef = prod.definition.concat([
+                new Repetition({
+                    definition: prod.definition,
+                }),
+            ]);
+            return getAlternativesForProd(newDef);
+        }
+        else if (prod instanceof RepetitionMandatoryWithSeparator) {
+            const newDef = [
+                new Alternative({ definition: prod.definition }),
+                new Repetition({
+                    definition: [new Terminal({ terminalType: prod.separator })].concat(prod.definition),
+                }),
+            ];
+            return getAlternativesForProd(newDef);
+        }
+        else if (prod instanceof RepetitionWithSeparator) {
+            const newDef = prod.definition.concat([
+                new Repetition({
+                    definition: [new Terminal({ terminalType: prod.separator })].concat(prod.definition),
+                }),
+            ]);
+            result = getAlternativesForProd(newDef);
+        }
+        else if (prod instanceof Repetition) {
+            const newDef = prod.definition.concat([
+                new Repetition({
+                    definition: prod.definition,
+                }),
+            ]);
+            result = getAlternativesForProd(newDef);
+        }
+        else if (prod instanceof Alternation) {
+            forEach(prod.definition, (currAlt) => {
+                // TODO: this is a limited check for empty alternatives
+                //   It would prevent a common case of infinite loops during parser initialization.
+                //   However **in-directly** empty alternatives may still cause issues.
+                if (isEmpty(currAlt.definition) === false) {
+                    result = getAlternativesForProd(currAlt.definition);
+                }
+            });
+            return result;
+        }
+        else if (prod instanceof Terminal) {
+            currPath.push(prod.terminalType);
+        }
+        else {
+            throw Error("non exhaustive match");
+        }
+        i++;
+    }
+    result.push({
+        partialPath: currPath,
+        suffixDef: drop(targetDef, i),
+    });
+    return result;
+}
+function nextPossibleTokensAfter(initialDef, tokenVector, tokMatcher, maxLookAhead) {
+    const EXIT_NON_TERMINAL = "EXIT_NONE_TERMINAL";
+    // to avoid creating a new Array each time.
+    const EXIT_NON_TERMINAL_ARR = [EXIT_NON_TERMINAL];
+    const EXIT_ALTERNATIVE = "EXIT_ALTERNATIVE";
+    let foundCompletePath = false;
+    const tokenVectorLength = tokenVector.length;
+    const minimalAlternativesIndex = tokenVectorLength - maxLookAhead - 1;
+    const result = [];
+    const possiblePaths = [];
+    possiblePaths.push({
+        idx: -1,
+        def: initialDef,
+        ruleStack: [],
+        occurrenceStack: [],
+    });
+    while (!isEmpty(possiblePaths)) {
+        const currPath = possiblePaths.pop();
+        // skip alternatives if no more results can be found (assuming deterministic grammar with fixed lookahead)
+        if (currPath === EXIT_ALTERNATIVE) {
+            if (foundCompletePath &&
+                last(possiblePaths).idx <= minimalAlternativesIndex) {
+                // remove irrelevant alternative
+                possiblePaths.pop();
+            }
+            continue;
+        }
+        const currDef = currPath.def;
+        const currIdx = currPath.idx;
+        const currRuleStack = currPath.ruleStack;
+        const currOccurrenceStack = currPath.occurrenceStack;
+        // For Example: an empty path could exist in a valid grammar in the case of an EMPTY_ALT
+        if (isEmpty(currDef)) {
+            continue;
+        }
+        const prod = currDef[0];
+        /* istanbul ignore else */
+        if (prod === EXIT_NON_TERMINAL) {
+            const nextPath = {
+                idx: currIdx,
+                def: drop(currDef),
+                ruleStack: dropRight(currRuleStack),
+                occurrenceStack: dropRight(currOccurrenceStack),
+            };
+            possiblePaths.push(nextPath);
+        }
+        else if (prod instanceof Terminal) {
+            /* istanbul ignore else */
+            if (currIdx < tokenVectorLength - 1) {
+                const nextIdx = currIdx + 1;
+                const actualToken = tokenVector[nextIdx];
+                if (tokMatcher(actualToken, prod.terminalType)) {
+                    const nextPath = {
+                        idx: nextIdx,
+                        def: drop(currDef),
+                        ruleStack: currRuleStack,
+                        occurrenceStack: currOccurrenceStack,
+                    };
+                    possiblePaths.push(nextPath);
+                }
+                // end of the line
+            }
+            else if (currIdx === tokenVectorLength - 1) {
+                // IGNORE ABOVE ELSE
+                result.push({
+                    nextTokenType: prod.terminalType,
+                    nextTokenOccurrence: prod.idx,
+                    ruleStack: currRuleStack,
+                    occurrenceStack: currOccurrenceStack,
+                });
+                foundCompletePath = true;
+            }
+            else {
+                throw Error("non exhaustive match");
+            }
+        }
+        else if (prod instanceof NonTerminal) {
+            const newRuleStack = clone(currRuleStack);
+            newRuleStack.push(prod.nonTerminalName);
+            const newOccurrenceStack = clone(currOccurrenceStack);
+            newOccurrenceStack.push(prod.idx);
+            const nextPath = {
+                idx: currIdx,
+                def: prod.definition.concat(EXIT_NON_TERMINAL_ARR, drop(currDef)),
+                ruleStack: newRuleStack,
+                occurrenceStack: newOccurrenceStack,
+            };
+            possiblePaths.push(nextPath);
+        }
+        else if (prod instanceof Option) {
+            // the order of alternatives is meaningful, FILO (Last path will be traversed first).
+            const nextPathWithout = {
+                idx: currIdx,
+                def: drop(currDef),
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPathWithout);
+            // required marker to avoid backtracking paths whose higher priority alternatives already matched
+            possiblePaths.push(EXIT_ALTERNATIVE);
+            const nextPathWith = {
+                idx: currIdx,
+                def: prod.definition.concat(drop(currDef)),
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPathWith);
+        }
+        else if (prod instanceof RepetitionMandatory) {
+            // TODO:(THE NEW operators here take a while...) (convert once?)
+            const secondIteration = new Repetition({
+                definition: prod.definition,
+                idx: prod.idx,
+            });
+            const nextDef = prod.definition.concat([secondIteration], drop(currDef));
+            const nextPath = {
+                idx: currIdx,
+                def: nextDef,
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPath);
+        }
+        else if (prod instanceof RepetitionMandatoryWithSeparator) {
+            // TODO:(THE NEW operators here take a while...) (convert once?)
+            const separatorGast = new Terminal({
+                terminalType: prod.separator,
+            });
+            const secondIteration = new Repetition({
+                definition: [separatorGast].concat(prod.definition),
+                idx: prod.idx,
+            });
+            const nextDef = prod.definition.concat([secondIteration], drop(currDef));
+            const nextPath = {
+                idx: currIdx,
+                def: nextDef,
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPath);
+        }
+        else if (prod instanceof RepetitionWithSeparator) {
+            // the order of alternatives is meaningful, FILO (Last path will be traversed first).
+            const nextPathWithout = {
+                idx: currIdx,
+                def: drop(currDef),
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPathWithout);
+            // required marker to avoid backtracking paths whose higher priority alternatives already matched
+            possiblePaths.push(EXIT_ALTERNATIVE);
+            const separatorGast = new Terminal({
+                terminalType: prod.separator,
+            });
+            const nthRepetition = new Repetition({
+                definition: [separatorGast].concat(prod.definition),
+                idx: prod.idx,
+            });
+            const nextDef = prod.definition.concat([nthRepetition], drop(currDef));
+            const nextPathWith = {
+                idx: currIdx,
+                def: nextDef,
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPathWith);
+        }
+        else if (prod instanceof Repetition) {
+            // the order of alternatives is meaningful, FILO (Last path will be traversed first).
+            const nextPathWithout = {
+                idx: currIdx,
+                def: drop(currDef),
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPathWithout);
+            // required marker to avoid backtracking paths whose higher priority alternatives already matched
+            possiblePaths.push(EXIT_ALTERNATIVE);
+            // TODO: an empty repetition will cause infinite loops here, will the parser detect this in selfAnalysis?
+            const nthRepetition = new Repetition({
+                definition: prod.definition,
+                idx: prod.idx,
+            });
+            const nextDef = prod.definition.concat([nthRepetition], drop(currDef));
+            const nextPathWith = {
+                idx: currIdx,
+                def: nextDef,
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            };
+            possiblePaths.push(nextPathWith);
+        }
+        else if (prod instanceof Alternation) {
+            // the order of alternatives is meaningful, FILO (Last path will be traversed first).
+            for (let i = prod.definition.length - 1; i >= 0; i--) {
+                const currAlt = prod.definition[i];
+                const currAltPath = {
+                    idx: currIdx,
+                    def: currAlt.definition.concat(drop(currDef)),
+                    ruleStack: currRuleStack,
+                    occurrenceStack: currOccurrenceStack,
+                };
+                possiblePaths.push(currAltPath);
+                possiblePaths.push(EXIT_ALTERNATIVE);
+            }
+        }
+        else if (prod instanceof Alternative) {
+            possiblePaths.push({
+                idx: currIdx,
+                def: prod.definition.concat(drop(currDef)),
+                ruleStack: currRuleStack,
+                occurrenceStack: currOccurrenceStack,
+            });
+        }
+        else if (prod instanceof Rule) {
+            // last because we should only encounter at most a single one of these per invocation.
+            possiblePaths.push(expandTopLevelRule(prod, currIdx, currRuleStack, currOccurrenceStack));
+        }
+        else {
+            throw Error("non exhaustive match");
+        }
+    }
+    return result;
+}
+function expandTopLevelRule(topRule, currIdx, currRuleStack, currOccurrenceStack) {
+    const newRuleStack = clone(currRuleStack);
+    newRuleStack.push(topRule.name);
+    const newCurrOccurrenceStack = clone(currOccurrenceStack);
+    // top rule is always assumed to have been called with occurrence index 1
+    newCurrOccurrenceStack.push(1);
+    return {
+        idx: currIdx,
+        def: topRule.definition,
+        ruleStack: newRuleStack,
+        occurrenceStack: newCurrOccurrenceStack,
+    };
+}
+
+var PROD_TYPE;
+(function (PROD_TYPE) {
+    PROD_TYPE[PROD_TYPE["OPTION"] = 0] = "OPTION";
+    PROD_TYPE[PROD_TYPE["REPETITION"] = 1] = "REPETITION";
+    PROD_TYPE[PROD_TYPE["REPETITION_MANDATORY"] = 2] = "REPETITION_MANDATORY";
+    PROD_TYPE[PROD_TYPE["REPETITION_MANDATORY_WITH_SEPARATOR"] = 3] = "REPETITION_MANDATORY_WITH_SEPARATOR";
+    PROD_TYPE[PROD_TYPE["REPETITION_WITH_SEPARATOR"] = 4] = "REPETITION_WITH_SEPARATOR";
+    PROD_TYPE[PROD_TYPE["ALTERNATION"] = 5] = "ALTERNATION";
+})(PROD_TYPE || (PROD_TYPE = {}));
+function getProdType(prod) {
+    /* istanbul ignore else */
+    if (prod instanceof Option || prod === "Option") {
+        return PROD_TYPE.OPTION;
+    }
+    else if (prod instanceof Repetition || prod === "Repetition") {
+        return PROD_TYPE.REPETITION;
+    }
+    else if (prod instanceof RepetitionMandatory ||
+        prod === "RepetitionMandatory") {
+        return PROD_TYPE.REPETITION_MANDATORY;
+    }
+    else if (prod instanceof RepetitionMandatoryWithSeparator ||
+        prod === "RepetitionMandatoryWithSeparator") {
+        return PROD_TYPE.REPETITION_MANDATORY_WITH_SEPARATOR;
+    }
+    else if (prod instanceof RepetitionWithSeparator ||
+        prod === "RepetitionWithSeparator") {
+        return PROD_TYPE.REPETITION_WITH_SEPARATOR;
+    }
+    else if (prod instanceof Alternation || prod === "Alternation") {
+        return PROD_TYPE.ALTERNATION;
+    }
+    else {
+        throw Error("non exhaustive match");
+    }
+}
+function buildLookaheadFuncForOr(occurrence, ruleGrammar, maxLookahead, hasPredicates, dynamicTokensEnabled, laFuncBuilder) {
+    const lookAheadPaths = getLookaheadPathsForOr(occurrence, ruleGrammar, maxLookahead);
+    const tokenMatcher = areTokenCategoriesNotUsed(lookAheadPaths)
+        ? tokenStructuredMatcherNoCategories
+        : tokenStructuredMatcher;
+    return laFuncBuilder(lookAheadPaths, hasPredicates, tokenMatcher, dynamicTokensEnabled);
+}
+/**
+ *  When dealing with an Optional production (OPTION/MANY/2nd iteration of AT_LEAST_ONE/...) we need to compare
+ *  the lookahead "inside" the production and the lookahead immediately "after" it in the same top level rule (context free).
+ *
+ *  Example: given a production:
+ *  ABC(DE)?DF
+ *
+ *  The optional '(DE)?' should only be entered if we see 'DE'. a single Token 'D' is not sufficient to distinguish between the two
+ *  alternatives.
+ *
+ *  @returns A Lookahead function which will return true IFF the parser should parse the Optional production.
+ */
+function buildLookaheadFuncForOptionalProd(occurrence, ruleGrammar, k, dynamicTokensEnabled, prodType, lookaheadBuilder) {
+    const lookAheadPaths = getLookaheadPathsForOptionalProd(occurrence, ruleGrammar, prodType, k);
+    const tokenMatcher = areTokenCategoriesNotUsed(lookAheadPaths)
+        ? tokenStructuredMatcherNoCategories
+        : tokenStructuredMatcher;
+    return lookaheadBuilder(lookAheadPaths[0], tokenMatcher, dynamicTokensEnabled);
+}
+function buildAlternativesLookAheadFunc(alts, hasPredicates, tokenMatcher, dynamicTokensEnabled) {
+    const numOfAlts = alts.length;
+    const areAllOneTokenLookahead = every(alts, (currAlt) => {
+        return every(currAlt, (currPath) => {
+            return currPath.length === 1;
+        });
+    });
+    // This version takes into account the predicates as well.
+    if (hasPredicates) {
+        /**
+         * @returns {number} - The chosen alternative index
+         */
+        return function (orAlts) {
+            // unfortunately the predicates must be extracted every single time
+            // as they cannot be cached due to references to parameters(vars) which are no longer valid.
+            // note that in the common case of no predicates, no cpu time will be wasted on this (see else block)
+            const predicates = map(orAlts, (currAlt) => currAlt.GATE);
+            for (let t = 0; t < numOfAlts; t++) {
+                const currAlt = alts[t];
+                const currNumOfPaths = currAlt.length;
+                const currPredicate = predicates[t];
+                if (currPredicate !== undefined && currPredicate.call(this) === false) {
+                    // if the predicate does not match there is no point in checking the paths
+                    continue;
+                }
+                nextPath: for (let j = 0; j < currNumOfPaths; j++) {
+                    const currPath = currAlt[j];
+                    const currPathLength = currPath.length;
+                    for (let i = 0; i < currPathLength; i++) {
+                        const nextToken = this.LA(i + 1);
+                        if (tokenMatcher(nextToken, currPath[i]) === false) {
+                            // mismatch in current path
+                            // try the next pth
+                            continue nextPath;
+                        }
+                    }
+                    // found a full path that matches.
+                    // this will also work for an empty ALT as the loop will be skipped
+                    return t;
+                }
+                // none of the paths for the current alternative matched
+                // try the next alternative
+            }
+            // none of the alternatives could be matched
+            return undefined;
+        };
+    }
+    else if (areAllOneTokenLookahead && !dynamicTokensEnabled) {
+        // optimized (common) case of all the lookaheads paths requiring only
+        // a single token lookahead. These Optimizations cannot work if dynamically defined Tokens are used.
+        const singleTokenAlts = map(alts, (currAlt) => {
+            return flatten(currAlt);
+        });
+        const choiceToAlt = reduce(singleTokenAlts, (result, currAlt, idx) => {
+            forEach(currAlt, (currTokType) => {
+                if (!has(result, currTokType.tokenTypeIdx)) {
+                    result[currTokType.tokenTypeIdx] = idx;
+                }
+                forEach(currTokType.categoryMatches, (currExtendingType) => {
+                    if (!has(result, currExtendingType)) {
+                        result[currExtendingType] = idx;
+                    }
+                });
+            });
+            return result;
+        }, {});
+        /**
+         * @returns {number} - The chosen alternative index
+         */
+        return function () {
+            const nextToken = this.LA(1);
+            return choiceToAlt[nextToken.tokenTypeIdx];
+        };
+    }
+    else {
+        // optimized lookahead without needing to check the predicates at all.
+        // this causes code duplication which is intentional to improve performance.
+        /**
+         * @returns {number} - The chosen alternative index
+         */
+        return function () {
+            for (let t = 0; t < numOfAlts; t++) {
+                const currAlt = alts[t];
+                const currNumOfPaths = currAlt.length;
+                nextPath: for (let j = 0; j < currNumOfPaths; j++) {
+                    const currPath = currAlt[j];
+                    const currPathLength = currPath.length;
+                    for (let i = 0; i < currPathLength; i++) {
+                        const nextToken = this.LA(i + 1);
+                        if (tokenMatcher(nextToken, currPath[i]) === false) {
+                            // mismatch in current path
+                            // try the next pth
+                            continue nextPath;
+                        }
+                    }
+                    // found a full path that matches.
+                    // this will also work for an empty ALT as the loop will be skipped
+                    return t;
+                }
+                // none of the paths for the current alternative matched
+                // try the next alternative
+            }
+            // none of the alternatives could be matched
+            return undefined;
+        };
+    }
+}
+function buildSingleAlternativeLookaheadFunction(alt, tokenMatcher, dynamicTokensEnabled) {
+    const areAllOneTokenLookahead = every(alt, (currPath) => {
+        return currPath.length === 1;
+    });
+    const numOfPaths = alt.length;
+    // optimized (common) case of all the lookaheads paths requiring only
+    // a single token lookahead.
+    if (areAllOneTokenLookahead && !dynamicTokensEnabled) {
+        const singleTokensTypes = flatten(alt);
+        if (singleTokensTypes.length === 1 &&
+            isEmpty(singleTokensTypes[0].categoryMatches)) {
+            const expectedTokenType = singleTokensTypes[0];
+            const expectedTokenUniqueKey = expectedTokenType.tokenTypeIdx;
+            return function () {
+                return this.LA(1).tokenTypeIdx === expectedTokenUniqueKey;
+            };
+        }
+        else {
+            const choiceToAlt = reduce(singleTokensTypes, (result, currTokType, idx) => {
+                result[currTokType.tokenTypeIdx] = true;
+                forEach(currTokType.categoryMatches, (currExtendingType) => {
+                    result[currExtendingType] = true;
+                });
+                return result;
+            }, []);
+            return function () {
+                const nextToken = this.LA(1);
+                return choiceToAlt[nextToken.tokenTypeIdx] === true;
+            };
+        }
+    }
+    else {
+        return function () {
+            nextPath: for (let j = 0; j < numOfPaths; j++) {
+                const currPath = alt[j];
+                const currPathLength = currPath.length;
+                for (let i = 0; i < currPathLength; i++) {
+                    const nextToken = this.LA(i + 1);
+                    if (tokenMatcher(nextToken, currPath[i]) === false) {
+                        // mismatch in current path
+                        // try the next pth
+                        continue nextPath;
+                    }
+                }
+                // found a full path that matches.
+                return true;
+            }
+            // none of the paths matched
+            return false;
+        };
+    }
+}
+class RestDefinitionFinderWalker extends RestWalker {
+    constructor(topProd, targetOccurrence, targetProdType) {
+        super();
+        this.topProd = topProd;
+        this.targetOccurrence = targetOccurrence;
+        this.targetProdType = targetProdType;
+    }
+    startWalking() {
+        this.walk(this.topProd);
+        return this.restDef;
+    }
+    checkIsTarget(node, expectedProdType, currRest, prevRest) {
+        if (node.idx === this.targetOccurrence &&
+            this.targetProdType === expectedProdType) {
+            this.restDef = currRest.concat(prevRest);
+            return true;
+        }
+        // performance optimization, do not iterate over the entire Grammar ast after we have found the target
+        return false;
+    }
+    walkOption(optionProd, currRest, prevRest) {
+        if (!this.checkIsTarget(optionProd, PROD_TYPE.OPTION, currRest, prevRest)) {
+            super.walkOption(optionProd, currRest, prevRest);
+        }
+    }
+    walkAtLeastOne(atLeastOneProd, currRest, prevRest) {
+        if (!this.checkIsTarget(atLeastOneProd, PROD_TYPE.REPETITION_MANDATORY, currRest, prevRest)) {
+            super.walkOption(atLeastOneProd, currRest, prevRest);
+        }
+    }
+    walkAtLeastOneSep(atLeastOneSepProd, currRest, prevRest) {
+        if (!this.checkIsTarget(atLeastOneSepProd, PROD_TYPE.REPETITION_MANDATORY_WITH_SEPARATOR, currRest, prevRest)) {
+            super.walkOption(atLeastOneSepProd, currRest, prevRest);
+        }
+    }
+    walkMany(manyProd, currRest, prevRest) {
+        if (!this.checkIsTarget(manyProd, PROD_TYPE.REPETITION, currRest, prevRest)) {
+            super.walkOption(manyProd, currRest, prevRest);
+        }
+    }
+    walkManySep(manySepProd, currRest, prevRest) {
+        if (!this.checkIsTarget(manySepProd, PROD_TYPE.REPETITION_WITH_SEPARATOR, currRest, prevRest)) {
+            super.walkOption(manySepProd, currRest, prevRest);
+        }
+    }
+}
+/**
+ * Returns the definition of a target production in a top level level rule.
+ */
+class InsideDefinitionFinderVisitor extends GAstVisitor {
+    constructor(targetOccurrence, targetProdType, targetRef) {
+        super();
+        this.targetOccurrence = targetOccurrence;
+        this.targetProdType = targetProdType;
+        this.targetRef = targetRef;
+        this.result = [];
+    }
+    checkIsTarget(node, expectedProdName) {
+        if (node.idx === this.targetOccurrence &&
+            this.targetProdType === expectedProdName &&
+            (this.targetRef === undefined || node === this.targetRef)) {
+            this.result = node.definition;
+        }
+    }
+    visitOption(node) {
+        this.checkIsTarget(node, PROD_TYPE.OPTION);
+    }
+    visitRepetition(node) {
+        this.checkIsTarget(node, PROD_TYPE.REPETITION);
+    }
+    visitRepetitionMandatory(node) {
+        this.checkIsTarget(node, PROD_TYPE.REPETITION_MANDATORY);
+    }
+    visitRepetitionMandatoryWithSeparator(node) {
+        this.checkIsTarget(node, PROD_TYPE.REPETITION_MANDATORY_WITH_SEPARATOR);
+    }
+    visitRepetitionWithSeparator(node) {
+        this.checkIsTarget(node, PROD_TYPE.REPETITION_WITH_SEPARATOR);
+    }
+    visitAlternation(node) {
+        this.checkIsTarget(node, PROD_TYPE.ALTERNATION);
+    }
+}
+function initializeArrayOfArrays(size) {
+    const result = new Array(size);
+    for (let i = 0; i < size; i++) {
+        result[i] = [];
+    }
+    return result;
+}
+/**
+ * A sort of hash function between a Path in the grammar and a string.
+ * Note that this returns multiple "hashes" to support the scenario of token categories.
+ * -  A single path with categories may match multiple **actual** paths.
+ */
+function pathToHashKeys(path) {
+    let keys = [""];
+    for (let i = 0; i < path.length; i++) {
+        const tokType = path[i];
+        const longerKeys = [];
+        for (let j = 0; j < keys.length; j++) {
+            const currShorterKey = keys[j];
+            longerKeys.push(currShorterKey + "_" + tokType.tokenTypeIdx);
+            for (let t = 0; t < tokType.categoryMatches.length; t++) {
+                const categoriesKeySuffix = "_" + tokType.categoryMatches[t];
+                longerKeys.push(currShorterKey + categoriesKeySuffix);
+            }
+        }
+        keys = longerKeys;
+    }
+    return keys;
+}
+/**
+ * Imperative style due to being called from a hot spot
+ */
+function isUniquePrefixHash(altKnownPathsKeys, searchPathKeys, idx) {
+    for (let currAltIdx = 0; currAltIdx < altKnownPathsKeys.length; currAltIdx++) {
+        // We only want to test vs the other alternatives
+        if (currAltIdx === idx) {
+            continue;
+        }
+        const otherAltKnownPathsKeys = altKnownPathsKeys[currAltIdx];
+        for (let searchIdx = 0; searchIdx < searchPathKeys.length; searchIdx++) {
+            const searchKey = searchPathKeys[searchIdx];
+            if (otherAltKnownPathsKeys[searchKey] === true) {
+                return false;
+            }
+        }
+    }
+    // None of the SearchPathKeys were found in any of the other alternatives
+    return true;
+}
+function lookAheadSequenceFromAlternatives(altsDefs, k) {
+    const partialAlts = map(altsDefs, (currAlt) => possiblePathsFrom([currAlt], 1));
+    const finalResult = initializeArrayOfArrays(partialAlts.length);
+    const altsHashes = map(partialAlts, (currAltPaths) => {
+        const dict = {};
+        forEach(currAltPaths, (item) => {
+            const keys = pathToHashKeys(item.partialPath);
+            forEach(keys, (currKey) => {
+                dict[currKey] = true;
+            });
+        });
+        return dict;
+    });
+    let newData = partialAlts;
+    // maxLookahead loop
+    for (let pathLength = 1; pathLength <= k; pathLength++) {
+        const currDataset = newData;
+        newData = initializeArrayOfArrays(currDataset.length);
+        // alternatives loop
+        for (let altIdx = 0; altIdx < currDataset.length; altIdx++) {
+            const currAltPathsAndSuffixes = currDataset[altIdx];
+            // paths in current alternative loop
+            for (let currPathIdx = 0; currPathIdx < currAltPathsAndSuffixes.length; currPathIdx++) {
+                const currPathPrefix = currAltPathsAndSuffixes[currPathIdx].partialPath;
+                const suffixDef = currAltPathsAndSuffixes[currPathIdx].suffixDef;
+                const prefixKeys = pathToHashKeys(currPathPrefix);
+                const isUnique = isUniquePrefixHash(altsHashes, prefixKeys, altIdx);
+                // End of the line for this path.
+                if (isUnique || isEmpty(suffixDef) || currPathPrefix.length === k) {
+                    const currAltResult = finalResult[altIdx];
+                    // TODO: Can we implement a containsPath using Maps/Dictionaries?
+                    if (containsPath(currAltResult, currPathPrefix) === false) {
+                        currAltResult.push(currPathPrefix);
+                        // Update all new  keys for the current path.
+                        for (let j = 0; j < prefixKeys.length; j++) {
+                            const currKey = prefixKeys[j];
+                            altsHashes[altIdx][currKey] = true;
+                        }
+                    }
+                }
+                // Expand longer paths
+                else {
+                    const newPartialPathsAndSuffixes = possiblePathsFrom(suffixDef, pathLength + 1, currPathPrefix);
+                    newData[altIdx] = newData[altIdx].concat(newPartialPathsAndSuffixes);
+                    // Update keys for new known paths
+                    forEach(newPartialPathsAndSuffixes, (item) => {
+                        const prefixKeys = pathToHashKeys(item.partialPath);
+                        forEach(prefixKeys, (key) => {
+                            altsHashes[altIdx][key] = true;
+                        });
+                    });
+                }
+            }
+        }
+    }
+    return finalResult;
+}
+function getLookaheadPathsForOr(occurrence, ruleGrammar, k, orProd) {
+    const visitor = new InsideDefinitionFinderVisitor(occurrence, PROD_TYPE.ALTERNATION, orProd);
+    ruleGrammar.accept(visitor);
+    return lookAheadSequenceFromAlternatives(visitor.result, k);
+}
+function getLookaheadPathsForOptionalProd(occurrence, ruleGrammar, prodType, k) {
+    const insideDefVisitor = new InsideDefinitionFinderVisitor(occurrence, prodType);
+    ruleGrammar.accept(insideDefVisitor);
+    const insideDef = insideDefVisitor.result;
+    const afterDefWalker = new RestDefinitionFinderWalker(ruleGrammar, occurrence, prodType);
+    const afterDef = afterDefWalker.startWalking();
+    const insideFlat = new Alternative({ definition: insideDef });
+    const afterFlat = new Alternative({ definition: afterDef });
+    return lookAheadSequenceFromAlternatives([insideFlat, afterFlat], k);
+}
+function containsPath(alternative, searchPath) {
+    compareOtherPath: for (let i = 0; i < alternative.length; i++) {
+        const otherPath = alternative[i];
+        if (otherPath.length !== searchPath.length) {
+            continue;
+        }
+        for (let j = 0; j < otherPath.length; j++) {
+            const searchTok = searchPath[j];
+            const otherTok = otherPath[j];
+            const matchingTokens = searchTok === otherTok ||
+                otherTok.categoryMatchesMap[searchTok.tokenTypeIdx] !== undefined;
+            if (matchingTokens === false) {
+                continue compareOtherPath;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+function isStrictPrefixOfPath(prefix, other) {
+    return (prefix.length < other.length &&
+        every(prefix, (tokType, idx) => {
+            const otherTokType = other[idx];
+            return (tokType === otherTokType ||
+                otherTokType.categoryMatchesMap[tokType.tokenTypeIdx]);
+        }));
+}
+function areTokenCategoriesNotUsed(lookAheadPaths) {
+    return every(lookAheadPaths, (singleAltPaths) => every(singleAltPaths, (singlePath) => every(singlePath, (token) => isEmpty(token.categoryMatches))));
+}
+
+function validateLookahead(options) {
+    const lookaheadValidationErrorMessages = options.lookaheadStrategy.validate({
+        rules: options.rules,
+        tokenTypes: options.tokenTypes,
+        grammarName: options.grammarName,
+    });
+    return map(lookaheadValidationErrorMessages, (errorMessage) => (Object.assign({ type: ParserDefinitionErrorType.CUSTOM_LOOKAHEAD_VALIDATION }, errorMessage)));
+}
+function validateGrammar$1(topLevels, tokenTypes, errMsgProvider, grammarName) {
+    const duplicateErrors = flatMap(topLevels, (currTopLevel) => validateDuplicateProductions(currTopLevel, errMsgProvider));
+    const termsNamespaceConflictErrors = checkTerminalAndNoneTerminalsNameSpace(topLevels, tokenTypes, errMsgProvider);
+    const tooManyAltsErrors = flatMap(topLevels, (curRule) => validateTooManyAlts(curRule, errMsgProvider));
+    const duplicateRulesError = flatMap(topLevels, (curRule) => validateRuleDoesNotAlreadyExist(curRule, topLevels, grammarName, errMsgProvider));
+    return duplicateErrors.concat(termsNamespaceConflictErrors, tooManyAltsErrors, duplicateRulesError);
+}
+function validateDuplicateProductions(topLevelRule, errMsgProvider) {
+    const collectorVisitor = new OccurrenceValidationCollector();
+    topLevelRule.accept(collectorVisitor);
+    const allRuleProductions = collectorVisitor.allProductions;
+    const productionGroups = groupBy(allRuleProductions, identifyProductionForDuplicates);
+    const duplicates = pickBy(productionGroups, (currGroup) => {
+        return currGroup.length > 1;
+    });
+    const errors = map(values(duplicates), (currDuplicates) => {
+        const firstProd = head(currDuplicates);
+        const msg = errMsgProvider.buildDuplicateFoundError(topLevelRule, currDuplicates);
+        const dslName = getProductionDslName(firstProd);
+        const defError = {
+            message: msg,
+            type: ParserDefinitionErrorType.DUPLICATE_PRODUCTIONS,
+            ruleName: topLevelRule.name,
+            dslName: dslName,
+            occurrence: firstProd.idx,
+        };
+        const param = getExtraProductionArgument(firstProd);
+        if (param) {
+            defError.parameter = param;
+        }
+        return defError;
+    });
+    return errors;
+}
+function identifyProductionForDuplicates(prod) {
+    return `${getProductionDslName(prod)}_#_${prod.idx}_#_${getExtraProductionArgument(prod)}`;
+}
+function getExtraProductionArgument(prod) {
+    if (prod instanceof Terminal) {
+        return prod.terminalType.name;
+    }
+    else if (prod instanceof NonTerminal) {
+        return prod.nonTerminalName;
+    }
+    else {
+        return "";
+    }
+}
+class OccurrenceValidationCollector extends GAstVisitor {
+    constructor() {
+        super(...arguments);
+        this.allProductions = [];
+    }
+    visitNonTerminal(subrule) {
+        this.allProductions.push(subrule);
+    }
+    visitOption(option) {
+        this.allProductions.push(option);
+    }
+    visitRepetitionWithSeparator(manySep) {
+        this.allProductions.push(manySep);
+    }
+    visitRepetitionMandatory(atLeastOne) {
+        this.allProductions.push(atLeastOne);
+    }
+    visitRepetitionMandatoryWithSeparator(atLeastOneSep) {
+        this.allProductions.push(atLeastOneSep);
+    }
+    visitRepetition(many) {
+        this.allProductions.push(many);
+    }
+    visitAlternation(or) {
+        this.allProductions.push(or);
+    }
+    visitTerminal(terminal) {
+        this.allProductions.push(terminal);
+    }
+}
+function validateRuleDoesNotAlreadyExist(rule, allRules, className, errMsgProvider) {
+    const errors = [];
+    const occurrences = reduce(allRules, (result, curRule) => {
+        if (curRule.name === rule.name) {
+            return result + 1;
+        }
+        return result;
+    }, 0);
+    if (occurrences > 1) {
+        const errMsg = errMsgProvider.buildDuplicateRuleNameError({
+            topLevelRule: rule,
+            grammarName: className,
+        });
+        errors.push({
+            message: errMsg,
+            type: ParserDefinitionErrorType.DUPLICATE_RULE_NAME,
+            ruleName: rule.name,
+        });
+    }
+    return errors;
+}
+// TODO: is there anyway to get only the rule names of rules inherited from the super grammars?
+// This is not part of the IGrammarErrorProvider because the validation cannot be performed on
+// The grammar structure, only at runtime.
+function validateRuleIsOverridden(ruleName, definedRulesNames, className) {
+    const errors = [];
+    let errMsg;
+    if (!includes(definedRulesNames, ruleName)) {
+        errMsg =
+            `Invalid rule override, rule: ->${ruleName}<- cannot be overridden in the grammar: ->${className}<-` +
+                `as it is not defined in any of the super grammars `;
+        errors.push({
+            message: errMsg,
+            type: ParserDefinitionErrorType.INVALID_RULE_OVERRIDE,
+            ruleName: ruleName,
+        });
+    }
+    return errors;
+}
+function validateNoLeftRecursion(topRule, currRule, errMsgProvider, path = []) {
+    const errors = [];
+    const nextNonTerminals = getFirstNoneTerminal(currRule.definition);
+    if (isEmpty(nextNonTerminals)) {
+        return [];
+    }
+    else {
+        const ruleName = topRule.name;
+        const foundLeftRecursion = includes(nextNonTerminals, topRule);
+        if (foundLeftRecursion) {
+            errors.push({
+                message: errMsgProvider.buildLeftRecursionError({
+                    topLevelRule: topRule,
+                    leftRecursionPath: path,
+                }),
+                type: ParserDefinitionErrorType.LEFT_RECURSION,
+                ruleName: ruleName,
+            });
+        }
+        // we are only looking for cyclic paths leading back to the specific topRule
+        // other cyclic paths are ignored, we still need this difference to avoid infinite loops...
+        const validNextSteps = difference(nextNonTerminals, path.concat([topRule]));
+        const errorsFromNextSteps = flatMap(validNextSteps, (currRefRule) => {
+            const newPath = clone(path);
+            newPath.push(currRefRule);
+            return validateNoLeftRecursion(topRule, currRefRule, errMsgProvider, newPath);
+        });
+        return errors.concat(errorsFromNextSteps);
+    }
+}
+function getFirstNoneTerminal(definition) {
+    let result = [];
+    if (isEmpty(definition)) {
+        return result;
+    }
+    const firstProd = head(definition);
+    /* istanbul ignore else */
+    if (firstProd instanceof NonTerminal) {
+        result.push(firstProd.referencedRule);
+    }
+    else if (firstProd instanceof Alternative ||
+        firstProd instanceof Option ||
+        firstProd instanceof RepetitionMandatory ||
+        firstProd instanceof RepetitionMandatoryWithSeparator ||
+        firstProd instanceof RepetitionWithSeparator ||
+        firstProd instanceof Repetition) {
+        result = result.concat(getFirstNoneTerminal(firstProd.definition));
+    }
+    else if (firstProd instanceof Alternation) {
+        // each sub definition in alternation is a FLAT
+        result = flatten(map(firstProd.definition, (currSubDef) => getFirstNoneTerminal(currSubDef.definition)));
+    }
+    else if (firstProd instanceof Terminal) ;
+    else {
+        throw Error("non exhaustive match");
+    }
+    const isFirstOptional = isOptionalProd(firstProd);
+    const hasMore = definition.length > 1;
+    if (isFirstOptional && hasMore) {
+        const rest = drop(definition);
+        return result.concat(getFirstNoneTerminal(rest));
+    }
+    else {
+        return result;
+    }
+}
+class OrCollector extends GAstVisitor {
+    constructor() {
+        super(...arguments);
+        this.alternations = [];
+    }
+    visitAlternation(node) {
+        this.alternations.push(node);
+    }
+}
+function validateEmptyOrAlternative(topLevelRule, errMsgProvider) {
+    const orCollector = new OrCollector();
+    topLevelRule.accept(orCollector);
+    const ors = orCollector.alternations;
+    const errors = flatMap(ors, (currOr) => {
+        const exceptLast = dropRight(currOr.definition);
+        return flatMap(exceptLast, (currAlternative, currAltIdx) => {
+            const possibleFirstInAlt = nextPossibleTokensAfter([currAlternative], [], tokenStructuredMatcher, 1);
+            if (isEmpty(possibleFirstInAlt)) {
+                return [
+                    {
+                        message: errMsgProvider.buildEmptyAlternationError({
+                            topLevelRule: topLevelRule,
+                            alternation: currOr,
+                            emptyChoiceIdx: currAltIdx,
+                        }),
+                        type: ParserDefinitionErrorType.NONE_LAST_EMPTY_ALT,
+                        ruleName: topLevelRule.name,
+                        occurrence: currOr.idx,
+                        alternative: currAltIdx + 1,
+                    },
+                ];
+            }
+            else {
+                return [];
+            }
+        });
+    });
+    return errors;
+}
+function validateAmbiguousAlternationAlternatives(topLevelRule, globalMaxLookahead, errMsgProvider) {
+    const orCollector = new OrCollector();
+    topLevelRule.accept(orCollector);
+    let ors = orCollector.alternations;
+    // New Handling of ignoring ambiguities
+    // - https://github.com/chevrotain/chevrotain/issues/869
+    ors = reject(ors, (currOr) => currOr.ignoreAmbiguities === true);
+    const errors = flatMap(ors, (currOr) => {
+        const currOccurrence = currOr.idx;
+        const actualMaxLookahead = currOr.maxLookahead || globalMaxLookahead;
+        const alternatives = getLookaheadPathsForOr(currOccurrence, topLevelRule, actualMaxLookahead, currOr);
+        const altsAmbiguityErrors = checkAlternativesAmbiguities(alternatives, currOr, topLevelRule, errMsgProvider);
+        const altsPrefixAmbiguityErrors = checkPrefixAlternativesAmbiguities(alternatives, currOr, topLevelRule, errMsgProvider);
+        return altsAmbiguityErrors.concat(altsPrefixAmbiguityErrors);
+    });
+    return errors;
+}
+class RepetitionCollector extends GAstVisitor {
+    constructor() {
+        super(...arguments);
+        this.allProductions = [];
+    }
+    visitRepetitionWithSeparator(manySep) {
+        this.allProductions.push(manySep);
+    }
+    visitRepetitionMandatory(atLeastOne) {
+        this.allProductions.push(atLeastOne);
+    }
+    visitRepetitionMandatoryWithSeparator(atLeastOneSep) {
+        this.allProductions.push(atLeastOneSep);
+    }
+    visitRepetition(many) {
+        this.allProductions.push(many);
+    }
+}
+function validateTooManyAlts(topLevelRule, errMsgProvider) {
+    const orCollector = new OrCollector();
+    topLevelRule.accept(orCollector);
+    const ors = orCollector.alternations;
+    const errors = flatMap(ors, (currOr) => {
+        if (currOr.definition.length > 255) {
+            return [
+                {
+                    message: errMsgProvider.buildTooManyAlternativesError({
+                        topLevelRule: topLevelRule,
+                        alternation: currOr,
+                    }),
+                    type: ParserDefinitionErrorType.TOO_MANY_ALTS,
+                    ruleName: topLevelRule.name,
+                    occurrence: currOr.idx,
+                },
+            ];
+        }
+        else {
+            return [];
+        }
+    });
+    return errors;
+}
+function validateSomeNonEmptyLookaheadPath(topLevelRules, maxLookahead, errMsgProvider) {
+    const errors = [];
+    forEach(topLevelRules, (currTopRule) => {
+        const collectorVisitor = new RepetitionCollector();
+        currTopRule.accept(collectorVisitor);
+        const allRuleProductions = collectorVisitor.allProductions;
+        forEach(allRuleProductions, (currProd) => {
+            const prodType = getProdType(currProd);
+            const actualMaxLookahead = currProd.maxLookahead || maxLookahead;
+            const currOccurrence = currProd.idx;
+            const paths = getLookaheadPathsForOptionalProd(currOccurrence, currTopRule, prodType, actualMaxLookahead);
+            const pathsInsideProduction = paths[0];
+            if (isEmpty(flatten(pathsInsideProduction))) {
+                const errMsg = errMsgProvider.buildEmptyRepetitionError({
+                    topLevelRule: currTopRule,
+                    repetition: currProd,
+                });
+                errors.push({
+                    message: errMsg,
+                    type: ParserDefinitionErrorType.NO_NON_EMPTY_LOOKAHEAD,
+                    ruleName: currTopRule.name,
+                });
+            }
+        });
+    });
+    return errors;
+}
+function checkAlternativesAmbiguities(alternatives, alternation, rule, errMsgProvider) {
+    const foundAmbiguousPaths = [];
+    const identicalAmbiguities = reduce(alternatives, (result, currAlt, currAltIdx) => {
+        // ignore (skip) ambiguities with this alternative
+        if (alternation.definition[currAltIdx].ignoreAmbiguities === true) {
+            return result;
+        }
+        forEach(currAlt, (currPath) => {
+            const altsCurrPathAppearsIn = [currAltIdx];
+            forEach(alternatives, (currOtherAlt, currOtherAltIdx) => {
+                if (currAltIdx !== currOtherAltIdx &&
+                    containsPath(currOtherAlt, currPath) &&
+                    // ignore (skip) ambiguities with this "other" alternative
+                    alternation.definition[currOtherAltIdx].ignoreAmbiguities !== true) {
+                    altsCurrPathAppearsIn.push(currOtherAltIdx);
+                }
+            });
+            if (altsCurrPathAppearsIn.length > 1 &&
+                !containsPath(foundAmbiguousPaths, currPath)) {
+                foundAmbiguousPaths.push(currPath);
+                result.push({
+                    alts: altsCurrPathAppearsIn,
+                    path: currPath,
+                });
+            }
+        });
+        return result;
+    }, []);
+    const currErrors = map(identicalAmbiguities, (currAmbDescriptor) => {
+        const ambgIndices = map(currAmbDescriptor.alts, (currAltIdx) => currAltIdx + 1);
+        const currMessage = errMsgProvider.buildAlternationAmbiguityError({
+            topLevelRule: rule,
+            alternation: alternation,
+            ambiguityIndices: ambgIndices,
+            prefixPath: currAmbDescriptor.path,
+        });
+        return {
+            message: currMessage,
+            type: ParserDefinitionErrorType.AMBIGUOUS_ALTS,
+            ruleName: rule.name,
+            occurrence: alternation.idx,
+            alternatives: currAmbDescriptor.alts,
+        };
+    });
+    return currErrors;
+}
+function checkPrefixAlternativesAmbiguities(alternatives, alternation, rule, errMsgProvider) {
+    // flatten
+    const pathsAndIndices = reduce(alternatives, (result, currAlt, idx) => {
+        const currPathsAndIdx = map(currAlt, (currPath) => {
+            return { idx: idx, path: currPath };
+        });
+        return result.concat(currPathsAndIdx);
+    }, []);
+    const errors = compact(flatMap(pathsAndIndices, (currPathAndIdx) => {
+        const alternativeGast = alternation.definition[currPathAndIdx.idx];
+        // ignore (skip) ambiguities with this alternative
+        if (alternativeGast.ignoreAmbiguities === true) {
+            return [];
+        }
+        const targetIdx = currPathAndIdx.idx;
+        const targetPath = currPathAndIdx.path;
+        const prefixAmbiguitiesPathsAndIndices = filter(pathsAndIndices, (searchPathAndIdx) => {
+            // prefix ambiguity can only be created from lower idx (higher priority) path
+            return (
+            // ignore (skip) ambiguities with this "other" alternative
+            alternation.definition[searchPathAndIdx.idx].ignoreAmbiguities !==
+                true &&
+                searchPathAndIdx.idx < targetIdx &&
+                // checking for strict prefix because identical lookaheads
+                // will be be detected using a different validation.
+                isStrictPrefixOfPath(searchPathAndIdx.path, targetPath));
+        });
+        const currPathPrefixErrors = map(prefixAmbiguitiesPathsAndIndices, (currAmbPathAndIdx) => {
+            const ambgIndices = [currAmbPathAndIdx.idx + 1, targetIdx + 1];
+            const occurrence = alternation.idx === 0 ? "" : alternation.idx;
+            const message = errMsgProvider.buildAlternationPrefixAmbiguityError({
+                topLevelRule: rule,
+                alternation: alternation,
+                ambiguityIndices: ambgIndices,
+                prefixPath: currAmbPathAndIdx.path,
+            });
+            return {
+                message: message,
+                type: ParserDefinitionErrorType.AMBIGUOUS_PREFIX_ALTS,
+                ruleName: rule.name,
+                occurrence: occurrence,
+                alternatives: ambgIndices,
+            };
+        });
+        return currPathPrefixErrors;
+    }));
+    return errors;
+}
+function checkTerminalAndNoneTerminalsNameSpace(topLevels, tokenTypes, errMsgProvider) {
+    const errors = [];
+    const tokenNames = map(tokenTypes, (currToken) => currToken.name);
+    forEach(topLevels, (currRule) => {
+        const currRuleName = currRule.name;
+        if (includes(tokenNames, currRuleName)) {
+            const errMsg = errMsgProvider.buildNamespaceConflictError(currRule);
+            errors.push({
+                message: errMsg,
+                type: ParserDefinitionErrorType.CONFLICT_TOKENS_RULES_NAMESPACE,
+                ruleName: currRuleName,
+            });
+        }
+    });
+    return errors;
+}
+
+function resolveGrammar(options) {
+    const actualOptions = defaults(options, {
+        errMsgProvider: defaultGrammarResolverErrorProvider,
+    });
+    const topRulesTable = {};
+    forEach(options.rules, (rule) => {
+        topRulesTable[rule.name] = rule;
+    });
+    return resolveGrammar$1(topRulesTable, actualOptions.errMsgProvider);
+}
+function validateGrammar(options) {
+    options = defaults(options, {
+        errMsgProvider: defaultGrammarValidatorErrorProvider,
+    });
+    return validateGrammar$1(options.rules, options.tokenTypes, options.errMsgProvider, options.grammarName);
+}
+
+const MISMATCHED_TOKEN_EXCEPTION = "MismatchedTokenException";
+const NO_VIABLE_ALT_EXCEPTION = "NoViableAltException";
+const EARLY_EXIT_EXCEPTION = "EarlyExitException";
+const NOT_ALL_INPUT_PARSED_EXCEPTION = "NotAllInputParsedException";
+const RECOGNITION_EXCEPTION_NAMES = [
+    MISMATCHED_TOKEN_EXCEPTION,
+    NO_VIABLE_ALT_EXCEPTION,
+    EARLY_EXIT_EXCEPTION,
+    NOT_ALL_INPUT_PARSED_EXCEPTION,
+];
+Object.freeze(RECOGNITION_EXCEPTION_NAMES);
+// hacks to bypass no support for custom Errors in javascript/typescript
+function isRecognitionException(error) {
+    // can't do instanceof on hacked custom js exceptions
+    return includes(RECOGNITION_EXCEPTION_NAMES, error.name);
+}
+class RecognitionException extends Error {
+    constructor(message, token) {
+        super(message);
+        this.token = token;
+        this.resyncedTokens = [];
+        // fix prototype chain when typescript target is ES5
+        Object.setPrototypeOf(this, new.target.prototype);
+        /* istanbul ignore next - V8 workaround to remove constructor from stacktrace when typescript target is ES5 */
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, this.constructor);
+        }
+    }
+}
+class MismatchedTokenException extends RecognitionException {
+    constructor(message, token, previousToken) {
+        super(message, token);
+        this.previousToken = previousToken;
+        this.name = MISMATCHED_TOKEN_EXCEPTION;
+    }
+}
+class NoViableAltException extends RecognitionException {
+    constructor(message, token, previousToken) {
+        super(message, token);
+        this.previousToken = previousToken;
+        this.name = NO_VIABLE_ALT_EXCEPTION;
+    }
+}
+class NotAllInputParsedException extends RecognitionException {
+    constructor(message, token) {
+        super(message, token);
+        this.name = NOT_ALL_INPUT_PARSED_EXCEPTION;
+    }
+}
+class EarlyExitException extends RecognitionException {
+    constructor(message, token, previousToken) {
+        super(message, token);
+        this.previousToken = previousToken;
+        this.name = EARLY_EXIT_EXCEPTION;
+    }
+}
+
+const EOF_FOLLOW_KEY = {};
+const IN_RULE_RECOVERY_EXCEPTION = "InRuleRecoveryException";
+class InRuleRecoveryException extends Error {
+    constructor(message) {
+        super(message);
+        this.name = IN_RULE_RECOVERY_EXCEPTION;
+    }
+}
+/**
+ * This trait is responsible for the error recovery and fault tolerant logic
+ */
+class Recoverable {
+    initRecoverable(config) {
+        this.firstAfterRepMap = {};
+        this.resyncFollows = {};
+        this.recoveryEnabled = has(config, "recoveryEnabled")
+            ? config.recoveryEnabled // assumes end user provides the correct config value/type
+            : DEFAULT_PARSER_CONFIG.recoveryEnabled;
+        // performance optimization, NOOP will be inlined which
+        // effectively means that this optional feature does not exist
+        // when not used.
+        if (this.recoveryEnabled) {
+            this.attemptInRepetitionRecovery = attemptInRepetitionRecovery;
+        }
+    }
+    getTokenToInsert(tokType) {
+        const tokToInsert = createTokenInstance(tokType, "", NaN, NaN, NaN, NaN, NaN, NaN);
+        tokToInsert.isInsertedInRecovery = true;
+        return tokToInsert;
+    }
+    canTokenTypeBeInsertedInRecovery(tokType) {
+        return true;
+    }
+    canTokenTypeBeDeletedInRecovery(tokType) {
+        return true;
+    }
+    tryInRepetitionRecovery(grammarRule, grammarRuleArgs, lookAheadFunc, expectedTokType) {
+        // TODO: can the resyncTokenType be cached?
+        const reSyncTokType = this.findReSyncTokenType();
+        const savedLexerState = this.exportLexerState();
+        const resyncedTokens = [];
+        let passedResyncPoint = false;
+        const nextTokenWithoutResync = this.LA(1);
+        let currToken = this.LA(1);
+        const generateErrorMessage = () => {
+            const previousToken = this.LA(0);
+            // we are preemptively re-syncing before an error has been detected, therefor we must reproduce
+            // the error that would have been thrown
+            const msg = this.errorMessageProvider.buildMismatchTokenMessage({
+                expected: expectedTokType,
+                actual: nextTokenWithoutResync,
+                previous: previousToken,
+                ruleName: this.getCurrRuleFullName(),
+            });
+            const error = new MismatchedTokenException(msg, nextTokenWithoutResync, this.LA(0));
+            // the first token here will be the original cause of the error, this is not part of the resyncedTokens property.
+            error.resyncedTokens = dropRight(resyncedTokens);
+            this.SAVE_ERROR(error);
+        };
+        while (!passedResyncPoint) {
+            // re-synced to a point where we can safely exit the repetition/
+            if (this.tokenMatcher(currToken, expectedTokType)) {
+                generateErrorMessage();
+                return; // must return here to avoid reverting the inputIdx
+            }
+            else if (lookAheadFunc.call(this)) {
+                // we skipped enough tokens so we can resync right back into another iteration of the repetition grammar rule
+                generateErrorMessage();
+                // recursive invocation in other to support multiple re-syncs in the same top level repetition grammar rule
+                grammarRule.apply(this, grammarRuleArgs);
+                return; // must return here to avoid reverting the inputIdx
+            }
+            else if (this.tokenMatcher(currToken, reSyncTokType)) {
+                passedResyncPoint = true;
+            }
+            else {
+                currToken = this.SKIP_TOKEN();
+                this.addToResyncTokens(currToken, resyncedTokens);
+            }
+        }
+        // we were unable to find a CLOSER point to resync inside the Repetition, reset the state.
+        // The parsing exception we were trying to prevent will happen in the NEXT parsing step. it may be handled by
+        // "between rules" resync recovery later in the flow.
+        this.importLexerState(savedLexerState);
+    }
+    shouldInRepetitionRecoveryBeTried(expectTokAfterLastMatch, nextTokIdx, notStuck) {
+        // Edge case of arriving from a MANY repetition which is stuck
+        // Attempting recovery in this case could cause an infinite loop
+        if (notStuck === false) {
+            return false;
+        }
+        // no need to recover, next token is what we expect...
+        if (this.tokenMatcher(this.LA(1), expectTokAfterLastMatch)) {
+            return false;
+        }
+        // error recovery is disabled during backtracking as it can make the parser ignore a valid grammar path
+        // and prefer some backtracking path that includes recovered errors.
+        if (this.isBackTracking()) {
+            return false;
+        }
+        // if we can perform inRule recovery (single token insertion or deletion) we always prefer that recovery algorithm
+        // because if it works, it makes the least amount of changes to the input stream (greedy algorithm)
+        //noinspection RedundantIfStatementJS
+        if (this.canPerformInRuleRecovery(expectTokAfterLastMatch, this.getFollowsForInRuleRecovery(expectTokAfterLastMatch, nextTokIdx))) {
+            return false;
+        }
+        return true;
+    }
+    // Error Recovery functionality
+    getFollowsForInRuleRecovery(tokType, tokIdxInRule) {
+        const grammarPath = this.getCurrentGrammarPath(tokType, tokIdxInRule);
+        const follows = this.getNextPossibleTokenTypes(grammarPath);
+        return follows;
+    }
+    tryInRuleRecovery(expectedTokType, follows) {
+        if (this.canRecoverWithSingleTokenInsertion(expectedTokType, follows)) {
+            const tokToInsert = this.getTokenToInsert(expectedTokType);
+            return tokToInsert;
+        }
+        if (this.canRecoverWithSingleTokenDeletion(expectedTokType)) {
+            const nextTok = this.SKIP_TOKEN();
+            this.consumeToken();
+            return nextTok;
+        }
+        throw new InRuleRecoveryException("sad sad panda");
+    }
+    canPerformInRuleRecovery(expectedToken, follows) {
+        return (this.canRecoverWithSingleTokenInsertion(expectedToken, follows) ||
+            this.canRecoverWithSingleTokenDeletion(expectedToken));
+    }
+    canRecoverWithSingleTokenInsertion(expectedTokType, follows) {
+        if (!this.canTokenTypeBeInsertedInRecovery(expectedTokType)) {
+            return false;
+        }
+        // must know the possible following tokens to perform single token insertion
+        if (isEmpty(follows)) {
+            return false;
+        }
+        const mismatchedTok = this.LA(1);
+        const isMisMatchedTokInFollows = find(follows, (possibleFollowsTokType) => {
+            return this.tokenMatcher(mismatchedTok, possibleFollowsTokType);
+        }) !== undefined;
+        return isMisMatchedTokInFollows;
+    }
+    canRecoverWithSingleTokenDeletion(expectedTokType) {
+        if (!this.canTokenTypeBeDeletedInRecovery(expectedTokType)) {
+            return false;
+        }
+        const isNextTokenWhatIsExpected = this.tokenMatcher(this.LA(2), expectedTokType);
+        return isNextTokenWhatIsExpected;
+    }
+    isInCurrentRuleReSyncSet(tokenTypeIdx) {
+        const followKey = this.getCurrFollowKey();
+        const currentRuleReSyncSet = this.getFollowSetFromFollowKey(followKey);
+        return includes(currentRuleReSyncSet, tokenTypeIdx);
+    }
+    findReSyncTokenType() {
+        const allPossibleReSyncTokTypes = this.flattenFollowSet();
+        // this loop will always terminate as EOF is always in the follow stack and also always (virtually) in the input
+        let nextToken = this.LA(1);
+        let k = 2;
+        while (true) {
+            const foundMatch = find(allPossibleReSyncTokTypes, (resyncTokType) => {
+                const canMatch = tokenMatcher(nextToken, resyncTokType);
+                return canMatch;
+            });
+            if (foundMatch !== undefined) {
+                return foundMatch;
+            }
+            nextToken = this.LA(k);
+            k++;
+        }
+    }
+    getCurrFollowKey() {
+        // the length is at least one as we always add the ruleName to the stack before invoking the rule.
+        if (this.RULE_STACK.length === 1) {
+            return EOF_FOLLOW_KEY;
+        }
+        const currRuleShortName = this.getLastExplicitRuleShortName();
+        const currRuleIdx = this.getLastExplicitRuleOccurrenceIndex();
+        const prevRuleShortName = this.getPreviousExplicitRuleShortName();
+        return {
+            ruleName: this.shortRuleNameToFullName(currRuleShortName),
+            idxInCallingRule: currRuleIdx,
+            inRule: this.shortRuleNameToFullName(prevRuleShortName),
+        };
+    }
+    buildFullFollowKeyStack() {
+        const explicitRuleStack = this.RULE_STACK;
+        const explicitOccurrenceStack = this.RULE_OCCURRENCE_STACK;
+        return map(explicitRuleStack, (ruleName, idx) => {
+            if (idx === 0) {
+                return EOF_FOLLOW_KEY;
+            }
+            return {
+                ruleName: this.shortRuleNameToFullName(ruleName),
+                idxInCallingRule: explicitOccurrenceStack[idx],
+                inRule: this.shortRuleNameToFullName(explicitRuleStack[idx - 1]),
+            };
+        });
+    }
+    flattenFollowSet() {
+        const followStack = map(this.buildFullFollowKeyStack(), (currKey) => {
+            return this.getFollowSetFromFollowKey(currKey);
+        });
+        return flatten(followStack);
+    }
+    getFollowSetFromFollowKey(followKey) {
+        if (followKey === EOF_FOLLOW_KEY) {
+            return [EOF];
+        }
+        const followName = followKey.ruleName + followKey.idxInCallingRule + IN + followKey.inRule;
+        return this.resyncFollows[followName];
+    }
+    // It does not make any sense to include a virtual EOF token in the list of resynced tokens
+    // as EOF does not really exist and thus does not contain any useful information (line/column numbers)
+    addToResyncTokens(token, resyncTokens) {
+        if (!this.tokenMatcher(token, EOF)) {
+            resyncTokens.push(token);
+        }
+        return resyncTokens;
+    }
+    reSyncTo(tokType) {
+        const resyncedTokens = [];
+        let nextTok = this.LA(1);
+        while (this.tokenMatcher(nextTok, tokType) === false) {
+            nextTok = this.SKIP_TOKEN();
+            this.addToResyncTokens(nextTok, resyncedTokens);
+        }
+        // the last token is not part of the error.
+        return dropRight(resyncedTokens);
+    }
+    attemptInRepetitionRecovery(prodFunc, args, lookaheadFunc, dslMethodIdx, prodOccurrence, nextToksWalker, notStuck) {
+        // by default this is a NO-OP
+        // The actual implementation is with the function(not method) below
+    }
+    getCurrentGrammarPath(tokType, tokIdxInRule) {
+        const pathRuleStack = this.getHumanReadableRuleStack();
+        const pathOccurrenceStack = clone(this.RULE_OCCURRENCE_STACK);
+        const grammarPath = {
+            ruleStack: pathRuleStack,
+            occurrenceStack: pathOccurrenceStack,
+            lastTok: tokType,
+            lastTokOccurrence: tokIdxInRule,
+        };
+        return grammarPath;
+    }
+    getHumanReadableRuleStack() {
+        return map(this.RULE_STACK, (currShortName) => this.shortRuleNameToFullName(currShortName));
+    }
+}
+function attemptInRepetitionRecovery(prodFunc, args, lookaheadFunc, dslMethodIdx, prodOccurrence, nextToksWalker, notStuck) {
+    const key = this.getKeyForAutomaticLookahead(dslMethodIdx, prodOccurrence);
+    let firstAfterRepInfo = this.firstAfterRepMap[key];
+    if (firstAfterRepInfo === undefined) {
+        const currRuleName = this.getCurrRuleFullName();
+        const ruleGrammar = this.getGAstProductions()[currRuleName];
+        const walker = new nextToksWalker(ruleGrammar, prodOccurrence);
+        firstAfterRepInfo = walker.startWalking();
+        this.firstAfterRepMap[key] = firstAfterRepInfo;
+    }
+    let expectTokAfterLastMatch = firstAfterRepInfo.token;
+    let nextTokIdx = firstAfterRepInfo.occurrence;
+    const isEndOfRule = firstAfterRepInfo.isEndOfRule;
+    // special edge case of a TOP most repetition after which the input should END.
+    // this will force an attempt for inRule recovery in that scenario.
+    if (this.RULE_STACK.length === 1 &&
+        isEndOfRule &&
+        expectTokAfterLastMatch === undefined) {
+        expectTokAfterLastMatch = EOF;
+        nextTokIdx = 1;
+    }
+    // We don't have anything to re-sync to...
+    // this condition was extracted from `shouldInRepetitionRecoveryBeTried` to act as a type-guard
+    if (expectTokAfterLastMatch === undefined || nextTokIdx === undefined) {
+        return;
+    }
+    if (this.shouldInRepetitionRecoveryBeTried(expectTokAfterLastMatch, nextTokIdx, notStuck)) {
+        // TODO: performance optimization: instead of passing the original args here, we modify
+        // the args param (or create a new one) and make sure the lookahead func is explicitly provided
+        // to avoid searching the cache for it once more.
+        this.tryInRepetitionRecovery(prodFunc, args, lookaheadFunc, expectTokAfterLastMatch);
+    }
+}
+
+// Lookahead keys are 32Bit integers in the form
+// TTTTTTTT-ZZZZZZZZZZZZ-YYYY-XXXXXXXX
+// XXXX -> Occurrence Index bitmap.
+// YYYY -> DSL Method Type bitmap.
+// ZZZZZZZZZZZZZZZ -> Rule short Index bitmap.
+// TTTTTTTTT -> alternation alternative index bitmap
+const BITS_FOR_METHOD_TYPE = 4;
+const BITS_FOR_OCCURRENCE_IDX = 8;
+// short string used as part of mapping keys.
+// being short improves the performance when composing KEYS for maps out of these
+// The 5 - 8 bits (16 possible values, are reserved for the DSL method indices)
+const OR_IDX = 1 << BITS_FOR_OCCURRENCE_IDX;
+const OPTION_IDX = 2 << BITS_FOR_OCCURRENCE_IDX;
+const MANY_IDX = 3 << BITS_FOR_OCCURRENCE_IDX;
+const AT_LEAST_ONE_IDX = 4 << BITS_FOR_OCCURRENCE_IDX;
+const MANY_SEP_IDX = 5 << BITS_FOR_OCCURRENCE_IDX;
+const AT_LEAST_ONE_SEP_IDX = 6 << BITS_FOR_OCCURRENCE_IDX;
+// this actually returns a number, but it is always used as a string (object prop key)
+function getKeyForAutomaticLookahead(ruleIdx, dslMethodIdx, occurrence) {
+    return occurrence | dslMethodIdx | ruleIdx;
+}
+
+class LLkLookaheadStrategy {
+    constructor(options) {
+        var _a;
+        this.maxLookahead =
+            (_a = options === null || options === void 0 ? void 0 : options.maxLookahead) !== null && _a !== void 0 ? _a : DEFAULT_PARSER_CONFIG.maxLookahead;
+    }
+    validate(options) {
+        const leftRecursionErrors = this.validateNoLeftRecursion(options.rules);
+        if (isEmpty(leftRecursionErrors)) {
+            const emptyAltErrors = this.validateEmptyOrAlternatives(options.rules);
+            const ambiguousAltsErrors = this.validateAmbiguousAlternationAlternatives(options.rules, this.maxLookahead);
+            const emptyRepetitionErrors = this.validateSomeNonEmptyLookaheadPath(options.rules, this.maxLookahead);
+            const allErrors = [
+                ...leftRecursionErrors,
+                ...emptyAltErrors,
+                ...ambiguousAltsErrors,
+                ...emptyRepetitionErrors,
+            ];
+            return allErrors;
+        }
+        return leftRecursionErrors;
+    }
+    validateNoLeftRecursion(rules) {
+        return flatMap(rules, (currTopRule) => validateNoLeftRecursion(currTopRule, currTopRule, defaultGrammarValidatorErrorProvider));
+    }
+    validateEmptyOrAlternatives(rules) {
+        return flatMap(rules, (currTopRule) => validateEmptyOrAlternative(currTopRule, defaultGrammarValidatorErrorProvider));
+    }
+    validateAmbiguousAlternationAlternatives(rules, maxLookahead) {
+        return flatMap(rules, (currTopRule) => validateAmbiguousAlternationAlternatives(currTopRule, maxLookahead, defaultGrammarValidatorErrorProvider));
+    }
+    validateSomeNonEmptyLookaheadPath(rules, maxLookahead) {
+        return validateSomeNonEmptyLookaheadPath(rules, maxLookahead, defaultGrammarValidatorErrorProvider);
+    }
+    buildLookaheadForAlternation(options) {
+        return buildLookaheadFuncForOr(options.prodOccurrence, options.rule, options.maxLookahead, options.hasPredicates, options.dynamicTokensEnabled, buildAlternativesLookAheadFunc);
+    }
+    buildLookaheadForOptional(options) {
+        return buildLookaheadFuncForOptionalProd(options.prodOccurrence, options.rule, options.maxLookahead, options.dynamicTokensEnabled, getProdType(options.prodType), buildSingleAlternativeLookaheadFunction);
+    }
+}
+
+/**
+ * Trait responsible for the lookahead related utilities and optimizations.
+ */
+class LooksAhead {
+    initLooksAhead(config) {
+        this.dynamicTokensEnabled = has(config, "dynamicTokensEnabled")
+            ? config.dynamicTokensEnabled // assumes end user provides the correct config value/type
+            : DEFAULT_PARSER_CONFIG.dynamicTokensEnabled;
+        this.maxLookahead = has(config, "maxLookahead")
+            ? config.maxLookahead // assumes end user provides the correct config value/type
+            : DEFAULT_PARSER_CONFIG.maxLookahead;
+        this.lookaheadStrategy = has(config, "lookaheadStrategy")
+            ? config.lookaheadStrategy // assumes end user provides the correct config value/type
+            : new LLkLookaheadStrategy({ maxLookahead: this.maxLookahead });
+        this.lookAheadFuncsCache = new Map();
+    }
+    preComputeLookaheadFunctions(rules) {
+        forEach(rules, (currRule) => {
+            this.TRACE_INIT(`${currRule.name} Rule Lookahead`, () => {
+                const { alternation, repetition, option, repetitionMandatory, repetitionMandatoryWithSeparator, repetitionWithSeparator, } = collectMethods(currRule);
+                forEach(alternation, (currProd) => {
+                    const prodIdx = currProd.idx === 0 ? "" : currProd.idx;
+                    this.TRACE_INIT(`${getProductionDslName(currProd)}${prodIdx}`, () => {
+                        const laFunc = this.lookaheadStrategy.buildLookaheadForAlternation({
+                            prodOccurrence: currProd.idx,
+                            rule: currRule,
+                            maxLookahead: currProd.maxLookahead || this.maxLookahead,
+                            hasPredicates: currProd.hasPredicates,
+                            dynamicTokensEnabled: this.dynamicTokensEnabled,
+                        });
+                        const key = getKeyForAutomaticLookahead(this.fullRuleNameToShort[currRule.name], OR_IDX, currProd.idx);
+                        this.setLaFuncCache(key, laFunc);
+                    });
+                });
+                forEach(repetition, (currProd) => {
+                    this.computeLookaheadFunc(currRule, currProd.idx, MANY_IDX, "Repetition", currProd.maxLookahead, getProductionDslName(currProd));
+                });
+                forEach(option, (currProd) => {
+                    this.computeLookaheadFunc(currRule, currProd.idx, OPTION_IDX, "Option", currProd.maxLookahead, getProductionDslName(currProd));
+                });
+                forEach(repetitionMandatory, (currProd) => {
+                    this.computeLookaheadFunc(currRule, currProd.idx, AT_LEAST_ONE_IDX, "RepetitionMandatory", currProd.maxLookahead, getProductionDslName(currProd));
+                });
+                forEach(repetitionMandatoryWithSeparator, (currProd) => {
+                    this.computeLookaheadFunc(currRule, currProd.idx, AT_LEAST_ONE_SEP_IDX, "RepetitionMandatoryWithSeparator", currProd.maxLookahead, getProductionDslName(currProd));
+                });
+                forEach(repetitionWithSeparator, (currProd) => {
+                    this.computeLookaheadFunc(currRule, currProd.idx, MANY_SEP_IDX, "RepetitionWithSeparator", currProd.maxLookahead, getProductionDslName(currProd));
+                });
+            });
+        });
+    }
+    computeLookaheadFunc(rule, prodOccurrence, prodKey, prodType, prodMaxLookahead, dslMethodName) {
+        this.TRACE_INIT(`${dslMethodName}${prodOccurrence === 0 ? "" : prodOccurrence}`, () => {
+            const laFunc = this.lookaheadStrategy.buildLookaheadForOptional({
+                prodOccurrence,
+                rule,
+                maxLookahead: prodMaxLookahead || this.maxLookahead,
+                dynamicTokensEnabled: this.dynamicTokensEnabled,
+                prodType,
+            });
+            const key = getKeyForAutomaticLookahead(this.fullRuleNameToShort[rule.name], prodKey, prodOccurrence);
+            this.setLaFuncCache(key, laFunc);
+        });
+    }
+    // this actually returns a number, but it is always used as a string (object prop key)
+    getKeyForAutomaticLookahead(dslMethodIdx, occurrence) {
+        const currRuleShortName = this.getLastExplicitRuleShortName();
+        return getKeyForAutomaticLookahead(currRuleShortName, dslMethodIdx, occurrence);
+    }
+    getLaFuncFromCache(key) {
+        return this.lookAheadFuncsCache.get(key);
+    }
+    /* istanbul ignore next */
+    setLaFuncCache(key, value) {
+        this.lookAheadFuncsCache.set(key, value);
+    }
+}
+class DslMethodsCollectorVisitor extends GAstVisitor {
+    constructor() {
+        super(...arguments);
+        this.dslMethods = {
+            option: [],
+            alternation: [],
+            repetition: [],
+            repetitionWithSeparator: [],
+            repetitionMandatory: [],
+            repetitionMandatoryWithSeparator: [],
+        };
+    }
+    reset() {
+        this.dslMethods = {
+            option: [],
+            alternation: [],
+            repetition: [],
+            repetitionWithSeparator: [],
+            repetitionMandatory: [],
+            repetitionMandatoryWithSeparator: [],
+        };
+    }
+    visitOption(option) {
+        this.dslMethods.option.push(option);
+    }
+    visitRepetitionWithSeparator(manySep) {
+        this.dslMethods.repetitionWithSeparator.push(manySep);
+    }
+    visitRepetitionMandatory(atLeastOne) {
+        this.dslMethods.repetitionMandatory.push(atLeastOne);
+    }
+    visitRepetitionMandatoryWithSeparator(atLeastOneSep) {
+        this.dslMethods.repetitionMandatoryWithSeparator.push(atLeastOneSep);
+    }
+    visitRepetition(many) {
+        this.dslMethods.repetition.push(many);
+    }
+    visitAlternation(or) {
+        this.dslMethods.alternation.push(or);
+    }
+}
+const collectorVisitor = new DslMethodsCollectorVisitor();
+function collectMethods(rule) {
+    collectorVisitor.reset();
+    rule.accept(collectorVisitor);
+    const dslMethods = collectorVisitor.dslMethods;
+    // avoid uncleaned references
+    collectorVisitor.reset();
+    return dslMethods;
+}
+
+/**
+ * This nodeLocation tracking is not efficient and should only be used
+ * when error recovery is enabled or the Token Vector contains virtual Tokens
+ * (e.g, Python Indent/Outdent)
+ * As it executes the calculation for every single terminal/nonTerminal
+ * and does not rely on the fact the token vector is **sorted**
+ */
+function setNodeLocationOnlyOffset(currNodeLocation, newLocationInfo) {
+    // First (valid) update for this cst node
+    if (isNaN(currNodeLocation.startOffset) === true) {
+        // assumption1: Token location information is either NaN or a valid number
+        // assumption2: Token location information is fully valid if it exist
+        // (both start/end offsets exist and are numbers).
+        currNodeLocation.startOffset = newLocationInfo.startOffset;
+        currNodeLocation.endOffset = newLocationInfo.endOffset;
+    }
+    // Once the startOffset has been updated with a valid number it should never receive
+    // any farther updates as the Token vector is sorted.
+    // We still have to check this this condition for every new possible location info
+    // because with error recovery enabled we may encounter invalid tokens (NaN location props)
+    else if (currNodeLocation.endOffset < newLocationInfo.endOffset === true) {
+        currNodeLocation.endOffset = newLocationInfo.endOffset;
+    }
+}
+/**
+ * This nodeLocation tracking is not efficient and should only be used
+ * when error recovery is enabled or the Token Vector contains virtual Tokens
+ * (e.g, Python Indent/Outdent)
+ * As it executes the calculation for every single terminal/nonTerminal
+ * and does not rely on the fact the token vector is **sorted**
+ */
+function setNodeLocationFull(currNodeLocation, newLocationInfo) {
+    // First (valid) update for this cst node
+    if (isNaN(currNodeLocation.startOffset) === true) {
+        // assumption1: Token location information is either NaN or a valid number
+        // assumption2: Token location information is fully valid if it exist
+        // (all start/end props exist and are numbers).
+        currNodeLocation.startOffset = newLocationInfo.startOffset;
+        currNodeLocation.startColumn = newLocationInfo.startColumn;
+        currNodeLocation.startLine = newLocationInfo.startLine;
+        currNodeLocation.endOffset = newLocationInfo.endOffset;
+        currNodeLocation.endColumn = newLocationInfo.endColumn;
+        currNodeLocation.endLine = newLocationInfo.endLine;
+    }
+    // Once the start props has been updated with a valid number it should never receive
+    // any farther updates as the Token vector is sorted.
+    // We still have to check this this condition for every new possible location info
+    // because with error recovery enabled we may encounter invalid tokens (NaN location props)
+    else if (currNodeLocation.endOffset < newLocationInfo.endOffset === true) {
+        currNodeLocation.endOffset = newLocationInfo.endOffset;
+        currNodeLocation.endColumn = newLocationInfo.endColumn;
+        currNodeLocation.endLine = newLocationInfo.endLine;
+    }
+}
+function addTerminalToCst(node, token, tokenTypeName) {
+    if (node.children[tokenTypeName] === undefined) {
+        node.children[tokenTypeName] = [token];
+    }
+    else {
+        node.children[tokenTypeName].push(token);
+    }
+}
+function addNoneTerminalToCst(node, ruleName, ruleResult) {
+    if (node.children[ruleName] === undefined) {
+        node.children[ruleName] = [ruleResult];
+    }
+    else {
+        node.children[ruleName].push(ruleResult);
+    }
+}
+
+const NAME = "name";
+function defineNameProp(obj, nameValue) {
+    Object.defineProperty(obj, NAME, {
+        enumerable: false,
+        configurable: true,
+        writable: false,
+        value: nameValue,
+    });
+}
+
+function defaultVisit(ctx, param) {
+    const childrenNames = keys(ctx);
+    const childrenNamesLength = childrenNames.length;
+    for (let i = 0; i < childrenNamesLength; i++) {
+        const currChildName = childrenNames[i];
+        const currChildArray = ctx[currChildName];
+        const currChildArrayLength = currChildArray.length;
+        for (let j = 0; j < currChildArrayLength; j++) {
+            const currChild = currChildArray[j];
+            // distinction between Tokens Children and CstNode children
+            if (currChild.tokenTypeIdx === undefined) {
+                this[currChild.name](currChild.children, param);
+            }
+        }
+    }
+    // defaultVisit does not support generic out param
+}
+function createBaseSemanticVisitorConstructor(grammarName, ruleNames) {
+    const derivedConstructor = function () { };
+    // can be overwritten according to:
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/
+    // name?redirectlocale=en-US&redirectslug=JavaScript%2FReference%2FGlobal_Objects%2FFunction%2Fname
+    defineNameProp(derivedConstructor, grammarName + "BaseSemantics");
+    const semanticProto = {
+        visit: function (cstNode, param) {
+            // enables writing more concise visitor methods when CstNode has only a single child
+            if (isArray(cstNode)) {
+                // A CST Node's children dictionary can never have empty arrays as values
+                // If a key is defined there will be at least one element in the corresponding value array.
+                cstNode = cstNode[0];
+            }
+            // enables passing optional CstNodes concisely.
+            if (isUndefined(cstNode)) {
+                return undefined;
+            }
+            return this[cstNode.name](cstNode.children, param);
+        },
+        validateVisitor: function () {
+            const semanticDefinitionErrors = validateVisitor(this, ruleNames);
+            if (!isEmpty(semanticDefinitionErrors)) {
+                const errorMessages = map(semanticDefinitionErrors, (currDefError) => currDefError.msg);
+                throw Error(`Errors Detected in CST Visitor <${this.constructor.name}>:\n\t` +
+                    `${errorMessages.join("\n\n").replace(/\n/g, "\n\t")}`);
+            }
+        },
+    };
+    derivedConstructor.prototype = semanticProto;
+    derivedConstructor.prototype.constructor = derivedConstructor;
+    derivedConstructor._RULE_NAMES = ruleNames;
+    return derivedConstructor;
+}
+function createBaseVisitorConstructorWithDefaults(grammarName, ruleNames, baseConstructor) {
+    const derivedConstructor = function () { };
+    // can be overwritten according to:
+    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/
+    // name?redirectlocale=en-US&redirectslug=JavaScript%2FReference%2FGlobal_Objects%2FFunction%2Fname
+    defineNameProp(derivedConstructor, grammarName + "BaseSemanticsWithDefaults");
+    const withDefaultsProto = Object.create(baseConstructor.prototype);
+    forEach(ruleNames, (ruleName) => {
+        withDefaultsProto[ruleName] = defaultVisit;
+    });
+    derivedConstructor.prototype = withDefaultsProto;
+    derivedConstructor.prototype.constructor = derivedConstructor;
+    return derivedConstructor;
+}
+var CstVisitorDefinitionError;
+(function (CstVisitorDefinitionError) {
+    CstVisitorDefinitionError[CstVisitorDefinitionError["REDUNDANT_METHOD"] = 0] = "REDUNDANT_METHOD";
+    CstVisitorDefinitionError[CstVisitorDefinitionError["MISSING_METHOD"] = 1] = "MISSING_METHOD";
+})(CstVisitorDefinitionError || (CstVisitorDefinitionError = {}));
+function validateVisitor(visitorInstance, ruleNames) {
+    const missingErrors = validateMissingCstMethods(visitorInstance, ruleNames);
+    return missingErrors;
+}
+function validateMissingCstMethods(visitorInstance, ruleNames) {
+    const missingRuleNames = filter(ruleNames, (currRuleName) => {
+        return isFunction(visitorInstance[currRuleName]) === false;
+    });
+    const errors = map(missingRuleNames, (currRuleName) => {
+        return {
+            msg: `Missing visitor method: <${currRuleName}> on ${(visitorInstance.constructor.name)} CST Visitor.`,
+            type: CstVisitorDefinitionError.MISSING_METHOD,
+            methodName: currRuleName,
+        };
+    });
+    return compact(errors);
+}
+
+/**
+ * This trait is responsible for the CST building logic.
+ */
+class TreeBuilder {
+    initTreeBuilder(config) {
+        this.CST_STACK = [];
+        // outputCst is no longer exposed/defined in the pubic API
+        this.outputCst = config.outputCst;
+        this.nodeLocationTracking = has(config, "nodeLocationTracking")
+            ? config.nodeLocationTracking // assumes end user provides the correct config value/type
+            : DEFAULT_PARSER_CONFIG.nodeLocationTracking;
+        if (!this.outputCst) {
+            this.cstInvocationStateUpdate = noop;
+            this.cstFinallyStateUpdate = noop;
+            this.cstPostTerminal = noop;
+            this.cstPostNonTerminal = noop;
+            this.cstPostRule = noop;
+        }
+        else {
+            if (/full/i.test(this.nodeLocationTracking)) {
+                if (this.recoveryEnabled) {
+                    this.setNodeLocationFromToken = setNodeLocationFull;
+                    this.setNodeLocationFromNode = setNodeLocationFull;
+                    this.cstPostRule = noop;
+                    this.setInitialNodeLocation = this.setInitialNodeLocationFullRecovery;
+                }
+                else {
+                    this.setNodeLocationFromToken = noop;
+                    this.setNodeLocationFromNode = noop;
+                    this.cstPostRule = this.cstPostRuleFull;
+                    this.setInitialNodeLocation = this.setInitialNodeLocationFullRegular;
+                }
+            }
+            else if (/onlyOffset/i.test(this.nodeLocationTracking)) {
+                if (this.recoveryEnabled) {
+                    this.setNodeLocationFromToken = setNodeLocationOnlyOffset;
+                    this.setNodeLocationFromNode = setNodeLocationOnlyOffset;
+                    this.cstPostRule = noop;
+                    this.setInitialNodeLocation =
+                        this.setInitialNodeLocationOnlyOffsetRecovery;
+                }
+                else {
+                    this.setNodeLocationFromToken = noop;
+                    this.setNodeLocationFromNode = noop;
+                    this.cstPostRule = this.cstPostRuleOnlyOffset;
+                    this.setInitialNodeLocation =
+                        this.setInitialNodeLocationOnlyOffsetRegular;
+                }
+            }
+            else if (/none/i.test(this.nodeLocationTracking)) {
+                this.setNodeLocationFromToken = noop;
+                this.setNodeLocationFromNode = noop;
+                this.cstPostRule = noop;
+                this.setInitialNodeLocation = noop;
+            }
+            else {
+                throw Error(`Invalid <nodeLocationTracking> config option: "${config.nodeLocationTracking}"`);
+            }
+        }
+    }
+    setInitialNodeLocationOnlyOffsetRecovery(cstNode) {
+        cstNode.location = {
+            startOffset: NaN,
+            endOffset: NaN,
+        };
+    }
+    setInitialNodeLocationOnlyOffsetRegular(cstNode) {
+        cstNode.location = {
+            // without error recovery the starting Location of a new CstNode is guaranteed
+            // To be the next Token's startOffset (for valid inputs).
+            // For invalid inputs there won't be any CSTOutput so this potential
+            // inaccuracy does not matter
+            startOffset: this.LA(1).startOffset,
+            endOffset: NaN,
+        };
+    }
+    setInitialNodeLocationFullRecovery(cstNode) {
+        cstNode.location = {
+            startOffset: NaN,
+            startLine: NaN,
+            startColumn: NaN,
+            endOffset: NaN,
+            endLine: NaN,
+            endColumn: NaN,
+        };
+    }
+    /**
+       *  @see setInitialNodeLocationOnlyOffsetRegular for explanation why this work
+  
+       * @param cstNode
+       */
+    setInitialNodeLocationFullRegular(cstNode) {
+        const nextToken = this.LA(1);
+        cstNode.location = {
+            startOffset: nextToken.startOffset,
+            startLine: nextToken.startLine,
+            startColumn: nextToken.startColumn,
+            endOffset: NaN,
+            endLine: NaN,
+            endColumn: NaN,
+        };
+    }
+    cstInvocationStateUpdate(fullRuleName) {
+        const cstNode = {
+            name: fullRuleName,
+            children: Object.create(null),
+        };
+        this.setInitialNodeLocation(cstNode);
+        this.CST_STACK.push(cstNode);
+    }
+    cstFinallyStateUpdate() {
+        this.CST_STACK.pop();
+    }
+    cstPostRuleFull(ruleCstNode) {
+        // casts to `required<CstNodeLocation>` are safe because `cstPostRuleFull` should only be invoked when full location is enabled
+        const prevToken = this.LA(0);
+        const loc = ruleCstNode.location;
+        // If this condition is true it means we consumed at least one Token
+        // In this CstNode.
+        if (loc.startOffset <= prevToken.startOffset === true) {
+            loc.endOffset = prevToken.endOffset;
+            loc.endLine = prevToken.endLine;
+            loc.endColumn = prevToken.endColumn;
+        }
+        // "empty" CstNode edge case
+        else {
+            loc.startOffset = NaN;
+            loc.startLine = NaN;
+            loc.startColumn = NaN;
+        }
+    }
+    cstPostRuleOnlyOffset(ruleCstNode) {
+        const prevToken = this.LA(0);
+        // `location' is not null because `cstPostRuleOnlyOffset` will only be invoked when location tracking is enabled.
+        const loc = ruleCstNode.location;
+        // If this condition is true it means we consumed at least one Token
+        // In this CstNode.
+        if (loc.startOffset <= prevToken.startOffset === true) {
+            loc.endOffset = prevToken.endOffset;
+        }
+        // "empty" CstNode edge case
+        else {
+            loc.startOffset = NaN;
+        }
+    }
+    cstPostTerminal(key, consumedToken) {
+        const rootCst = this.CST_STACK[this.CST_STACK.length - 1];
+        addTerminalToCst(rootCst, consumedToken, key);
+        // This is only used when **both** error recovery and CST Output are enabled.
+        this.setNodeLocationFromToken(rootCst.location, consumedToken);
+    }
+    cstPostNonTerminal(ruleCstResult, ruleName) {
+        const preCstNode = this.CST_STACK[this.CST_STACK.length - 1];
+        addNoneTerminalToCst(preCstNode, ruleName, ruleCstResult);
+        // This is only used when **both** error recovery and CST Output are enabled.
+        this.setNodeLocationFromNode(preCstNode.location, ruleCstResult.location);
+    }
+    getBaseCstVisitorConstructor() {
+        if (isUndefined(this.baseCstVisitorConstructor)) {
+            const newBaseCstVisitorConstructor = createBaseSemanticVisitorConstructor(this.className, keys(this.gastProductionsCache));
+            this.baseCstVisitorConstructor = newBaseCstVisitorConstructor;
+            return newBaseCstVisitorConstructor;
+        }
+        return this.baseCstVisitorConstructor;
+    }
+    getBaseCstVisitorConstructorWithDefaults() {
+        if (isUndefined(this.baseCstVisitorWithDefaultsConstructor)) {
+            const newConstructor = createBaseVisitorConstructorWithDefaults(this.className, keys(this.gastProductionsCache), this.getBaseCstVisitorConstructor());
+            this.baseCstVisitorWithDefaultsConstructor = newConstructor;
+            return newConstructor;
+        }
+        return this.baseCstVisitorWithDefaultsConstructor;
+    }
+    getLastExplicitRuleShortName() {
+        const ruleStack = this.RULE_STACK;
+        return ruleStack[ruleStack.length - 1];
+    }
+    getPreviousExplicitRuleShortName() {
+        const ruleStack = this.RULE_STACK;
+        return ruleStack[ruleStack.length - 2];
+    }
+    getLastExplicitRuleOccurrenceIndex() {
+        const occurrenceStack = this.RULE_OCCURRENCE_STACK;
+        return occurrenceStack[occurrenceStack.length - 1];
+    }
+}
+
+/**
+ * Trait responsible abstracting over the interaction with Lexer output (Token vector).
+ *
+ * This could be generalized to support other kinds of lexers, e.g.
+ * - Just in Time Lexing / Lexer-Less parsing.
+ * - Streaming Lexer.
+ */
+class LexerAdapter {
+    initLexerAdapter() {
+        this.tokVector = [];
+        this.tokVectorLength = 0;
+        this.currIdx = -1;
+    }
+    set input(newInput) {
+        // @ts-ignore - `this parameter` not supported in setters/getters
+        //   - https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+        if (this.selfAnalysisDone !== true) {
+            throw Error(`Missing <performSelfAnalysis> invocation at the end of the Parser's constructor.`);
+        }
+        // @ts-ignore - `this parameter` not supported in setters/getters
+        //   - https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+        this.reset();
+        this.tokVector = newInput;
+        this.tokVectorLength = newInput.length;
+    }
+    get input() {
+        return this.tokVector;
+    }
+    // skips a token and returns the next token
+    SKIP_TOKEN() {
+        if (this.currIdx <= this.tokVector.length - 2) {
+            this.consumeToken();
+            return this.LA(1);
+        }
+        else {
+            return END_OF_FILE;
+        }
+    }
+    // Lexer (accessing Token vector) related methods which can be overridden to implement lazy lexers
+    // or lexers dependent on parser context.
+    LA(howMuch) {
+        const soughtIdx = this.currIdx + howMuch;
+        if (soughtIdx < 0 || this.tokVectorLength <= soughtIdx) {
+            return END_OF_FILE;
+        }
+        else {
+            return this.tokVector[soughtIdx];
+        }
+    }
+    consumeToken() {
+        this.currIdx++;
+    }
+    exportLexerState() {
+        return this.currIdx;
+    }
+    importLexerState(newState) {
+        this.currIdx = newState;
+    }
+    resetLexerState() {
+        this.currIdx = -1;
+    }
+    moveToTerminatedState() {
+        this.currIdx = this.tokVector.length - 1;
+    }
+    getLexerPosition() {
+        return this.exportLexerState();
+    }
+}
+
+/**
+ * This trait is responsible for implementing the public API
+ * for defining Chevrotain parsers, i.e:
+ * - CONSUME
+ * - RULE
+ * - OPTION
+ * - ...
+ */
+class RecognizerApi {
+    ACTION(impl) {
+        return impl.call(this);
+    }
+    consume(idx, tokType, options) {
+        return this.consumeInternal(tokType, idx, options);
+    }
+    subrule(idx, ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, idx, options);
+    }
+    option(idx, actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, idx);
+    }
+    or(idx, altsOrOpts) {
+        return this.orInternal(altsOrOpts, idx);
+    }
+    many(idx, actionORMethodDef) {
+        return this.manyInternal(idx, actionORMethodDef);
+    }
+    atLeastOne(idx, actionORMethodDef) {
+        return this.atLeastOneInternal(idx, actionORMethodDef);
+    }
+    CONSUME(tokType, options) {
+        return this.consumeInternal(tokType, 0, options);
+    }
+    CONSUME1(tokType, options) {
+        return this.consumeInternal(tokType, 1, options);
+    }
+    CONSUME2(tokType, options) {
+        return this.consumeInternal(tokType, 2, options);
+    }
+    CONSUME3(tokType, options) {
+        return this.consumeInternal(tokType, 3, options);
+    }
+    CONSUME4(tokType, options) {
+        return this.consumeInternal(tokType, 4, options);
+    }
+    CONSUME5(tokType, options) {
+        return this.consumeInternal(tokType, 5, options);
+    }
+    CONSUME6(tokType, options) {
+        return this.consumeInternal(tokType, 6, options);
+    }
+    CONSUME7(tokType, options) {
+        return this.consumeInternal(tokType, 7, options);
+    }
+    CONSUME8(tokType, options) {
+        return this.consumeInternal(tokType, 8, options);
+    }
+    CONSUME9(tokType, options) {
+        return this.consumeInternal(tokType, 9, options);
+    }
+    SUBRULE(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 0, options);
+    }
+    SUBRULE1(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 1, options);
+    }
+    SUBRULE2(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 2, options);
+    }
+    SUBRULE3(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 3, options);
+    }
+    SUBRULE4(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 4, options);
+    }
+    SUBRULE5(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 5, options);
+    }
+    SUBRULE6(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 6, options);
+    }
+    SUBRULE7(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 7, options);
+    }
+    SUBRULE8(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 8, options);
+    }
+    SUBRULE9(ruleToCall, options) {
+        return this.subruleInternal(ruleToCall, 9, options);
+    }
+    OPTION(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 0);
+    }
+    OPTION1(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 1);
+    }
+    OPTION2(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 2);
+    }
+    OPTION3(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 3);
+    }
+    OPTION4(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 4);
+    }
+    OPTION5(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 5);
+    }
+    OPTION6(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 6);
+    }
+    OPTION7(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 7);
+    }
+    OPTION8(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 8);
+    }
+    OPTION9(actionORMethodDef) {
+        return this.optionInternal(actionORMethodDef, 9);
+    }
+    OR(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 0);
+    }
+    OR1(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 1);
+    }
+    OR2(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 2);
+    }
+    OR3(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 3);
+    }
+    OR4(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 4);
+    }
+    OR5(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 5);
+    }
+    OR6(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 6);
+    }
+    OR7(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 7);
+    }
+    OR8(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 8);
+    }
+    OR9(altsOrOpts) {
+        return this.orInternal(altsOrOpts, 9);
+    }
+    MANY(actionORMethodDef) {
+        this.manyInternal(0, actionORMethodDef);
+    }
+    MANY1(actionORMethodDef) {
+        this.manyInternal(1, actionORMethodDef);
+    }
+    MANY2(actionORMethodDef) {
+        this.manyInternal(2, actionORMethodDef);
+    }
+    MANY3(actionORMethodDef) {
+        this.manyInternal(3, actionORMethodDef);
+    }
+    MANY4(actionORMethodDef) {
+        this.manyInternal(4, actionORMethodDef);
+    }
+    MANY5(actionORMethodDef) {
+        this.manyInternal(5, actionORMethodDef);
+    }
+    MANY6(actionORMethodDef) {
+        this.manyInternal(6, actionORMethodDef);
+    }
+    MANY7(actionORMethodDef) {
+        this.manyInternal(7, actionORMethodDef);
+    }
+    MANY8(actionORMethodDef) {
+        this.manyInternal(8, actionORMethodDef);
+    }
+    MANY9(actionORMethodDef) {
+        this.manyInternal(9, actionORMethodDef);
+    }
+    MANY_SEP(options) {
+        this.manySepFirstInternal(0, options);
+    }
+    MANY_SEP1(options) {
+        this.manySepFirstInternal(1, options);
+    }
+    MANY_SEP2(options) {
+        this.manySepFirstInternal(2, options);
+    }
+    MANY_SEP3(options) {
+        this.manySepFirstInternal(3, options);
+    }
+    MANY_SEP4(options) {
+        this.manySepFirstInternal(4, options);
+    }
+    MANY_SEP5(options) {
+        this.manySepFirstInternal(5, options);
+    }
+    MANY_SEP6(options) {
+        this.manySepFirstInternal(6, options);
+    }
+    MANY_SEP7(options) {
+        this.manySepFirstInternal(7, options);
+    }
+    MANY_SEP8(options) {
+        this.manySepFirstInternal(8, options);
+    }
+    MANY_SEP9(options) {
+        this.manySepFirstInternal(9, options);
+    }
+    AT_LEAST_ONE(actionORMethodDef) {
+        this.atLeastOneInternal(0, actionORMethodDef);
+    }
+    AT_LEAST_ONE1(actionORMethodDef) {
+        return this.atLeastOneInternal(1, actionORMethodDef);
+    }
+    AT_LEAST_ONE2(actionORMethodDef) {
+        this.atLeastOneInternal(2, actionORMethodDef);
+    }
+    AT_LEAST_ONE3(actionORMethodDef) {
+        this.atLeastOneInternal(3, actionORMethodDef);
+    }
+    AT_LEAST_ONE4(actionORMethodDef) {
+        this.atLeastOneInternal(4, actionORMethodDef);
+    }
+    AT_LEAST_ONE5(actionORMethodDef) {
+        this.atLeastOneInternal(5, actionORMethodDef);
+    }
+    AT_LEAST_ONE6(actionORMethodDef) {
+        this.atLeastOneInternal(6, actionORMethodDef);
+    }
+    AT_LEAST_ONE7(actionORMethodDef) {
+        this.atLeastOneInternal(7, actionORMethodDef);
+    }
+    AT_LEAST_ONE8(actionORMethodDef) {
+        this.atLeastOneInternal(8, actionORMethodDef);
+    }
+    AT_LEAST_ONE9(actionORMethodDef) {
+        this.atLeastOneInternal(9, actionORMethodDef);
+    }
+    AT_LEAST_ONE_SEP(options) {
+        this.atLeastOneSepFirstInternal(0, options);
+    }
+    AT_LEAST_ONE_SEP1(options) {
+        this.atLeastOneSepFirstInternal(1, options);
+    }
+    AT_LEAST_ONE_SEP2(options) {
+        this.atLeastOneSepFirstInternal(2, options);
+    }
+    AT_LEAST_ONE_SEP3(options) {
+        this.atLeastOneSepFirstInternal(3, options);
+    }
+    AT_LEAST_ONE_SEP4(options) {
+        this.atLeastOneSepFirstInternal(4, options);
+    }
+    AT_LEAST_ONE_SEP5(options) {
+        this.atLeastOneSepFirstInternal(5, options);
+    }
+    AT_LEAST_ONE_SEP6(options) {
+        this.atLeastOneSepFirstInternal(6, options);
+    }
+    AT_LEAST_ONE_SEP7(options) {
+        this.atLeastOneSepFirstInternal(7, options);
+    }
+    AT_LEAST_ONE_SEP8(options) {
+        this.atLeastOneSepFirstInternal(8, options);
+    }
+    AT_LEAST_ONE_SEP9(options) {
+        this.atLeastOneSepFirstInternal(9, options);
+    }
+    RULE(name, implementation, config = DEFAULT_RULE_CONFIG) {
+        if (includes(this.definedRulesNames, name)) {
+            const errMsg = defaultGrammarValidatorErrorProvider.buildDuplicateRuleNameError({
+                topLevelRule: name,
+                grammarName: this.className,
+            });
+            const error = {
+                message: errMsg,
+                type: ParserDefinitionErrorType.DUPLICATE_RULE_NAME,
+                ruleName: name,
+            };
+            this.definitionErrors.push(error);
+        }
+        this.definedRulesNames.push(name);
+        const ruleImplementation = this.defineRule(name, implementation, config);
+        this[name] = ruleImplementation;
+        return ruleImplementation;
+    }
+    OVERRIDE_RULE(name, impl, config = DEFAULT_RULE_CONFIG) {
+        const ruleErrors = validateRuleIsOverridden(name, this.definedRulesNames, this.className);
+        this.definitionErrors = this.definitionErrors.concat(ruleErrors);
+        const ruleImplementation = this.defineRule(name, impl, config);
+        this[name] = ruleImplementation;
+        return ruleImplementation;
+    }
+    BACKTRACK(grammarRule, args) {
+        return function () {
+            // save org state
+            this.isBackTrackingStack.push(1);
+            const orgState = this.saveRecogState();
+            try {
+                grammarRule.apply(this, args);
+                // if no exception was thrown we have succeed parsing the rule.
+                return true;
+            }
+            catch (e) {
+                if (isRecognitionException(e)) {
+                    return false;
+                }
+                else {
+                    throw e;
+                }
+            }
+            finally {
+                this.reloadRecogState(orgState);
+                this.isBackTrackingStack.pop();
+            }
+        };
+    }
+    // GAST export APIs
+    getGAstProductions() {
+        return this.gastProductionsCache;
+    }
+    getSerializedGastProductions() {
+        return serializeGrammar(values(this.gastProductionsCache));
+    }
+}
+
+/**
+ * This trait is responsible for the runtime parsing engine
+ * Used by the official API (recognizer_api.ts)
+ */
+class RecognizerEngine {
+    initRecognizerEngine(tokenVocabulary, config) {
+        this.className = this.constructor.name;
+        // TODO: would using an ES6 Map or plain object be faster (CST building scenario)
+        this.shortRuleNameToFull = {};
+        this.fullRuleNameToShort = {};
+        this.ruleShortNameIdx = 256;
+        this.tokenMatcher = tokenStructuredMatcherNoCategories;
+        this.subruleIdx = 0;
+        this.definedRulesNames = [];
+        this.tokensMap = {};
+        this.isBackTrackingStack = [];
+        this.RULE_STACK = [];
+        this.RULE_OCCURRENCE_STACK = [];
+        this.gastProductionsCache = {};
+        if (has(config, "serializedGrammar")) {
+            throw Error("The Parser's configuration can no longer contain a <serializedGrammar> property.\n" +
+                "\tSee: https://chevrotain.io/docs/changes/BREAKING_CHANGES.html#_6-0-0\n" +
+                "\tFor Further details.");
+        }
+        if (isArray(tokenVocabulary)) {
+            // This only checks for Token vocabularies provided as arrays.
+            // That is good enough because the main objective is to detect users of pre-V4.0 APIs
+            // rather than all edge cases of empty Token vocabularies.
+            if (isEmpty(tokenVocabulary)) {
+                throw Error("A Token Vocabulary cannot be empty.\n" +
+                    "\tNote that the first argument for the parser constructor\n" +
+                    "\tis no longer a Token vector (since v4.0).");
+            }
+            if (typeof tokenVocabulary[0].startOffset === "number") {
+                throw Error("The Parser constructor no longer accepts a token vector as the first argument.\n" +
+                    "\tSee: https://chevrotain.io/docs/changes/BREAKING_CHANGES.html#_4-0-0\n" +
+                    "\tFor Further details.");
+            }
+        }
+        if (isArray(tokenVocabulary)) {
+            this.tokensMap = reduce(tokenVocabulary, (acc, tokType) => {
+                acc[tokType.name] = tokType;
+                return acc;
+            }, {});
+        }
+        else if (has(tokenVocabulary, "modes") &&
+            every(flatten(values(tokenVocabulary.modes)), isTokenType)) {
+            const allTokenTypes = flatten(values(tokenVocabulary.modes));
+            const uniqueTokens = uniq(allTokenTypes);
+            this.tokensMap = reduce(uniqueTokens, (acc, tokType) => {
+                acc[tokType.name] = tokType;
+                return acc;
+            }, {});
+        }
+        else if (isObject(tokenVocabulary)) {
+            this.tokensMap = clone(tokenVocabulary);
+        }
+        else {
+            throw new Error("<tokensDictionary> argument must be An Array of Token constructors," +
+                " A dictionary of Token constructors or an IMultiModeLexerDefinition");
+        }
+        // always add EOF to the tokenNames -> constructors map. it is useful to assure all the input has been
+        // parsed with a clear error message ("expecting EOF but found ...")
+        this.tokensMap["EOF"] = EOF;
+        const allTokenTypes = has(tokenVocabulary, "modes")
+            ? flatten(values(tokenVocabulary.modes))
+            : values(tokenVocabulary);
+        const noTokenCategoriesUsed = every(allTokenTypes, (tokenConstructor) => isEmpty(tokenConstructor.categoryMatches));
+        this.tokenMatcher = noTokenCategoriesUsed
+            ? tokenStructuredMatcherNoCategories
+            : tokenStructuredMatcher;
+        // Because ES2015+ syntax should be supported for creating Token classes
+        // We cannot assume that the Token classes were created using the "extendToken" utilities
+        // Therefore we must augment the Token classes both on Lexer initialization and on Parser initialization
+        augmentTokenTypes(values(this.tokensMap));
+    }
+    defineRule(ruleName, impl, config) {
+        if (this.selfAnalysisDone) {
+            throw Error(`Grammar rule <${ruleName}> may not be defined after the 'performSelfAnalysis' method has been called'\n` +
+                `Make sure that all grammar rule definitions are done before 'performSelfAnalysis' is called.`);
+        }
+        const resyncEnabled = has(config, "resyncEnabled")
+            ? config.resyncEnabled // assumes end user provides the correct config value/type
+            : DEFAULT_RULE_CONFIG.resyncEnabled;
+        const recoveryValueFunc = has(config, "recoveryValueFunc")
+            ? config.recoveryValueFunc // assumes end user provides the correct config value/type
+            : DEFAULT_RULE_CONFIG.recoveryValueFunc;
+        // performance optimization: Use small integers as keys for the longer human readable "full" rule names.
+        // this greatly improves Map access time (as much as 8% for some performance benchmarks).
+        const shortName = this.ruleShortNameIdx << (BITS_FOR_METHOD_TYPE + BITS_FOR_OCCURRENCE_IDX);
+        this.ruleShortNameIdx++;
+        this.shortRuleNameToFull[shortName] = ruleName;
+        this.fullRuleNameToShort[ruleName] = shortName;
+        let invokeRuleWithTry;
+        // Micro optimization, only check the condition **once** on rule definition
+        // instead of **every single** rule invocation.
+        if (this.outputCst === true) {
+            invokeRuleWithTry = function invokeRuleWithTry(...args) {
+                try {
+                    this.ruleInvocationStateUpdate(shortName, ruleName, this.subruleIdx);
+                    impl.apply(this, args);
+                    const cst = this.CST_STACK[this.CST_STACK.length - 1];
+                    this.cstPostRule(cst);
+                    return cst;
+                }
+                catch (e) {
+                    return this.invokeRuleCatch(e, resyncEnabled, recoveryValueFunc);
+                }
+                finally {
+                    this.ruleFinallyStateUpdate();
+                }
+            };
+        }
+        else {
+            invokeRuleWithTry = function invokeRuleWithTryCst(...args) {
+                try {
+                    this.ruleInvocationStateUpdate(shortName, ruleName, this.subruleIdx);
+                    return impl.apply(this, args);
+                }
+                catch (e) {
+                    return this.invokeRuleCatch(e, resyncEnabled, recoveryValueFunc);
+                }
+                finally {
+                    this.ruleFinallyStateUpdate();
+                }
+            };
+        }
+        const wrappedGrammarRule = Object.assign(invokeRuleWithTry, { ruleName, originalGrammarAction: impl });
+        return wrappedGrammarRule;
+    }
+    invokeRuleCatch(e, resyncEnabledConfig, recoveryValueFunc) {
+        const isFirstInvokedRule = this.RULE_STACK.length === 1;
+        // note the reSync is always enabled for the first rule invocation, because we must always be able to
+        // reSync with EOF and just output some INVALID ParseTree
+        // during backtracking reSync recovery is disabled, otherwise we can't be certain the backtracking
+        // path is really the most valid one
+        const reSyncEnabled = resyncEnabledConfig && !this.isBackTracking() && this.recoveryEnabled;
+        if (isRecognitionException(e)) {
+            const recogError = e;
+            if (reSyncEnabled) {
+                const reSyncTokType = this.findReSyncTokenType();
+                if (this.isInCurrentRuleReSyncSet(reSyncTokType)) {
+                    recogError.resyncedTokens = this.reSyncTo(reSyncTokType);
+                    if (this.outputCst) {
+                        const partialCstResult = this.CST_STACK[this.CST_STACK.length - 1];
+                        partialCstResult.recoveredNode = true;
+                        return partialCstResult;
+                    }
+                    else {
+                        return recoveryValueFunc(e);
+                    }
+                }
+                else {
+                    if (this.outputCst) {
+                        const partialCstResult = this.CST_STACK[this.CST_STACK.length - 1];
+                        partialCstResult.recoveredNode = true;
+                        recogError.partialCstResult = partialCstResult;
+                    }
+                    // to be handled Further up the call stack
+                    throw recogError;
+                }
+            }
+            else if (isFirstInvokedRule) {
+                // otherwise a Redundant input error will be created as well and we cannot guarantee that this is indeed the case
+                this.moveToTerminatedState();
+                // the parser should never throw one of its own errors outside its flow.
+                // even if error recovery is disabled
+                return recoveryValueFunc(e);
+            }
+            else {
+                // to be recovered Further up the call stack
+                throw recogError;
+            }
+        }
+        else {
+            // some other Error type which we don't know how to handle (for example a built in JavaScript Error)
+            throw e;
+        }
+    }
+    // Implementation of parsing DSL
+    optionInternal(actionORMethodDef, occurrence) {
+        const key = this.getKeyForAutomaticLookahead(OPTION_IDX, occurrence);
+        return this.optionInternalLogic(actionORMethodDef, occurrence, key);
+    }
+    optionInternalLogic(actionORMethodDef, occurrence, key) {
+        let lookAheadFunc = this.getLaFuncFromCache(key);
+        let action;
+        if (typeof actionORMethodDef !== "function") {
+            action = actionORMethodDef.DEF;
+            const predicate = actionORMethodDef.GATE;
+            // predicate present
+            if (predicate !== undefined) {
+                const orgLookaheadFunction = lookAheadFunc;
+                lookAheadFunc = () => {
+                    return predicate.call(this) && orgLookaheadFunction.call(this);
+                };
+            }
+        }
+        else {
+            action = actionORMethodDef;
+        }
+        if (lookAheadFunc.call(this) === true) {
+            return action.call(this);
+        }
+        return undefined;
+    }
+    atLeastOneInternal(prodOccurrence, actionORMethodDef) {
+        const laKey = this.getKeyForAutomaticLookahead(AT_LEAST_ONE_IDX, prodOccurrence);
+        return this.atLeastOneInternalLogic(prodOccurrence, actionORMethodDef, laKey);
+    }
+    atLeastOneInternalLogic(prodOccurrence, actionORMethodDef, key) {
+        let lookAheadFunc = this.getLaFuncFromCache(key);
+        let action;
+        if (typeof actionORMethodDef !== "function") {
+            action = actionORMethodDef.DEF;
+            const predicate = actionORMethodDef.GATE;
+            // predicate present
+            if (predicate !== undefined) {
+                const orgLookaheadFunction = lookAheadFunc;
+                lookAheadFunc = () => {
+                    return predicate.call(this) && orgLookaheadFunction.call(this);
+                };
+            }
+        }
+        else {
+            action = actionORMethodDef;
+        }
+        if (lookAheadFunc.call(this) === true) {
+            let notStuck = this.doSingleRepetition(action);
+            while (lookAheadFunc.call(this) === true &&
+                notStuck === true) {
+                notStuck = this.doSingleRepetition(action);
+            }
+        }
+        else {
+            throw this.raiseEarlyExitException(prodOccurrence, PROD_TYPE.REPETITION_MANDATORY, actionORMethodDef.ERR_MSG);
+        }
+        // note that while it may seem that this can cause an error because by using a recursive call to
+        // AT_LEAST_ONE we change the grammar to AT_LEAST_TWO, AT_LEAST_THREE ... , the possible recursive call
+        // from the tryInRepetitionRecovery(...) will only happen IFF there really are TWO/THREE/.... items.
+        // Performance optimization: "attemptInRepetitionRecovery" will be defined as NOOP unless recovery is enabled
+        this.attemptInRepetitionRecovery(this.atLeastOneInternal, [prodOccurrence, actionORMethodDef], lookAheadFunc, AT_LEAST_ONE_IDX, prodOccurrence, NextTerminalAfterAtLeastOneWalker);
+    }
+    atLeastOneSepFirstInternal(prodOccurrence, options) {
+        const laKey = this.getKeyForAutomaticLookahead(AT_LEAST_ONE_SEP_IDX, prodOccurrence);
+        this.atLeastOneSepFirstInternalLogic(prodOccurrence, options, laKey);
+    }
+    atLeastOneSepFirstInternalLogic(prodOccurrence, options, key) {
+        const action = options.DEF;
+        const separator = options.SEP;
+        const firstIterationLookaheadFunc = this.getLaFuncFromCache(key);
+        // 1st iteration
+        if (firstIterationLookaheadFunc.call(this) === true) {
+            action.call(this);
+            //  TODO: Optimization can move this function construction into "attemptInRepetitionRecovery"
+            //  because it is only needed in error recovery scenarios.
+            const separatorLookAheadFunc = () => {
+                return this.tokenMatcher(this.LA(1), separator);
+            };
+            // 2nd..nth iterations
+            while (this.tokenMatcher(this.LA(1), separator) === true) {
+                // note that this CONSUME will never enter recovery because
+                // the separatorLookAheadFunc checks that the separator really does exist.
+                this.CONSUME(separator);
+                // No need for checking infinite loop here due to consuming the separator.
+                action.call(this);
+            }
+            // Performance optimization: "attemptInRepetitionRecovery" will be defined as NOOP unless recovery is enabled
+            this.attemptInRepetitionRecovery(this.repetitionSepSecondInternal, [
+                prodOccurrence,
+                separator,
+                separatorLookAheadFunc,
+                action,
+                NextTerminalAfterAtLeastOneSepWalker,
+            ], separatorLookAheadFunc, AT_LEAST_ONE_SEP_IDX, prodOccurrence, NextTerminalAfterAtLeastOneSepWalker);
+        }
+        else {
+            throw this.raiseEarlyExitException(prodOccurrence, PROD_TYPE.REPETITION_MANDATORY_WITH_SEPARATOR, options.ERR_MSG);
+        }
+    }
+    manyInternal(prodOccurrence, actionORMethodDef) {
+        const laKey = this.getKeyForAutomaticLookahead(MANY_IDX, prodOccurrence);
+        return this.manyInternalLogic(prodOccurrence, actionORMethodDef, laKey);
+    }
+    manyInternalLogic(prodOccurrence, actionORMethodDef, key) {
+        let lookaheadFunction = this.getLaFuncFromCache(key);
+        let action;
+        if (typeof actionORMethodDef !== "function") {
+            action = actionORMethodDef.DEF;
+            const predicate = actionORMethodDef.GATE;
+            // predicate present
+            if (predicate !== undefined) {
+                const orgLookaheadFunction = lookaheadFunction;
+                lookaheadFunction = () => {
+                    return predicate.call(this) && orgLookaheadFunction.call(this);
+                };
+            }
+        }
+        else {
+            action = actionORMethodDef;
+        }
+        let notStuck = true;
+        while (lookaheadFunction.call(this) === true && notStuck === true) {
+            notStuck = this.doSingleRepetition(action);
+        }
+        // Performance optimization: "attemptInRepetitionRecovery" will be defined as NOOP unless recovery is enabled
+        this.attemptInRepetitionRecovery(this.manyInternal, [prodOccurrence, actionORMethodDef], lookaheadFunction, MANY_IDX, prodOccurrence, NextTerminalAfterManyWalker, 
+        // The notStuck parameter is only relevant when "attemptInRepetitionRecovery"
+        // is invoked from manyInternal, in the MANY_SEP case and AT_LEAST_ONE[_SEP]
+        // An infinite loop cannot occur as:
+        // - Either the lookahead is guaranteed to consume something (Single Token Separator)
+        // - AT_LEAST_ONE by definition is guaranteed to consume something (or error out).
+        notStuck);
+    }
+    manySepFirstInternal(prodOccurrence, options) {
+        const laKey = this.getKeyForAutomaticLookahead(MANY_SEP_IDX, prodOccurrence);
+        this.manySepFirstInternalLogic(prodOccurrence, options, laKey);
+    }
+    manySepFirstInternalLogic(prodOccurrence, options, key) {
+        const action = options.DEF;
+        const separator = options.SEP;
+        const firstIterationLaFunc = this.getLaFuncFromCache(key);
+        // 1st iteration
+        if (firstIterationLaFunc.call(this) === true) {
+            action.call(this);
+            const separatorLookAheadFunc = () => {
+                return this.tokenMatcher(this.LA(1), separator);
+            };
+            // 2nd..nth iterations
+            while (this.tokenMatcher(this.LA(1), separator) === true) {
+                // note that this CONSUME will never enter recovery because
+                // the separatorLookAheadFunc checks that the separator really does exist.
+                this.CONSUME(separator);
+                // No need for checking infinite loop here due to consuming the separator.
+                action.call(this);
+            }
+            // Performance optimization: "attemptInRepetitionRecovery" will be defined as NOOP unless recovery is enabled
+            this.attemptInRepetitionRecovery(this.repetitionSepSecondInternal, [
+                prodOccurrence,
+                separator,
+                separatorLookAheadFunc,
+                action,
+                NextTerminalAfterManySepWalker,
+            ], separatorLookAheadFunc, MANY_SEP_IDX, prodOccurrence, NextTerminalAfterManySepWalker);
+        }
+    }
+    repetitionSepSecondInternal(prodOccurrence, separator, separatorLookAheadFunc, action, nextTerminalAfterWalker) {
+        while (separatorLookAheadFunc()) {
+            // note that this CONSUME will never enter recovery because
+            // the separatorLookAheadFunc checks that the separator really does exist.
+            this.CONSUME(separator);
+            action.call(this);
+        }
+        // we can only arrive to this function after an error
+        // has occurred (hence the name 'second') so the following
+        // IF will always be entered, its possible to remove it...
+        // however it is kept to avoid confusion and be consistent.
+        // Performance optimization: "attemptInRepetitionRecovery" will be defined as NOOP unless recovery is enabled
+        /* istanbul ignore else */
+        this.attemptInRepetitionRecovery(this.repetitionSepSecondInternal, [
+            prodOccurrence,
+            separator,
+            separatorLookAheadFunc,
+            action,
+            nextTerminalAfterWalker,
+        ], separatorLookAheadFunc, AT_LEAST_ONE_SEP_IDX, prodOccurrence, nextTerminalAfterWalker);
+    }
+    doSingleRepetition(action) {
+        const beforeIteration = this.getLexerPosition();
+        action.call(this);
+        const afterIteration = this.getLexerPosition();
+        // This boolean will indicate if this repetition progressed
+        // or if we are "stuck" (potential infinite loop in the repetition).
+        return afterIteration > beforeIteration;
+    }
+    orInternal(altsOrOpts, occurrence) {
+        const laKey = this.getKeyForAutomaticLookahead(OR_IDX, occurrence);
+        const alts = isArray(altsOrOpts) ? altsOrOpts : altsOrOpts.DEF;
+        const laFunc = this.getLaFuncFromCache(laKey);
+        const altIdxToTake = laFunc.call(this, alts);
+        if (altIdxToTake !== undefined) {
+            const chosenAlternative = alts[altIdxToTake];
+            return chosenAlternative.ALT.call(this);
+        }
+        this.raiseNoAltException(occurrence, altsOrOpts.ERR_MSG);
+    }
+    ruleFinallyStateUpdate() {
+        this.RULE_STACK.pop();
+        this.RULE_OCCURRENCE_STACK.pop();
+        // NOOP when cst is disabled
+        this.cstFinallyStateUpdate();
+        if (this.RULE_STACK.length === 0 && this.isAtEndOfInput() === false) {
+            const firstRedundantTok = this.LA(1);
+            const errMsg = this.errorMessageProvider.buildNotAllInputParsedMessage({
+                firstRedundant: firstRedundantTok,
+                ruleName: this.getCurrRuleFullName(),
+            });
+            this.SAVE_ERROR(new NotAllInputParsedException(errMsg, firstRedundantTok));
+        }
+    }
+    subruleInternal(ruleToCall, idx, options) {
+        let ruleResult;
+        try {
+            const args = options !== undefined ? options.ARGS : undefined;
+            this.subruleIdx = idx;
+            ruleResult = ruleToCall.apply(this, args);
+            this.cstPostNonTerminal(ruleResult, options !== undefined && options.LABEL !== undefined
+                ? options.LABEL
+                : ruleToCall.ruleName);
+            return ruleResult;
+        }
+        catch (e) {
+            throw this.subruleInternalError(e, options, ruleToCall.ruleName);
+        }
+    }
+    subruleInternalError(e, options, ruleName) {
+        if (isRecognitionException(e) && e.partialCstResult !== undefined) {
+            this.cstPostNonTerminal(e.partialCstResult, options !== undefined && options.LABEL !== undefined
+                ? options.LABEL
+                : ruleName);
+            delete e.partialCstResult;
+        }
+        throw e;
+    }
+    consumeInternal(tokType, idx, options) {
+        let consumedToken;
+        try {
+            const nextToken = this.LA(1);
+            if (this.tokenMatcher(nextToken, tokType) === true) {
+                this.consumeToken();
+                consumedToken = nextToken;
+            }
+            else {
+                this.consumeInternalError(tokType, nextToken, options);
+            }
+        }
+        catch (eFromConsumption) {
+            consumedToken = this.consumeInternalRecovery(tokType, idx, eFromConsumption);
+        }
+        this.cstPostTerminal(options !== undefined && options.LABEL !== undefined
+            ? options.LABEL
+            : tokType.name, consumedToken);
+        return consumedToken;
+    }
+    consumeInternalError(tokType, nextToken, options) {
+        let msg;
+        const previousToken = this.LA(0);
+        if (options !== undefined && options.ERR_MSG) {
+            msg = options.ERR_MSG;
+        }
+        else {
+            msg = this.errorMessageProvider.buildMismatchTokenMessage({
+                expected: tokType,
+                actual: nextToken,
+                previous: previousToken,
+                ruleName: this.getCurrRuleFullName(),
+            });
+        }
+        throw this.SAVE_ERROR(new MismatchedTokenException(msg, nextToken, previousToken));
+    }
+    consumeInternalRecovery(tokType, idx, eFromConsumption) {
+        // no recovery allowed during backtracking, otherwise backtracking may recover invalid syntax and accept it
+        // but the original syntax could have been parsed successfully without any backtracking + recovery
+        if (this.recoveryEnabled &&
+            // TODO: more robust checking of the exception type. Perhaps Typescript extending expressions?
+            eFromConsumption.name === "MismatchedTokenException" &&
+            !this.isBackTracking()) {
+            const follows = this.getFollowsForInRuleRecovery(tokType, idx);
+            try {
+                return this.tryInRuleRecovery(tokType, follows);
+            }
+            catch (eFromInRuleRecovery) {
+                if (eFromInRuleRecovery.name === IN_RULE_RECOVERY_EXCEPTION) {
+                    // failed in RuleRecovery.
+                    // throw the original error in order to trigger reSync error recovery
+                    throw eFromConsumption;
+                }
+                else {
+                    throw eFromInRuleRecovery;
+                }
+            }
+        }
+        else {
+            throw eFromConsumption;
+        }
+    }
+    saveRecogState() {
+        // errors is a getter which will clone the errors array
+        const savedErrors = this.errors;
+        const savedRuleStack = clone(this.RULE_STACK);
+        return {
+            errors: savedErrors,
+            lexerState: this.exportLexerState(),
+            RULE_STACK: savedRuleStack,
+            CST_STACK: this.CST_STACK,
+        };
+    }
+    reloadRecogState(newState) {
+        this.errors = newState.errors;
+        this.importLexerState(newState.lexerState);
+        this.RULE_STACK = newState.RULE_STACK;
+    }
+    ruleInvocationStateUpdate(shortName, fullName, idxInCallingRule) {
+        this.RULE_OCCURRENCE_STACK.push(idxInCallingRule);
+        this.RULE_STACK.push(shortName);
+        // NOOP when cst is disabled
+        this.cstInvocationStateUpdate(fullName);
+    }
+    isBackTracking() {
+        return this.isBackTrackingStack.length !== 0;
+    }
+    getCurrRuleFullName() {
+        const shortName = this.getLastExplicitRuleShortName();
+        return this.shortRuleNameToFull[shortName];
+    }
+    shortRuleNameToFullName(shortName) {
+        return this.shortRuleNameToFull[shortName];
+    }
+    isAtEndOfInput() {
+        return this.tokenMatcher(this.LA(1), EOF);
+    }
+    reset() {
+        this.resetLexerState();
+        this.subruleIdx = 0;
+        this.isBackTrackingStack = [];
+        this.errors = [];
+        this.RULE_STACK = [];
+        // TODO: extract a specific reset for TreeBuilder trait
+        this.CST_STACK = [];
+        this.RULE_OCCURRENCE_STACK = [];
+    }
+}
+
+/**
+ * Trait responsible for runtime parsing errors.
+ */
+class ErrorHandler {
+    initErrorHandler(config) {
+        this._errors = [];
+        this.errorMessageProvider = has(config, "errorMessageProvider")
+            ? config.errorMessageProvider // assumes end user provides the correct config value/type
+            : DEFAULT_PARSER_CONFIG.errorMessageProvider;
+    }
+    SAVE_ERROR(error) {
+        if (isRecognitionException(error)) {
+            error.context = {
+                ruleStack: this.getHumanReadableRuleStack(),
+                ruleOccurrenceStack: clone(this.RULE_OCCURRENCE_STACK),
+            };
+            this._errors.push(error);
+            return error;
+        }
+        else {
+            throw Error("Trying to save an Error which is not a RecognitionException");
+        }
+    }
+    get errors() {
+        return clone(this._errors);
+    }
+    set errors(newErrors) {
+        this._errors = newErrors;
+    }
+    // TODO: consider caching the error message computed information
+    raiseEarlyExitException(occurrence, prodType, userDefinedErrMsg) {
+        const ruleName = this.getCurrRuleFullName();
+        const ruleGrammar = this.getGAstProductions()[ruleName];
+        const lookAheadPathsPerAlternative = getLookaheadPathsForOptionalProd(occurrence, ruleGrammar, prodType, this.maxLookahead);
+        const insideProdPaths = lookAheadPathsPerAlternative[0];
+        const actualTokens = [];
+        for (let i = 1; i <= this.maxLookahead; i++) {
+            actualTokens.push(this.LA(i));
+        }
+        const msg = this.errorMessageProvider.buildEarlyExitMessage({
+            expectedIterationPaths: insideProdPaths,
+            actual: actualTokens,
+            previous: this.LA(0),
+            customUserDescription: userDefinedErrMsg,
+            ruleName: ruleName,
+        });
+        throw this.SAVE_ERROR(new EarlyExitException(msg, this.LA(1), this.LA(0)));
+    }
+    // TODO: consider caching the error message computed information
+    raiseNoAltException(occurrence, errMsgTypes) {
+        const ruleName = this.getCurrRuleFullName();
+        const ruleGrammar = this.getGAstProductions()[ruleName];
+        // TODO: getLookaheadPathsForOr can be slow for large enough maxLookahead and certain grammars, consider caching ?
+        const lookAheadPathsPerAlternative = getLookaheadPathsForOr(occurrence, ruleGrammar, this.maxLookahead);
+        const actualTokens = [];
+        for (let i = 1; i <= this.maxLookahead; i++) {
+            actualTokens.push(this.LA(i));
+        }
+        const previousToken = this.LA(0);
+        const errMsg = this.errorMessageProvider.buildNoViableAltMessage({
+            expectedPathsPerAlt: lookAheadPathsPerAlternative,
+            actual: actualTokens,
+            previous: previousToken,
+            customUserDescription: errMsgTypes,
+            ruleName: this.getCurrRuleFullName(),
+        });
+        throw this.SAVE_ERROR(new NoViableAltException(errMsg, this.LA(1), previousToken));
+    }
+}
+
+class ContentAssist {
+    initContentAssist() { }
+    computeContentAssist(startRuleName, precedingInput) {
+        const startRuleGast = this.gastProductionsCache[startRuleName];
+        if (isUndefined(startRuleGast)) {
+            throw Error(`Rule ->${startRuleName}<- does not exist in this grammar.`);
+        }
+        return nextPossibleTokensAfter([startRuleGast], precedingInput, this.tokenMatcher, this.maxLookahead);
+    }
+    // TODO: should this be a member method or a utility? it does not have any state or usage of 'this'...
+    // TODO: should this be more explicitly part of the public API?
+    getNextPossibleTokenTypes(grammarPath) {
+        const topRuleName = head(grammarPath.ruleStack);
+        const gastProductions = this.getGAstProductions();
+        const topProduction = gastProductions[topRuleName];
+        const nextPossibleTokenTypes = new NextAfterTokenWalker(topProduction, grammarPath).startWalking();
+        return nextPossibleTokenTypes;
+    }
+}
+
+const RECORDING_NULL_OBJECT = {
+    description: "This Object indicates the Parser is during Recording Phase",
+};
+Object.freeze(RECORDING_NULL_OBJECT);
+const HANDLE_SEPARATOR = true;
+const MAX_METHOD_IDX = Math.pow(2, BITS_FOR_OCCURRENCE_IDX) - 1;
+const RFT = createToken({ name: "RECORDING_PHASE_TOKEN", pattern: Lexer.NA });
+augmentTokenTypes([RFT]);
+const RECORDING_PHASE_TOKEN = createTokenInstance(RFT, "This IToken indicates the Parser is in Recording Phase\n\t" +
+    "" +
+    "See: https://chevrotain.io/docs/guide/internals.html#grammar-recording for details", 
+// Using "-1" instead of NaN (as in EOF) because an actual number is less likely to
+// cause errors if the output of LA or CONSUME would be (incorrectly) used during the recording phase.
+-1, -1, -1, -1, -1, -1);
+Object.freeze(RECORDING_PHASE_TOKEN);
+const RECORDING_PHASE_CSTNODE = {
+    name: "This CSTNode indicates the Parser is in Recording Phase\n\t" +
+        "See: https://chevrotain.io/docs/guide/internals.html#grammar-recording for details",
+    children: {},
+};
+/**
+ * This trait handles the creation of the GAST structure for Chevrotain Grammars
+ */
+class GastRecorder {
+    initGastRecorder(config) {
+        this.recordingProdStack = [];
+        this.RECORDING_PHASE = false;
+    }
+    enableRecording() {
+        this.RECORDING_PHASE = true;
+        this.TRACE_INIT("Enable Recording", () => {
+            /**
+             * Warning Dark Voodoo Magic upcoming!
+             * We are "replacing" the public parsing DSL methods API
+             * With **new** alternative implementations on the Parser **instance**
+             *
+             * So far this is the only way I've found to avoid performance regressions during parsing time.
+             * - Approx 30% performance regression was measured on Chrome 75 Canary when attempting to replace the "internal"
+             *   implementations directly instead.
+             */
+            for (let i = 0; i < 10; i++) {
+                const idx = i > 0 ? i : "";
+                this[`CONSUME${idx}`] = function (arg1, arg2) {
+                    return this.consumeInternalRecord(arg1, i, arg2);
+                };
+                this[`SUBRULE${idx}`] = function (arg1, arg2) {
+                    return this.subruleInternalRecord(arg1, i, arg2);
+                };
+                this[`OPTION${idx}`] = function (arg1) {
+                    return this.optionInternalRecord(arg1, i);
+                };
+                this[`OR${idx}`] = function (arg1) {
+                    return this.orInternalRecord(arg1, i);
+                };
+                this[`MANY${idx}`] = function (arg1) {
+                    this.manyInternalRecord(i, arg1);
+                };
+                this[`MANY_SEP${idx}`] = function (arg1) {
+                    this.manySepFirstInternalRecord(i, arg1);
+                };
+                this[`AT_LEAST_ONE${idx}`] = function (arg1) {
+                    this.atLeastOneInternalRecord(i, arg1);
+                };
+                this[`AT_LEAST_ONE_SEP${idx}`] = function (arg1) {
+                    this.atLeastOneSepFirstInternalRecord(i, arg1);
+                };
+            }
+            // DSL methods with the idx(suffix) as an argument
+            this[`consume`] = function (idx, arg1, arg2) {
+                return this.consumeInternalRecord(arg1, idx, arg2);
+            };
+            this[`subrule`] = function (idx, arg1, arg2) {
+                return this.subruleInternalRecord(arg1, idx, arg2);
+            };
+            this[`option`] = function (idx, arg1) {
+                return this.optionInternalRecord(arg1, idx);
+            };
+            this[`or`] = function (idx, arg1) {
+                return this.orInternalRecord(arg1, idx);
+            };
+            this[`many`] = function (idx, arg1) {
+                this.manyInternalRecord(idx, arg1);
+            };
+            this[`atLeastOne`] = function (idx, arg1) {
+                this.atLeastOneInternalRecord(idx, arg1);
+            };
+            this.ACTION = this.ACTION_RECORD;
+            this.BACKTRACK = this.BACKTRACK_RECORD;
+            this.LA = this.LA_RECORD;
+        });
+    }
+    disableRecording() {
+        this.RECORDING_PHASE = false;
+        // By deleting these **instance** properties, any future invocation
+        // will be deferred to the original methods on the **prototype** object
+        // This seems to get rid of any incorrect optimizations that V8 may
+        // do during the recording phase.
+        this.TRACE_INIT("Deleting Recording methods", () => {
+            const that = this;
+            for (let i = 0; i < 10; i++) {
+                const idx = i > 0 ? i : "";
+                delete that[`CONSUME${idx}`];
+                delete that[`SUBRULE${idx}`];
+                delete that[`OPTION${idx}`];
+                delete that[`OR${idx}`];
+                delete that[`MANY${idx}`];
+                delete that[`MANY_SEP${idx}`];
+                delete that[`AT_LEAST_ONE${idx}`];
+                delete that[`AT_LEAST_ONE_SEP${idx}`];
+            }
+            delete that[`consume`];
+            delete that[`subrule`];
+            delete that[`option`];
+            delete that[`or`];
+            delete that[`many`];
+            delete that[`atLeastOne`];
+            delete that.ACTION;
+            delete that.BACKTRACK;
+            delete that.LA;
+        });
+    }
+    //   Parser methods are called inside an ACTION?
+    //   Maybe try/catch/finally on ACTIONS while disabling the recorders state changes?
+    // @ts-expect-error -- noop place holder
+    ACTION_RECORD(impl) {
+        // NO-OP during recording
+    }
+    // Executing backtracking logic will break our recording logic assumptions
+    BACKTRACK_RECORD(grammarRule, args) {
+        return () => true;
+    }
+    // LA is part of the official API and may be used for custom lookahead logic
+    // by end users who may forget to wrap it in ACTION or inside a GATE
+    LA_RECORD(howMuch) {
+        // We cannot use the RECORD_PHASE_TOKEN here because someone may depend
+        // On LA return EOF at the end of the input so an infinite loop may occur.
+        return END_OF_FILE;
+    }
+    topLevelRuleRecord(name, def) {
+        try {
+            const newTopLevelRule = new Rule({ definition: [], name: name });
+            newTopLevelRule.name = name;
+            this.recordingProdStack.push(newTopLevelRule);
+            def.call(this);
+            this.recordingProdStack.pop();
+            return newTopLevelRule;
+        }
+        catch (originalError) {
+            if (originalError.KNOWN_RECORDER_ERROR !== true) {
+                try {
+                    originalError.message =
+                        originalError.message +
+                            '\n\t This error was thrown during the "grammar recording phase" For more info see:\n\t' +
+                            "https://chevrotain.io/docs/guide/internals.html#grammar-recording";
+                }
+                catch (mutabilityError) {
+                    // We may not be able to modify the original error object
+                    throw originalError;
+                }
+            }
+            throw originalError;
+        }
+    }
+    // Implementation of parsing DSL
+    optionInternalRecord(actionORMethodDef, occurrence) {
+        return recordProd.call(this, Option, actionORMethodDef, occurrence);
+    }
+    atLeastOneInternalRecord(occurrence, actionORMethodDef) {
+        recordProd.call(this, RepetitionMandatory, actionORMethodDef, occurrence);
+    }
+    atLeastOneSepFirstInternalRecord(occurrence, options) {
+        recordProd.call(this, RepetitionMandatoryWithSeparator, options, occurrence, HANDLE_SEPARATOR);
+    }
+    manyInternalRecord(occurrence, actionORMethodDef) {
+        recordProd.call(this, Repetition, actionORMethodDef, occurrence);
+    }
+    manySepFirstInternalRecord(occurrence, options) {
+        recordProd.call(this, RepetitionWithSeparator, options, occurrence, HANDLE_SEPARATOR);
+    }
+    orInternalRecord(altsOrOpts, occurrence) {
+        return recordOrProd.call(this, altsOrOpts, occurrence);
+    }
+    subruleInternalRecord(ruleToCall, occurrence, options) {
+        assertMethodIdxIsValid(occurrence);
+        if (!ruleToCall || has(ruleToCall, "ruleName") === false) {
+            const error = new Error(`<SUBRULE${getIdxSuffix(occurrence)}> argument is invalid` +
+                ` expecting a Parser method reference but got: <${JSON.stringify(ruleToCall)}>` +
+                `\n inside top level rule: <${this.recordingProdStack[0].name}>`);
+            error.KNOWN_RECORDER_ERROR = true;
+            throw error;
+        }
+        const prevProd = last(this.recordingProdStack);
+        const ruleName = ruleToCall.ruleName;
+        const newNoneTerminal = new NonTerminal({
+            idx: occurrence,
+            nonTerminalName: ruleName,
+            label: options === null || options === void 0 ? void 0 : options.LABEL,
+            // The resolving of the `referencedRule` property will be done once all the Rule's GASTs have been created
+            referencedRule: undefined,
+        });
+        prevProd.definition.push(newNoneTerminal);
+        return this.outputCst
+            ? RECORDING_PHASE_CSTNODE
+            : RECORDING_NULL_OBJECT;
+    }
+    consumeInternalRecord(tokType, occurrence, options) {
+        assertMethodIdxIsValid(occurrence);
+        if (!hasShortKeyProperty(tokType)) {
+            const error = new Error(`<CONSUME${getIdxSuffix(occurrence)}> argument is invalid` +
+                ` expecting a TokenType reference but got: <${JSON.stringify(tokType)}>` +
+                `\n inside top level rule: <${this.recordingProdStack[0].name}>`);
+            error.KNOWN_RECORDER_ERROR = true;
+            throw error;
+        }
+        const prevProd = last(this.recordingProdStack);
+        const newNoneTerminal = new Terminal({
+            idx: occurrence,
+            terminalType: tokType,
+            label: options === null || options === void 0 ? void 0 : options.LABEL,
+        });
+        prevProd.definition.push(newNoneTerminal);
+        return RECORDING_PHASE_TOKEN;
+    }
+}
+function recordProd(prodConstructor, mainProdArg, occurrence, handleSep = false) {
+    assertMethodIdxIsValid(occurrence);
+    const prevProd = last(this.recordingProdStack);
+    const grammarAction = isFunction(mainProdArg) ? mainProdArg : mainProdArg.DEF;
+    const newProd = new prodConstructor({ definition: [], idx: occurrence });
+    if (handleSep) {
+        newProd.separator = mainProdArg.SEP;
+    }
+    if (has(mainProdArg, "MAX_LOOKAHEAD")) {
+        newProd.maxLookahead = mainProdArg.MAX_LOOKAHEAD;
+    }
+    this.recordingProdStack.push(newProd);
+    grammarAction.call(this);
+    prevProd.definition.push(newProd);
+    this.recordingProdStack.pop();
+    return RECORDING_NULL_OBJECT;
+}
+function recordOrProd(mainProdArg, occurrence) {
+    assertMethodIdxIsValid(occurrence);
+    const prevProd = last(this.recordingProdStack);
+    // Only an array of alternatives
+    const hasOptions = isArray(mainProdArg) === false;
+    const alts = hasOptions === false ? mainProdArg : mainProdArg.DEF;
+    const newOrProd = new Alternation({
+        definition: [],
+        idx: occurrence,
+        ignoreAmbiguities: hasOptions && mainProdArg.IGNORE_AMBIGUITIES === true,
+    });
+    if (has(mainProdArg, "MAX_LOOKAHEAD")) {
+        newOrProd.maxLookahead = mainProdArg.MAX_LOOKAHEAD;
+    }
+    const hasPredicates = some(alts, (currAlt) => isFunction(currAlt.GATE));
+    newOrProd.hasPredicates = hasPredicates;
+    prevProd.definition.push(newOrProd);
+    forEach(alts, (currAlt) => {
+        const currAltFlat = new Alternative({ definition: [] });
+        newOrProd.definition.push(currAltFlat);
+        if (has(currAlt, "IGNORE_AMBIGUITIES")) {
+            currAltFlat.ignoreAmbiguities = currAlt.IGNORE_AMBIGUITIES; // assumes end user provides the correct config value/type
+        }
+        // **implicit** ignoreAmbiguities due to usage of gate
+        else if (has(currAlt, "GATE")) {
+            currAltFlat.ignoreAmbiguities = true;
+        }
+        this.recordingProdStack.push(currAltFlat);
+        currAlt.ALT.call(this);
+        this.recordingProdStack.pop();
+    });
+    return RECORDING_NULL_OBJECT;
+}
+function getIdxSuffix(idx) {
+    return idx === 0 ? "" : `${idx}`;
+}
+function assertMethodIdxIsValid(idx) {
+    if (idx < 0 || idx > MAX_METHOD_IDX) {
+        const error = new Error(
+        // The stack trace will contain all the needed details
+        `Invalid DSL Method idx value: <${idx}>\n\t` +
+            `Idx value must be a none negative value smaller than ${MAX_METHOD_IDX + 1}`);
+        error.KNOWN_RECORDER_ERROR = true;
+        throw error;
+    }
+}
+
+/**
+ * Trait responsible for runtime parsing errors.
+ */
+class PerformanceTracer {
+    initPerformanceTracer(config) {
+        if (has(config, "traceInitPerf")) {
+            const userTraceInitPerf = config.traceInitPerf;
+            const traceIsNumber = typeof userTraceInitPerf === "number";
+            this.traceInitMaxIdent = traceIsNumber
+                ? userTraceInitPerf
+                : Infinity;
+            this.traceInitPerf = traceIsNumber
+                ? userTraceInitPerf > 0
+                : userTraceInitPerf; // assumes end user provides the correct config value/type
+        }
+        else {
+            this.traceInitMaxIdent = 0;
+            this.traceInitPerf = DEFAULT_PARSER_CONFIG.traceInitPerf;
+        }
+        this.traceInitIndent = -1;
+    }
+    TRACE_INIT(phaseDesc, phaseImpl) {
+        // No need to optimize this using NOOP pattern because
+        // It is not called in a hot spot...
+        if (this.traceInitPerf === true) {
+            this.traceInitIndent++;
+            const indent = new Array(this.traceInitIndent + 1).join("\t");
+            if (this.traceInitIndent < this.traceInitMaxIdent) {
+                console.log(`${indent}--> <${phaseDesc}>`);
+            }
+            const { time, value } = timer(phaseImpl);
+            /* istanbul ignore next - Difficult to reproduce specific performance behavior (>10ms) in tests */
+            const traceMethod = time > 10 ? console.warn : console.log;
+            if (this.traceInitIndent < this.traceInitMaxIdent) {
+                traceMethod(`${indent}<-- <${phaseDesc}> time: ${time}ms`);
+            }
+            this.traceInitIndent--;
+            return value;
+        }
+        else {
+            return phaseImpl();
+        }
+    }
+}
+
+function applyMixins(derivedCtor, baseCtors) {
+    baseCtors.forEach((baseCtor) => {
+        const baseProto = baseCtor.prototype;
+        Object.getOwnPropertyNames(baseProto).forEach((propName) => {
+            if (propName === "constructor") {
+                return;
+            }
+            const basePropDescriptor = Object.getOwnPropertyDescriptor(baseProto, propName);
+            // Handle Accessors
+            if (basePropDescriptor &&
+                (basePropDescriptor.get || basePropDescriptor.set)) {
+                Object.defineProperty(derivedCtor.prototype, propName, basePropDescriptor);
+            }
+            else {
+                derivedCtor.prototype[propName] = baseCtor.prototype[propName];
+            }
+        });
+    });
+}
+
+const END_OF_FILE = createTokenInstance(EOF, "", NaN, NaN, NaN, NaN, NaN, NaN);
+Object.freeze(END_OF_FILE);
+const DEFAULT_PARSER_CONFIG = Object.freeze({
+    recoveryEnabled: false,
+    maxLookahead: 3,
+    dynamicTokensEnabled: false,
+    outputCst: true,
+    errorMessageProvider: defaultParserErrorProvider,
+    nodeLocationTracking: "none",
+    traceInitPerf: false,
+    skipValidations: false,
+});
+const DEFAULT_RULE_CONFIG = Object.freeze({
+    recoveryValueFunc: () => undefined,
+    resyncEnabled: true,
+});
+var ParserDefinitionErrorType;
+(function (ParserDefinitionErrorType) {
+    ParserDefinitionErrorType[ParserDefinitionErrorType["INVALID_RULE_NAME"] = 0] = "INVALID_RULE_NAME";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["DUPLICATE_RULE_NAME"] = 1] = "DUPLICATE_RULE_NAME";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["INVALID_RULE_OVERRIDE"] = 2] = "INVALID_RULE_OVERRIDE";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["DUPLICATE_PRODUCTIONS"] = 3] = "DUPLICATE_PRODUCTIONS";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["UNRESOLVED_SUBRULE_REF"] = 4] = "UNRESOLVED_SUBRULE_REF";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["LEFT_RECURSION"] = 5] = "LEFT_RECURSION";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["NONE_LAST_EMPTY_ALT"] = 6] = "NONE_LAST_EMPTY_ALT";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["AMBIGUOUS_ALTS"] = 7] = "AMBIGUOUS_ALTS";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["CONFLICT_TOKENS_RULES_NAMESPACE"] = 8] = "CONFLICT_TOKENS_RULES_NAMESPACE";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["INVALID_TOKEN_NAME"] = 9] = "INVALID_TOKEN_NAME";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["NO_NON_EMPTY_LOOKAHEAD"] = 10] = "NO_NON_EMPTY_LOOKAHEAD";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["AMBIGUOUS_PREFIX_ALTS"] = 11] = "AMBIGUOUS_PREFIX_ALTS";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["TOO_MANY_ALTS"] = 12] = "TOO_MANY_ALTS";
+    ParserDefinitionErrorType[ParserDefinitionErrorType["CUSTOM_LOOKAHEAD_VALIDATION"] = 13] = "CUSTOM_LOOKAHEAD_VALIDATION";
+})(ParserDefinitionErrorType || (ParserDefinitionErrorType = {}));
+class Parser {
+    /**
+     *  @deprecated use the **instance** method with the same name instead
+     */
+    static performSelfAnalysis(parserInstance) {
+        throw Error("The **static** `performSelfAnalysis` method has been deprecated." +
+            "\t\nUse the **instance** method with the same name instead.");
+    }
+    performSelfAnalysis() {
+        this.TRACE_INIT("performSelfAnalysis", () => {
+            let defErrorsMsgs;
+            this.selfAnalysisDone = true;
+            const className = this.className;
+            this.TRACE_INIT("toFastProps", () => {
+                // Without this voodoo magic the parser would be x3-x4 slower
+                // It seems it is better to invoke `toFastProperties` **before**
+                // Any manipulations of the `this` object done during the recording phase.
+                toFastProperties(this);
+            });
+            this.TRACE_INIT("Grammar Recording", () => {
+                try {
+                    this.enableRecording();
+                    // Building the GAST
+                    forEach(this.definedRulesNames, (currRuleName) => {
+                        const wrappedRule = this[currRuleName];
+                        const originalGrammarAction = wrappedRule["originalGrammarAction"];
+                        let recordedRuleGast;
+                        this.TRACE_INIT(`${currRuleName} Rule`, () => {
+                            recordedRuleGast = this.topLevelRuleRecord(currRuleName, originalGrammarAction);
+                        });
+                        this.gastProductionsCache[currRuleName] = recordedRuleGast;
+                    });
+                }
+                finally {
+                    this.disableRecording();
+                }
+            });
+            let resolverErrors = [];
+            this.TRACE_INIT("Grammar Resolving", () => {
+                resolverErrors = resolveGrammar({
+                    rules: values(this.gastProductionsCache),
+                });
+                this.definitionErrors = this.definitionErrors.concat(resolverErrors);
+            });
+            this.TRACE_INIT("Grammar Validations", () => {
+                // only perform additional grammar validations IFF no resolving errors have occurred.
+                // as unresolved grammar may lead to unhandled runtime exceptions in the follow up validations.
+                if (isEmpty(resolverErrors) && this.skipValidations === false) {
+                    const validationErrors = validateGrammar({
+                        rules: values(this.gastProductionsCache),
+                        tokenTypes: values(this.tokensMap),
+                        errMsgProvider: defaultGrammarValidatorErrorProvider,
+                        grammarName: className,
+                    });
+                    const lookaheadValidationErrors = validateLookahead({
+                        lookaheadStrategy: this.lookaheadStrategy,
+                        rules: values(this.gastProductionsCache),
+                        tokenTypes: values(this.tokensMap),
+                        grammarName: className,
+                    });
+                    this.definitionErrors = this.definitionErrors.concat(validationErrors, lookaheadValidationErrors);
+                }
+            });
+            // this analysis may fail if the grammar is not perfectly valid
+            if (isEmpty(this.definitionErrors)) {
+                // The results of these computations are not needed unless error recovery is enabled.
+                if (this.recoveryEnabled) {
+                    this.TRACE_INIT("computeAllProdsFollows", () => {
+                        const allFollows = computeAllProdsFollows(values(this.gastProductionsCache));
+                        this.resyncFollows = allFollows;
+                    });
+                }
+                this.TRACE_INIT("ComputeLookaheadFunctions", () => {
+                    var _a, _b;
+                    (_b = (_a = this.lookaheadStrategy).initialize) === null || _b === void 0 ? void 0 : _b.call(_a, {
+                        rules: values(this.gastProductionsCache),
+                    });
+                    this.preComputeLookaheadFunctions(values(this.gastProductionsCache));
+                });
+            }
+            if (!Parser.DEFER_DEFINITION_ERRORS_HANDLING &&
+                !isEmpty(this.definitionErrors)) {
+                defErrorsMsgs = map(this.definitionErrors, (defError) => defError.message);
+                throw new Error(`Parser Definition Errors detected:\n ${defErrorsMsgs.join("\n-------------------------------\n")}`);
+            }
+        });
+    }
+    constructor(tokenVocabulary, config) {
+        this.definitionErrors = [];
+        this.selfAnalysisDone = false;
+        const that = this;
+        that.initErrorHandler(config);
+        that.initLexerAdapter();
+        that.initLooksAhead(config);
+        that.initRecognizerEngine(tokenVocabulary, config);
+        that.initRecoverable(config);
+        that.initTreeBuilder(config);
+        that.initContentAssist();
+        that.initGastRecorder(config);
+        that.initPerformanceTracer(config);
+        if (has(config, "ignoredIssues")) {
+            throw new Error("The <ignoredIssues> IParserConfig property has been deprecated.\n\t" +
+                "Please use the <IGNORE_AMBIGUITIES> flag on the relevant DSL method instead.\n\t" +
+                "See: https://chevrotain.io/docs/guide/resolving_grammar_errors.html#IGNORING_AMBIGUITIES\n\t" +
+                "For further details.");
+        }
+        this.skipValidations = has(config, "skipValidations")
+            ? config.skipValidations // casting assumes the end user passing the correct type
+            : DEFAULT_PARSER_CONFIG.skipValidations;
+    }
+}
+// Set this flag to true if you don't want the Parser to throw error when problems in it's definition are detected.
+// (normally during the parser's constructor).
+// This is a design time flag, it will not affect the runtime error handling of the parser, just design time errors,
+// for example: duplicate rule names, referencing an unresolved subrule, etc...
+// This flag should not be enabled during normal usage, it is used in special situations, for example when
+// needing to display the parser definition errors in some GUI(online playground).
+Parser.DEFER_DEFINITION_ERRORS_HANDLING = false;
+applyMixins(Parser, [
+    Recoverable,
+    LooksAhead,
+    TreeBuilder,
+    LexerAdapter,
+    RecognizerEngine,
+    RecognizerApi,
+    ErrorHandler,
+    ContentAssist,
+    GastRecorder,
+    PerformanceTracer,
+]);
+class CstParser extends Parser {
+    constructor(tokenVocabulary, config = DEFAULT_PARSER_CONFIG) {
+        const configClone = clone(config);
+        configClone.outputCst = true;
+        super(tokenVocabulary, configClone);
+    }
+}
+
+/*!
+ * XRegExp 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2007-present MIT License
+ */
+
+/**
+ * XRegExp provides augmented, extensible regular expressions. You get additional regex syntax and
+ * flags, beyond what browsers support natively. XRegExp is also a regex utility belt with tools to
+ * make your client-side grepping simpler and more powerful, while freeing you from related
+ * cross-browser inconsistencies.
+ */
+
+// ==--------------------------==
+// Private stuff
+// ==--------------------------==
+
+// Property name used for extended regex instance data
+const REGEX_DATA = 'xregexp';
+// Optional features that can be installed and uninstalled
+const features = {
+    astral: false,
+    namespacing: true
+};
+// Storage for fixed/extended native methods
+const fixed = {};
+// Storage for regexes cached by `XRegExp.cache`
+let regexCache = Object.create(null);
+// Storage for pattern details cached by the `XRegExp` constructor
+let patternCache = Object.create(null);
+// Storage for regex syntax tokens added internally or by `XRegExp.addToken`
+const tokens = [];
+// Token scopes
+const defaultScope = 'default';
+const classScope = 'class';
+// Regexes that match native regex syntax, including octals
+const nativeTokens = {
+    // Any native multicharacter token in default scope, or any single character
+    'default': /\\(?:0(?:[0-3][0-7]{0,2}|[4-7][0-7]?)?|[1-9]\d*|x[\dA-Fa-f]{2}|u(?:[\dA-Fa-f]{4}|{[\dA-Fa-f]+})|c[A-Za-z]|[\s\S])|\(\?(?:[:=!]|<[=!])|[?*+]\?|{\d+(?:,\d*)?}\??|[\s\S]/,
+    // Any native multicharacter token in character class scope, or any single character
+    'class': /\\(?:[0-3][0-7]{0,2}|[4-7][0-7]?|x[\dA-Fa-f]{2}|u(?:[\dA-Fa-f]{4}|{[\dA-Fa-f]+})|c[A-Za-z]|[\s\S])|[\s\S]/
+};
+// Any backreference or dollar-prefixed character in replacement strings
+const replacementToken = /\$(?:\{([^\}]+)\}|<([^>]+)>|(\d\d?|[\s\S]?))/g;
+// Check for correct `exec` handling of nonparticipating capturing groups
+const correctExecNpcg = /()??/.exec('')[1] === undefined;
+// Check for ES6 `flags` prop support
+const hasFlagsProp = /x/.flags !== undefined;
+
+function hasNativeFlag(flag) {
+    // Can't check based on the presence of properties/getters since browsers might support such
+    // properties even when they don't support the corresponding flag in regex construction (tested
+    // in Chrome 48, where `'unicode' in /x/` is true but trying to construct a regex with flag `u`
+    // throws an error)
+    let isSupported = true;
+    try {
+        // Can't use regex literals for testing even in a `try` because regex literals with
+        // unsupported flags cause a compilation error in IE
+        new RegExp('', flag);
+
+        // Work around a broken/incomplete IE11 polyfill for sticky introduced in core-js 3.6.0
+        if (flag === 'y') {
+            // Using function to avoid babel transform to regex literal
+            const gy = (() => 'gy')();
+            const incompleteY = '.a'.replace(new RegExp('a', gy), '.') === '..';
+            if (incompleteY) {
+                isSupported = false;
+            }
+        }
+    } catch (exception) {
+        isSupported = false;
+    }
+    return isSupported;
+}
+// Check for ES2021 `d` flag support
+const hasNativeD = hasNativeFlag('d');
+// Check for ES2018 `s` flag support
+const hasNativeS = hasNativeFlag('s');
+// Check for ES6 `u` flag support
+const hasNativeU = hasNativeFlag('u');
+// Check for ES6 `y` flag support
+const hasNativeY = hasNativeFlag('y');
+// Tracker for known flags, including addon flags
+const registeredFlags = {
+    d: hasNativeD,
+    g: true,
+    i: true,
+    m: true,
+    s: hasNativeS,
+    u: hasNativeU,
+    y: hasNativeY
+};
+// Flags to remove when passing to native `RegExp` constructor
+const nonnativeFlags = hasNativeS ? /[^dgimsuy]+/g : /[^dgimuy]+/g;
+
+/**
+ * Attaches extended data and `XRegExp.prototype` properties to a regex object.
+ *
+ * @private
+ * @param {RegExp} regex Regex to augment.
+ * @param {Array} captureNames Array with capture names, or `null`.
+ * @param {String} xSource XRegExp pattern used to generate `regex`, or `null` if N/A.
+ * @param {String} xFlags XRegExp flags used to generate `regex`, or `null` if N/A.
+ * @param {Boolean} [isInternalOnly=false] Whether the regex will be used only for internal
+ *   operations, and never exposed to users. For internal-only regexes, we can improve perf by
+ *   skipping some operations like attaching `XRegExp.prototype` properties.
+ * @returns {!RegExp} Augmented regex.
+ */
+function augment(regex, captureNames, xSource, xFlags, isInternalOnly) {
+    regex[REGEX_DATA] = {
+        captureNames
+    };
+
+    if (isInternalOnly) {
+        return regex;
+    }
+
+    // Can't auto-inherit these since the XRegExp constructor returns a nonprimitive value
+    if (regex.__proto__) {
+        regex.__proto__ = XRegExp.prototype;
+    } else {
+        for (const p in XRegExp.prototype) {
+            // An `XRegExp.prototype.hasOwnProperty(p)` check wouldn't be worth it here, since this
+            // is performance sensitive, and enumerable `Object.prototype` or `RegExp.prototype`
+            // extensions exist on `regex.prototype` anyway
+            regex[p] = XRegExp.prototype[p];
+        }
+    }
+
+    regex[REGEX_DATA].source = xSource;
+    // Emulate the ES6 `flags` prop by ensuring flags are in alphabetical order
+    regex[REGEX_DATA].flags = xFlags ? xFlags.split('').sort().join('') : xFlags;
+
+    return regex;
+}
+
+/**
+ * Removes any duplicate characters from the provided string.
+ *
+ * @private
+ * @param {String} str String to remove duplicate characters from.
+ * @returns {string} String with any duplicate characters removed.
+ */
+function clipDuplicates(str) {
+    return str.replace(/([\s\S])(?=[\s\S]*\1)/g, '');
+}
+
+/**
+ * Copies a regex object while preserving extended data and augmenting with `XRegExp.prototype`
+ * properties. The copy has a fresh `lastIndex` property (set to zero). Allows adding and removing
+ * flags g and y while copying the regex.
+ *
+ * @private
+ * @param {RegExp} regex Regex to copy.
+ * @param {Object} [options] Options object with optional properties:
+ *   - `addG` {Boolean} Add flag g while copying the regex.
+ *   - `addY` {Boolean} Add flag y while copying the regex.
+ *   - `removeG` {Boolean} Remove flag g while copying the regex.
+ *   - `removeY` {Boolean} Remove flag y while copying the regex.
+ *   - `isInternalOnly` {Boolean} Whether the copied regex will be used only for internal
+ *     operations, and never exposed to users. For internal-only regexes, we can improve perf by
+ *     skipping some operations like attaching `XRegExp.prototype` properties.
+ *   - `source` {String} Overrides `<regex>.source`, for special cases.
+ * @returns {RegExp} Copy of the provided regex, possibly with modified flags.
+ */
+function copyRegex(regex, options) {
+    if (!XRegExp.isRegExp(regex)) {
+        throw new TypeError('Type RegExp expected');
+    }
+
+    const xData = regex[REGEX_DATA] || {};
+    let flags = getNativeFlags(regex);
+    let flagsToAdd = '';
+    let flagsToRemove = '';
+    let xregexpSource = null;
+    let xregexpFlags = null;
+
+    options = options || {};
+
+    if (options.removeG) {flagsToRemove += 'g';}
+    if (options.removeY) {flagsToRemove += 'y';}
+    if (flagsToRemove) {
+        flags = flags.replace(new RegExp(`[${flagsToRemove}]+`, 'g'), '');
+    }
+
+    if (options.addG) {flagsToAdd += 'g';}
+    if (options.addY) {flagsToAdd += 'y';}
+    if (flagsToAdd) {
+        flags = clipDuplicates(flags + flagsToAdd);
+    }
+
+    if (!options.isInternalOnly) {
+        if (xData.source !== undefined) {
+            xregexpSource = xData.source;
+        }
+        // null or undefined; don't want to add to `flags` if the previous value was null, since
+        // that indicates we're not tracking original precompilation flags
+        if (xData.flags != null) {
+            // Flags are only added for non-internal regexes by `XRegExp.globalize`. Flags are never
+            // removed for non-internal regexes, so don't need to handle it
+            xregexpFlags = flagsToAdd ? clipDuplicates(xData.flags + flagsToAdd) : xData.flags;
+        }
+    }
+
+    // Augment with `XRegExp.prototype` properties, but use the native `RegExp` constructor to avoid
+    // searching for special tokens. That would be wrong for regexes constructed by `RegExp`, and
+    // unnecessary for regexes constructed by `XRegExp` because the regex has already undergone the
+    // translation to native regex syntax
+    regex = augment(
+        new RegExp(options.source || regex.source, flags),
+        hasNamedCapture(regex) ? xData.captureNames.slice(0) : null,
+        xregexpSource,
+        xregexpFlags,
+        options.isInternalOnly
+    );
+
+    return regex;
+}
+
+/**
+ * Converts hexadecimal to decimal.
+ *
+ * @private
+ * @param {String} hex
+ * @returns {number}
+ */
+function dec(hex) {
+    return parseInt(hex, 16);
+}
+
+/**
+ * Returns a pattern that can be used in a native RegExp in place of an ignorable token such as an
+ * inline comment or whitespace with flag x. This is used directly as a token handler function
+ * passed to `XRegExp.addToken`.
+ *
+ * @private
+ * @param {String} match Match arg of `XRegExp.addToken` handler
+ * @param {String} scope Scope arg of `XRegExp.addToken` handler
+ * @param {String} flags Flags arg of `XRegExp.addToken` handler
+ * @returns {string} Either '' or '(?:)', depending on which is needed in the context of the match.
+ */
+function getContextualTokenSeparator(match, scope, flags) {
+    const matchEndPos = match.index + match[0].length;
+    const precedingChar = match.input[match.index - 1];
+    const followingChar = match.input[matchEndPos];
+    if (
+        // No need to separate tokens if at the beginning or end of a group, before or after a
+        // group, or before or after a `|`
+        /^[()|]$/.test(precedingChar) ||
+        /^[()|]$/.test(followingChar) ||
+        // No need to separate tokens if at the beginning or end of the pattern
+        match.index === 0 ||
+        matchEndPos === match.input.length ||
+        // No need to separate tokens if at the beginning of a noncapturing group or lookaround.
+        // Looks only at the last 4 chars (at most) for perf when constructing long regexes.
+        /\(\?(?:[:=!]|<[=!])$/.test(match.input.substring(match.index - 4, match.index)) ||
+        // Avoid separating tokens when the following token is a quantifier
+        isQuantifierNext(match.input, matchEndPos, flags)
+    ) {
+        return '';
+    }
+    // Keep tokens separated. This avoids e.g. inadvertedly changing `\1 1` or `\1(?#)1` to `\11`.
+    // This also ensures all tokens remain as discrete atoms, e.g. it prevents converting the
+    // syntax error `(? :` into `(?:`.
+    return '(?:)';
+}
+
+/**
+ * Returns native `RegExp` flags used by a regex object.
+ *
+ * @private
+ * @param {RegExp} regex Regex to check.
+ * @returns {string} Native flags in use.
+ */
+function getNativeFlags(regex) {
+    return hasFlagsProp ?
+        regex.flags :
+        // Explicitly using `RegExp.prototype.toString` (rather than e.g. `String` or concatenation
+        // with an empty string) allows this to continue working predictably when
+        // `XRegExp.proptotype.toString` is overridden
+        /\/([a-z]*)$/i.exec(RegExp.prototype.toString.call(regex))[1];
+}
+
+/**
+ * Determines whether a regex has extended instance data used to track capture names.
+ *
+ * @private
+ * @param {RegExp} regex Regex to check.
+ * @returns {boolean} Whether the regex uses named capture.
+ */
+function hasNamedCapture(regex) {
+    return !!(regex[REGEX_DATA] && regex[REGEX_DATA].captureNames);
+}
+
+/**
+ * Converts decimal to hexadecimal.
+ *
+ * @private
+ * @param {Number|String} dec
+ * @returns {string}
+ */
+function hex(dec) {
+    return parseInt(dec, 10).toString(16);
+}
+
+/**
+ * Checks whether the next nonignorable token after the specified position is a quantifier.
+ *
+ * @private
+ * @param {String} pattern Pattern to search within.
+ * @param {Number} pos Index in `pattern` to search at.
+ * @param {String} flags Flags used by the pattern.
+ * @returns {Boolean} Whether the next nonignorable token is a quantifier.
+ */
+function isQuantifierNext(pattern, pos, flags) {
+    const inlineCommentPattern = '\\(\\?#[^)]*\\)';
+    const lineCommentPattern = '#[^#\\n]*';
+    const quantifierPattern = '[?*+]|{\\d+(?:,\\d*)?}';
+    const regex = flags.includes('x') ?
+        // Ignore any leading whitespace, line comments, and inline comments
+        new RegExp(`^(?:\\s|${lineCommentPattern}|${inlineCommentPattern})*(?:${quantifierPattern})`) :
+        // Ignore any leading inline comments
+        new RegExp(`^(?:${inlineCommentPattern})*(?:${quantifierPattern})`);
+    return regex.test(pattern.slice(pos));
+}
+
+/**
+ * Determines whether a value is of the specified type, by resolving its internal [[Class]].
+ *
+ * @private
+ * @param {*} value Object to check.
+ * @param {String} type Type to check for, in TitleCase.
+ * @returns {boolean} Whether the object matches the type.
+ */
+function isType(value, type) {
+    return Object.prototype.toString.call(value) === `[object ${type}]`;
+}
+
+/**
+ * Returns the object, or throws an error if it is `null` or `undefined`. This is used to follow
+ * the ES5 abstract operation `ToObject`.
+ *
+ * @private
+ * @param {*} value Object to check and return.
+ * @returns {*} The provided object.
+ */
+function nullThrows(value) {
+    // null or undefined
+    if (value == null) {
+        throw new TypeError('Cannot convert null or undefined to object');
+    }
+
+    return value;
+}
+
+/**
+ * Adds leading zeros if shorter than four characters. Used for fixed-length hexadecimal values.
+ *
+ * @private
+ * @param {String} str
+ * @returns {string}
+ */
+function pad4(str) {
+    while (str.length < 4) {
+        str = `0${str}`;
+    }
+    return str;
+}
+
+/**
+ * Checks for flag-related errors, and strips/applies flags in a leading mode modifier. Offloads
+ * the flag preparation logic from the `XRegExp` constructor.
+ *
+ * @private
+ * @param {String} pattern Regex pattern, possibly with a leading mode modifier.
+ * @param {String} flags Any combination of flags.
+ * @returns {!Object} Object with properties `pattern` and `flags`.
+ */
+function prepareFlags(pattern, flags) {
+    // Recent browsers throw on duplicate flags, so copy this behavior for nonnative flags
+    if (clipDuplicates(flags) !== flags) {
+        throw new SyntaxError(`Invalid duplicate regex flag ${flags}`);
+    }
+
+    // Strip and apply a leading mode modifier with any combination of flags except `dgy`
+    pattern = pattern.replace(/^\(\?([\w$]+)\)/, ($0, $1) => {
+        if (/[dgy]/.test($1)) {
+            throw new SyntaxError(`Cannot use flags dgy in mode modifier ${$0}`);
+        }
+        // Allow duplicate flags within the mode modifier
+        flags = clipDuplicates(flags + $1);
+        return '';
+    });
+
+    // Throw on unknown native or nonnative flags
+    for (const flag of flags) {
+        if (!registeredFlags[flag]) {
+            throw new SyntaxError(`Unknown regex flag ${flag}`);
+        }
+    }
+
+    return {
+        pattern,
+        flags
+    };
+}
+
+/**
+ * Prepares an options object from the given value.
+ *
+ * @private
+ * @param {String|Object} value Value to convert to an options object.
+ * @returns {Object} Options object.
+ */
+function prepareOptions(value) {
+    const options = {};
+
+    if (isType(value, 'String')) {
+        XRegExp.forEach(value, /[^\s,]+/, (match) => {
+            options[match] = true;
+        });
+
+        return options;
+    }
+
+    return value;
+}
+
+/**
+ * Registers a flag so it doesn't throw an 'unknown flag' error.
+ *
+ * @private
+ * @param {String} flag Single-character flag to register.
+ */
+function registerFlag(flag) {
+    if (!/^[\w$]$/.test(flag)) {
+        throw new Error('Flag must be a single character A-Za-z0-9_$');
+    }
+
+    registeredFlags[flag] = true;
+}
+
+/**
+ * Runs built-in and custom regex syntax tokens in reverse insertion order at the specified
+ * position, until a match is found.
+ *
+ * @private
+ * @param {String} pattern Original pattern from which an XRegExp object is being built.
+ * @param {String} flags Flags being used to construct the regex.
+ * @param {Number} pos Position to search for tokens within `pattern`.
+ * @param {Number} scope Regex scope to apply: 'default' or 'class'.
+ * @param {Object} context Context object to use for token handler functions.
+ * @returns {Object} Object with properties `matchLength`, `output`, and `reparse`; or `null`.
+ */
+function runTokens(pattern, flags, pos, scope, context) {
+    let i = tokens.length;
+    const leadChar = pattern[pos];
+    let result = null;
+    let match;
+    let t;
+
+    // Run in reverse insertion order
+    while (i--) {
+        t = tokens[i];
+        if (
+            (t.leadChar && t.leadChar !== leadChar) ||
+            (t.scope !== scope && t.scope !== 'all') ||
+            (t.flag && !flags.includes(t.flag))
+        ) {
+            continue;
+        }
+
+        match = XRegExp.exec(pattern, t.regex, pos, 'sticky');
+        if (match) {
+            result = {
+                matchLength: match[0].length,
+                output: t.handler.call(context, match, scope, flags),
+                reparse: t.reparse
+            };
+            // Finished with token tests
+            break;
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Enables or disables implicit astral mode opt-in. When enabled, flag A is automatically added to
+ * all new regexes created by XRegExp. This causes an error to be thrown when creating regexes if
+ * the Unicode Base addon is not available, since flag A is registered by that addon.
+ *
+ * @private
+ * @param {Boolean} on `true` to enable; `false` to disable.
+ */
+function setAstral(on) {
+    features.astral = on;
+}
+
+/**
+ * Adds named capture groups to the `groups` property of match arrays. See here for details:
+ * https://github.com/tc39/proposal-regexp-named-groups
+ *
+ * @private
+ * @param {Boolean} on `true` to enable; `false` to disable.
+ */
+function setNamespacing(on) {
+    features.namespacing = on;
+}
+
+// ==--------------------------==
+// Constructor
+// ==--------------------------==
+
+/**
+ * Creates an extended regular expression object for matching text with a pattern. Differs from a
+ * native regular expression in that additional syntax and flags are supported. The returned object
+ * is in fact a native `RegExp` and works with all native methods.
+ *
+ * @class XRegExp
+ * @constructor
+ * @param {String|RegExp} pattern Regex pattern string, or an existing regex object to copy.
+ * @param {String} [flags] Any combination of flags.
+ *   Native flags:
+ *     - `d` - indices for capturing groups (ES2021)
+ *     - `g` - global
+ *     - `i` - ignore case
+ *     - `m` - multiline anchors
+ *     - `u` - unicode (ES6)
+ *     - `y` - sticky (Firefox 3+, ES6)
+ *   Additional XRegExp flags:
+ *     - `n` - named capture only
+ *     - `s` - dot matches all (aka singleline) - works even when not natively supported
+ *     - `x` - free-spacing and line comments (aka extended)
+ *     - `A` - 21-bit Unicode properties (aka astral) - requires the Unicode Base addon
+ *   Flags cannot be provided when constructing one `RegExp` from another.
+ * @returns {RegExp} Extended regular expression object.
+ * @example
+ *
+ * // With named capture and flag x
+ * XRegExp(`(?<year>  [0-9]{4} ) -?  # year
+ *          (?<month> [0-9]{2} ) -?  # month
+ *          (?<day>   [0-9]{2} )     # day`, 'x');
+ *
+ * // Providing a regex object copies it. Native regexes are recompiled using native (not XRegExp)
+ * // syntax. Copies maintain extended data, are augmented with `XRegExp.prototype` properties, and
+ * // have fresh `lastIndex` properties (set to zero).
+ * XRegExp(/regex/);
+ */
+function XRegExp(pattern, flags) {
+    if (XRegExp.isRegExp(pattern)) {
+        if (flags !== undefined) {
+            throw new TypeError('Cannot supply flags when copying a RegExp');
+        }
+        return copyRegex(pattern);
+    }
+
+    // Copy the argument behavior of `RegExp`
+    pattern = pattern === undefined ? '' : String(pattern);
+    flags = flags === undefined ? '' : String(flags);
+
+    if (XRegExp.isInstalled('astral') && !flags.includes('A')) {
+        // This causes an error to be thrown if the Unicode Base addon is not available
+        flags += 'A';
+    }
+
+    if (!patternCache[pattern]) {
+        patternCache[pattern] = {};
+    }
+
+    if (!patternCache[pattern][flags]) {
+        const context = {
+            hasNamedCapture: false,
+            captureNames: []
+        };
+        let scope = defaultScope;
+        let output = '';
+        let pos = 0;
+        let result;
+
+        // Check for flag-related errors, and strip/apply flags in a leading mode modifier
+        const applied = prepareFlags(pattern, flags);
+        let appliedPattern = applied.pattern;
+        const appliedFlags = applied.flags;
+
+        // Use XRegExp's tokens to translate the pattern to a native regex pattern.
+        // `appliedPattern.length` may change on each iteration if tokens use `reparse`
+        while (pos < appliedPattern.length) {
+            do {
+                // Check for custom tokens at the current position
+                result = runTokens(appliedPattern, appliedFlags, pos, scope, context);
+                // If the matched token used the `reparse` option, splice its output into the
+                // pattern before running tokens again at the same position
+                if (result && result.reparse) {
+                    appliedPattern = appliedPattern.slice(0, pos) +
+                        result.output +
+                        appliedPattern.slice(pos + result.matchLength);
+                }
+            } while (result && result.reparse);
+
+            if (result) {
+                output += result.output;
+                pos += (result.matchLength || 1);
+            } else {
+                // Get the native token at the current position
+                const [token] = XRegExp.exec(appliedPattern, nativeTokens[scope], pos, 'sticky');
+                output += token;
+                pos += token.length;
+                if (token === '[' && scope === defaultScope) {
+                    scope = classScope;
+                } else if (token === ']' && scope === classScope) {
+                    scope = defaultScope;
+                }
+            }
+        }
+
+        patternCache[pattern][flags] = {
+            // Use basic cleanup to collapse repeated empty groups like `(?:)(?:)` to `(?:)`. Empty
+            // groups are sometimes inserted during regex transpilation in order to keep tokens
+            // separated. However, more than one empty group in a row is never needed.
+            pattern: output.replace(/(?:\(\?:\))+/g, '(?:)'),
+            // Strip all but native flags
+            flags: appliedFlags.replace(nonnativeFlags, ''),
+            // `context.captureNames` has an item for each capturing group, even if unnamed
+            captures: context.hasNamedCapture ? context.captureNames : null
+        };
+    }
+
+    const generated = patternCache[pattern][flags];
+    return augment(
+        new RegExp(generated.pattern, generated.flags),
+        generated.captures,
+        pattern,
+        flags
+    );
+}
+
+// Add `RegExp.prototype` to the prototype chain
+XRegExp.prototype = new RegExp();
+
+// ==--------------------------==
+// Public properties
+// ==--------------------------==
+
+/**
+ * The XRegExp version number as a string containing three dot-separated parts. For example,
+ * '2.0.0-beta-3'.
+ *
+ * @static
+ * @memberOf XRegExp
+ * @type String
+ */
+XRegExp.version = '5.1.2';
+
+// ==--------------------------==
+// Public methods
+// ==--------------------------==
+
+// Intentionally undocumented; used in tests and addons
+XRegExp._clipDuplicates = clipDuplicates;
+XRegExp._hasNativeFlag = hasNativeFlag;
+XRegExp._dec = dec;
+XRegExp._hex = hex;
+XRegExp._pad4 = pad4;
+
+/**
+ * Extends XRegExp syntax and allows custom flags. This is used internally and can be used to
+ * create XRegExp addons. If more than one token can match the same string, the last added wins.
+ *
+ * @memberOf XRegExp
+ * @param {RegExp} regex Regex object that matches the new token.
+ * @param {Function} handler Function that returns a new pattern string (using native regex syntax)
+ *   to replace the matched token within all future XRegExp regexes. Has access to persistent
+ *   properties of the regex being built, through `this`. Invoked with three arguments:
+ *   - The match array, with named backreference properties.
+ *   - The regex scope where the match was found: 'default' or 'class'.
+ *   - The flags used by the regex, including any flags in a leading mode modifier.
+ *   The handler function becomes part of the XRegExp construction process, so be careful not to
+ *   construct XRegExps within the function or you will trigger infinite recursion.
+ * @param {Object} [options] Options object with optional properties:
+ *   - `scope` {String} Scope where the token applies: 'default', 'class', or 'all'.
+ *   - `flag` {String} Single-character flag that triggers the token. This also registers the
+ *     flag, which prevents XRegExp from throwing an 'unknown flag' error when the flag is used.
+ *   - `optionalFlags` {String} Any custom flags checked for within the token `handler` that are
+ *     not required to trigger the token. This registers the flags, to prevent XRegExp from
+ *     throwing an 'unknown flag' error when any of the flags are used.
+ *   - `reparse` {Boolean} Whether the `handler` function's output should not be treated as
+ *     final, and instead be reparseable by other tokens (including the current token). Allows
+ *     token chaining or deferring.
+ *   - `leadChar` {String} Single character that occurs at the beginning of any successful match
+ *     of the token (not always applicable). This doesn't change the behavior of the token unless
+ *     you provide an erroneous value. However, providing it can increase the token's performance
+ *     since the token can be skipped at any positions where this character doesn't appear.
+ * @example
+ *
+ * // Basic usage: Add \a for the ALERT control code
+ * XRegExp.addToken(
+ *   /\\a/,
+ *   () => '\\x07',
+ *   {scope: 'all'}
+ * );
+ * XRegExp('\\a[\\a-\\n]+').test('\x07\n\x07'); // -> true
+ *
+ * // Add the U (ungreedy) flag from PCRE and RE2, which reverses greedy and lazy quantifiers.
+ * // Since `scope` is not specified, it uses 'default' (i.e., transformations apply outside of
+ * // character classes only)
+ * XRegExp.addToken(
+ *   /([?*+]|{\d+(?:,\d*)?})(\??)/,
+ *   (match) => `${match[1]}${match[2] ? '' : '?'}`,
+ *   {flag: 'U'}
+ * );
+ * XRegExp('a+', 'U').exec('aaa')[0]; // -> 'a'
+ * XRegExp('a+?', 'U').exec('aaa')[0]; // -> 'aaa'
+ */
+XRegExp.addToken = (regex, handler, options) => {
+    options = options || {};
+    let {optionalFlags} = options;
+
+    if (options.flag) {
+        registerFlag(options.flag);
+    }
+
+    if (optionalFlags) {
+        optionalFlags = optionalFlags.split('');
+        for (const flag of optionalFlags) {
+            registerFlag(flag);
+        }
+    }
+
+    // Add to the private list of syntax tokens
+    tokens.push({
+        regex: copyRegex(regex, {
+            addG: true,
+            addY: hasNativeY,
+            isInternalOnly: true
+        }),
+        handler,
+        scope: options.scope || defaultScope,
+        flag: options.flag,
+        reparse: options.reparse,
+        leadChar: options.leadChar
+    });
+
+    // Reset the pattern cache used by the `XRegExp` constructor, since the same pattern and flags
+    // might now produce different results
+    XRegExp.cache.flush('patterns');
+};
+
+/**
+ * Caches and returns the result of calling `XRegExp(pattern, flags)`. On any subsequent call with
+ * the same pattern and flag combination, the cached copy of the regex is returned.
+ *
+ * @memberOf XRegExp
+ * @param {String} pattern Regex pattern string.
+ * @param {String} [flags] Any combination of XRegExp flags.
+ * @returns {RegExp} Cached XRegExp object.
+ * @example
+ *
+ * let match;
+ * while (match = XRegExp.cache('.', 'gs').exec('abc')) {
+ *   // The regex is compiled once only
+ * }
+ */
+XRegExp.cache = (pattern, flags) => {
+    if (!regexCache[pattern]) {
+        regexCache[pattern] = {};
+    }
+    return regexCache[pattern][flags] || (
+        regexCache[pattern][flags] = XRegExp(pattern, flags)
+    );
+};
+
+// Intentionally undocumented; used in tests
+XRegExp.cache.flush = (cacheName) => {
+    if (cacheName === 'patterns') {
+        // Flush the pattern cache used by the `XRegExp` constructor
+        patternCache = Object.create(null);
+    } else {
+        // Flush the regex cache populated by `XRegExp.cache`
+        regexCache = Object.create(null);
+    }
+};
+
+/**
+ * Escapes any regular expression metacharacters, for use when matching literal strings. The result
+ * can safely be used at any position within a regex that uses any flags.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to escape.
+ * @returns {string} String with regex metacharacters escaped.
+ * @example
+ *
+ * XRegExp.escape('Escaped? <.>');
+ * // -> 'Escaped\?\u0020<\.>'
+ */
+// Following are the contexts where each metacharacter needs to be escaped because it would
+// otherwise have a special meaning, change the meaning of surrounding characters, or cause an
+// error. Context 'default' means outside character classes only.
+// - `\` - context: all
+// - `[()*+?.$|` - context: default
+// - `]` - context: default with flag u or if forming the end of a character class
+// - `{}` - context: default with flag u or if part of a valid/complete quantifier pattern
+// - `,` - context: default if in a position that causes an unescaped `{` to turn into a quantifier.
+//   Ex: `/^a{1\,2}$/` matches `'a{1,2}'`, but `/^a{1,2}$/` matches `'a'` or `'aa'`
+// - `#` and <whitespace> - context: default with flag x
+// - `^` - context: default, and context: class if it's the first character in the class
+// - `-` - context: class if part of a valid character class range
+XRegExp.escape = (str) => String(nullThrows(str)).
+    // Escape most special chars with a backslash
+    replace(/[\\\[\]{}()*+?.^$|]/g, '\\$&').
+    // Convert to \uNNNN for special chars that can't be escaped when used with ES6 flag `u`
+    replace(/[\s#\-,]/g, (match) => `\\u${pad4(hex(match.charCodeAt(0)))}`);
+
+/**
+ * Executes a regex search in a specified string. Returns a match array or `null`. If the provided
+ * regex uses named capture, named capture properties are included on the match array's `groups`
+ * property. Optional `pos` and `sticky` arguments specify the search start position, and whether
+ * the match must start at the specified position only. The `lastIndex` property of the provided
+ * regex is not used, but is updated for compatibility. Also fixes browser bugs compared to the
+ * native `RegExp.prototype.exec` and can be used reliably cross-browser.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {RegExp} regex Regex to search with.
+ * @param {Number} [pos=0] Zero-based index at which to start the search.
+ * @param {Boolean|String} [sticky=false] Whether the match must start at the specified position
+ *   only. The string `'sticky'` is accepted as an alternative to `true`.
+ * @returns {Array} Match array with named capture properties on the `groups` object, or `null`. If
+ *   the `namespacing` feature is off, named capture properties are directly on the match array.
+ * @example
+ *
+ * // Basic use, with named capturing group
+ * let match = XRegExp.exec('U+2620', XRegExp('U\\+(?<hex>[0-9A-F]{4})'));
+ * match.groups.hex; // -> '2620'
+ *
+ * // With pos and sticky, in a loop
+ * let pos = 3, result = [], match;
+ * while (match = XRegExp.exec('<1><2><3><4>5<6>', /<(\d)>/, pos, 'sticky')) {
+ *   result.push(match[1]);
+ *   pos = match.index + match[0].length;
+ * }
+ * // result -> ['2', '3', '4']
+ */
+XRegExp.exec = (str, regex, pos, sticky) => {
+    let cacheKey = 'g';
+    let addY = false;
+    let fakeY = false;
+    let match;
+
+    addY = hasNativeY && !!(sticky || (regex.sticky && sticky !== false));
+    if (addY) {
+        cacheKey += 'y';
+    } else if (sticky) {
+        // Simulate sticky matching by appending an empty capture to the original regex. The
+        // resulting regex will succeed no matter what at the current index (set with `lastIndex`),
+        // and will not search the rest of the subject string. We'll know that the original regex
+        // has failed if that last capture is `''` rather than `undefined` (i.e., if that last
+        // capture participated in the match).
+        fakeY = true;
+        cacheKey += 'FakeY';
+    }
+
+    regex[REGEX_DATA] = regex[REGEX_DATA] || {};
+
+    // Shares cached copies with `XRegExp.match`/`replace`
+    const r2 = regex[REGEX_DATA][cacheKey] || (
+        regex[REGEX_DATA][cacheKey] = copyRegex(regex, {
+            addG: true,
+            addY,
+            source: fakeY ? `${regex.source}|()` : undefined,
+            removeY: sticky === false,
+            isInternalOnly: true
+        })
+    );
+
+    pos = pos || 0;
+    r2.lastIndex = pos;
+
+    // Fixed `exec` required for `lastIndex` fix, named backreferences, etc.
+    match = fixed.exec.call(r2, str);
+
+    // Get rid of the capture added by the pseudo-sticky matcher if needed. An empty string means
+    // the original regexp failed (see above).
+    if (fakeY && match && match.pop() === '') {
+        match = null;
+    }
+
+    if (regex.global) {
+        regex.lastIndex = match ? r2.lastIndex : 0;
+    }
+
+    return match;
+};
+
+/**
+ * Executes a provided function once per regex match. Searches always start at the beginning of the
+ * string and continue until the end, regardless of the state of the regex's `global` property and
+ * initial `lastIndex`.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {RegExp} regex Regex to search with.
+ * @param {Function} callback Function to execute for each match. Invoked with four arguments:
+ *   - The match array, with named backreference properties.
+ *   - The zero-based match index.
+ *   - The string being traversed.
+ *   - The regex object being used to traverse the string.
+ * @example
+ *
+ * // Extracts every other digit from a string
+ * const evens = [];
+ * XRegExp.forEach('1a2345', /\d/, (match, i) => {
+ *   if (i % 2) evens.push(+match[0]);
+ * });
+ * // evens -> [2, 4]
+ */
+XRegExp.forEach = (str, regex, callback) => {
+    let pos = 0;
+    let i = -1;
+    let match;
+
+    while ((match = XRegExp.exec(str, regex, pos))) {
+        // Because `regex` is provided to `callback`, the function could use the deprecated/
+        // nonstandard `RegExp.prototype.compile` to mutate the regex. However, since `XRegExp.exec`
+        // doesn't use `lastIndex` to set the search position, this can't lead to an infinite loop,
+        // at least. Actually, because of the way `XRegExp.exec` caches globalized versions of
+        // regexes, mutating the regex will not have any effect on the iteration or matched strings,
+        // which is a nice side effect that brings extra safety.
+        callback(match, ++i, str, regex);
+
+        pos = match.index + (match[0].length || 1);
+    }
+};
+
+/**
+ * Copies a regex object and adds flag `g`. The copy maintains extended data, is augmented with
+ * `XRegExp.prototype` properties, and has a fresh `lastIndex` property (set to zero). Native
+ * regexes are not recompiled using XRegExp syntax.
+ *
+ * @memberOf XRegExp
+ * @param {RegExp} regex Regex to globalize.
+ * @returns {RegExp} Copy of the provided regex with flag `g` added.
+ * @example
+ *
+ * const globalCopy = XRegExp.globalize(/regex/);
+ * globalCopy.global; // -> true
+ */
+XRegExp.globalize = (regex) => copyRegex(regex, {addG: true});
+
+/**
+ * Installs optional features according to the specified options. Can be undone using
+ * `XRegExp.uninstall`.
+ *
+ * @memberOf XRegExp
+ * @param {Object|String} options Options object or string.
+ * @example
+ *
+ * // With an options object
+ * XRegExp.install({
+ *   // Enables support for astral code points in Unicode addons (implicitly sets flag A)
+ *   astral: true,
+ *
+ *   // Adds named capture groups to the `groups` property of matches
+ *   namespacing: true
+ * });
+ *
+ * // With an options string
+ * XRegExp.install('astral namespacing');
+ */
+XRegExp.install = (options) => {
+    options = prepareOptions(options);
+
+    if (!features.astral && options.astral) {
+        setAstral(true);
+    }
+
+    if (!features.namespacing && options.namespacing) {
+        setNamespacing(true);
+    }
+};
+
+/**
+ * Checks whether an individual optional feature is installed.
+ *
+ * @memberOf XRegExp
+ * @param {String} feature Name of the feature to check. One of:
+ *   - `astral`
+ *   - `namespacing`
+ * @returns {boolean} Whether the feature is installed.
+ * @example
+ *
+ * XRegExp.isInstalled('astral');
+ */
+XRegExp.isInstalled = (feature) => !!(features[feature]);
+
+/**
+ * Returns `true` if an object is a regex; `false` if it isn't. This works correctly for regexes
+ * created in another frame, when `instanceof` and `constructor` checks would fail.
+ *
+ * @memberOf XRegExp
+ * @param {*} value Object to check.
+ * @returns {boolean} Whether the object is a `RegExp` object.
+ * @example
+ *
+ * XRegExp.isRegExp('string'); // -> false
+ * XRegExp.isRegExp(/regex/i); // -> true
+ * XRegExp.isRegExp(RegExp('^', 'm')); // -> true
+ * XRegExp.isRegExp(XRegExp('(?s).')); // -> true
+ */
+XRegExp.isRegExp = (value) => Object.prototype.toString.call(value) === '[object RegExp]';
+// Same as `isType(value, 'RegExp')`, but avoiding that function call here for perf since
+// `isRegExp` is used heavily by internals including regex construction
+
+/**
+ * Returns the first matched string, or in global mode, an array containing all matched strings.
+ * This is essentially a more convenient re-implementation of `String.prototype.match` that gives
+ * the result types you actually want (string instead of `exec`-style array in match-first mode,
+ * and an empty array instead of `null` when no matches are found in match-all mode). It also lets
+ * you override flag g and ignore `lastIndex`, and fixes browser bugs.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {RegExp} regex Regex to search with.
+ * @param {String} [scope='one'] Use 'one' to return the first match as a string. Use 'all' to
+ *   return an array of all matched strings. If not explicitly specified and `regex` uses flag g,
+ *   `scope` is 'all'.
+ * @returns {String|Array} In match-first mode: First match as a string, or `null`. In match-all
+ *   mode: Array of all matched strings, or an empty array.
+ * @example
+ *
+ * // Match first
+ * XRegExp.match('abc', /\w/); // -> 'a'
+ * XRegExp.match('abc', /\w/g, 'one'); // -> 'a'
+ * XRegExp.match('abc', /x/g, 'one'); // -> null
+ *
+ * // Match all
+ * XRegExp.match('abc', /\w/g); // -> ['a', 'b', 'c']
+ * XRegExp.match('abc', /\w/, 'all'); // -> ['a', 'b', 'c']
+ * XRegExp.match('abc', /x/, 'all'); // -> []
+ */
+XRegExp.match = (str, regex, scope) => {
+    const global = (regex.global && scope !== 'one') || scope === 'all';
+    const cacheKey = ((global ? 'g' : '') + (regex.sticky ? 'y' : '')) || 'noGY';
+
+    regex[REGEX_DATA] = regex[REGEX_DATA] || {};
+
+    // Shares cached copies with `XRegExp.exec`/`replace`
+    const r2 = regex[REGEX_DATA][cacheKey] || (
+        regex[REGEX_DATA][cacheKey] = copyRegex(regex, {
+            addG: !!global,
+            removeG: scope === 'one',
+            isInternalOnly: true
+        })
+    );
+
+    const result = String(nullThrows(str)).match(r2);
+
+    if (regex.global) {
+        regex.lastIndex = (
+            (scope === 'one' && result) ?
+                // Can't use `r2.lastIndex` since `r2` is nonglobal in this case
+                (result.index + result[0].length) : 0
+        );
+    }
+
+    return global ? (result || []) : (result && result[0]);
+};
+
+/**
+ * Retrieves the matches from searching a string using a chain of regexes that successively search
+ * within previous matches. The provided `chain` array can contain regexes and or objects with
+ * `regex` and `backref` properties. When a backreference is specified, the named or numbered
+ * backreference is passed forward to the next regex or returned.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {Array} chain Regexes that each search for matches within preceding results.
+ * @returns {Array} Matches by the last regex in the chain, or an empty array.
+ * @example
+ *
+ * // Basic usage; matches numbers within <b> tags
+ * XRegExp.matchChain('1 <b>2</b> 3 <b>4 a 56</b>', [
+ *   XRegExp('(?is)<b>.*?</b>'),
+ *   /\d+/
+ * ]);
+ * // -> ['2', '4', '56']
+ *
+ * // Passing forward and returning specific backreferences
+ * const html = `<a href="http://xregexp.com/api/">XRegExp</a>
+ *               <a href="http://www.google.com/">Google</a>`;
+ * XRegExp.matchChain(html, [
+ *   {regex: /<a href="([^"]+)">/i, backref: 1},
+ *   {regex: XRegExp('(?i)^https?://(?<domain>[^/?#]+)'), backref: 'domain'}
+ * ]);
+ * // -> ['xregexp.com', 'www.google.com']
+ */
+XRegExp.matchChain = (str, chain) => (function recurseChain(values, level) {
+    const item = chain[level].regex ? chain[level] : {regex: chain[level]};
+    const matches = [];
+
+    function addMatch(match) {
+        if (item.backref) {
+            const ERR_UNDEFINED_GROUP = `Backreference to undefined group: ${item.backref}`;
+            const isNamedBackref = isNaN(item.backref);
+
+            if (isNamedBackref && XRegExp.isInstalled('namespacing')) {
+                // `groups` has `null` as prototype, so using `in` instead of `hasOwnProperty`
+                if (!(match.groups && item.backref in match.groups)) {
+                    throw new ReferenceError(ERR_UNDEFINED_GROUP);
+                }
+            } else if (!match.hasOwnProperty(item.backref)) {
+                throw new ReferenceError(ERR_UNDEFINED_GROUP);
+            }
+
+            const backrefValue = isNamedBackref && XRegExp.isInstalled('namespacing') ?
+                match.groups[item.backref] :
+                match[item.backref];
+
+            matches.push(backrefValue || '');
+        } else {
+            matches.push(match[0]);
+        }
+    }
+
+    for (const value of values) {
+        XRegExp.forEach(value, item.regex, addMatch);
+    }
+
+    return ((level === chain.length - 1) || !matches.length) ?
+        matches :
+        recurseChain(matches, level + 1);
+}([str], 0));
+
+/**
+ * Returns a new string with one or all matches of a pattern replaced. The pattern can be a string
+ * or regex, and the replacement can be a string or a function to be called for each match. To
+ * perform a global search and replace, use the optional `scope` argument or include flag g if using
+ * a regex. Replacement strings can use `$<n>` or `${n}` for named and numbered backreferences.
+ * Replacement functions can use named backreferences via the last argument. Also fixes browser bugs
+ * compared to the native `String.prototype.replace` and can be used reliably cross-browser.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {RegExp|String} search Search pattern to be replaced.
+ * @param {String|Function} replacement Replacement string or a function invoked to create it.
+ *   Replacement strings can include special replacement syntax:
+ *     - $$ - Inserts a literal $ character.
+ *     - $&, $0 - Inserts the matched substring.
+ *     - $` - Inserts the string that precedes the matched substring (left context).
+ *     - $' - Inserts the string that follows the matched substring (right context).
+ *     - $n, $nn - Where n/nn are digits referencing an existing capturing group, inserts
+ *       backreference n/nn.
+ *     - $<n>, ${n} - Where n is a name or any number of digits that reference an existing capturing
+ *       group, inserts backreference n.
+ *   Replacement functions are invoked with three or more arguments:
+ *     - args[0] - The matched substring (corresponds to `$&` above). If the `namespacing` feature
+ *       is off, named backreferences are accessible as properties of this argument.
+ *     - args[1..n] - One argument for each backreference (corresponding to `$1`, `$2`, etc. above).
+ *       If the regex has no capturing groups, no arguments appear in this position.
+ *     - args[n+1] - The zero-based index of the match within the entire search string.
+ *     - args[n+2] - The total string being searched.
+ *     - args[n+3] - If the the search pattern is a regex with named capturing groups, the last
+ *       argument is the groups object. Its keys are the backreference names and its values are the
+ *       backreference values. If the `namespacing` feature is off, this argument is not present.
+ * @param {String} [scope] Use 'one' to replace the first match only, or 'all'. Defaults to 'one'.
+ *   Defaults to 'all' if using a regex with flag g.
+ * @returns {String} New string with one or all matches replaced.
+ * @example
+ *
+ * // Regex search, using named backreferences in replacement string
+ * const name = XRegExp('(?<first>\\w+) (?<last>\\w+)');
+ * XRegExp.replace('John Smith', name, '$<last>, $<first>');
+ * // -> 'Smith, John'
+ *
+ * // Regex search, using named backreferences in replacement function
+ * XRegExp.replace('John Smith', name, (...args) => {
+ *   const groups = args[args.length - 1];
+ *   return `${groups.last}, ${groups.first}`;
+ * });
+ * // -> 'Smith, John'
+ *
+ * // String search, with replace-all
+ * XRegExp.replace('RegExp builds RegExps', 'RegExp', 'XRegExp', 'all');
+ * // -> 'XRegExp builds XRegExps'
+ */
+XRegExp.replace = (str, search, replacement, scope) => {
+    const isRegex = XRegExp.isRegExp(search);
+    const global = (search.global && scope !== 'one') || scope === 'all';
+    const cacheKey = ((global ? 'g' : '') + (search.sticky ? 'y' : '')) || 'noGY';
+    let s2 = search;
+
+    if (isRegex) {
+        search[REGEX_DATA] = search[REGEX_DATA] || {};
+
+        // Shares cached copies with `XRegExp.exec`/`match`. Since a copy is used, `search`'s
+        // `lastIndex` isn't updated *during* replacement iterations
+        s2 = search[REGEX_DATA][cacheKey] || (
+            search[REGEX_DATA][cacheKey] = copyRegex(search, {
+                addG: !!global,
+                removeG: scope === 'one',
+                isInternalOnly: true
+            })
+        );
+    } else if (global) {
+        s2 = new RegExp(XRegExp.escape(String(search)), 'g');
+    }
+
+    // Fixed `replace` required for named backreferences, etc.
+    const result = fixed.replace.call(nullThrows(str), s2, replacement);
+
+    if (isRegex && search.global) {
+        // Fixes IE, Safari bug (last tested IE 9, Safari 5.1)
+        search.lastIndex = 0;
+    }
+
+    return result;
+};
+
+/**
+ * Performs batch processing of string replacements. Used like `XRegExp.replace`, but accepts an
+ * array of replacement details. Later replacements operate on the output of earlier replacements.
+ * Replacement details are accepted as an array with a regex or string to search for, the
+ * replacement string or function, and an optional scope of 'one' or 'all'. Uses the XRegExp
+ * replacement text syntax, which supports named backreference properties via `$<name>` or
+ * `${name}`.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {Array} replacements Array of replacement detail arrays.
+ * @returns {String} New string with all replacements.
+ * @example
+ *
+ * str = XRegExp.replaceEach(str, [
+ *   [XRegExp('(?<name>a)'), 'z$<name>'],
+ *   [/b/gi, 'y'],
+ *   [/c/g, 'x', 'one'], // scope 'one' overrides /g
+ *   [/d/, 'w', 'all'],  // scope 'all' overrides lack of /g
+ *   ['e', 'v', 'all'],  // scope 'all' allows replace-all for strings
+ *   [/f/g, (match) => match.toUpperCase()]
+ * ]);
+ */
+XRegExp.replaceEach = (str, replacements) => {
+    for (const r of replacements) {
+        str = XRegExp.replace(str, r[0], r[1], r[2]);
+    }
+
+    return str;
+};
+
+/**
+ * Splits a string into an array of strings using a regex or string separator. Matches of the
+ * separator are not included in the result array. However, if `separator` is a regex that contains
+ * capturing groups, backreferences are spliced into the result each time `separator` is matched.
+ * Fixes browser bugs compared to the native `String.prototype.split` and can be used reliably
+ * cross-browser.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to split.
+ * @param {RegExp|String} separator Regex or string to use for separating the string.
+ * @param {Number} [limit] Maximum number of items to include in the result array.
+ * @returns {Array} Array of substrings.
+ * @example
+ *
+ * // Basic use
+ * XRegExp.split('a b c', ' ');
+ * // -> ['a', 'b', 'c']
+ *
+ * // With limit
+ * XRegExp.split('a b c', ' ', 2);
+ * // -> ['a', 'b']
+ *
+ * // Backreferences in result array
+ * XRegExp.split('..word1..', /([a-z]+)(\d+)/i);
+ * // -> ['..', 'word', '1', '..']
+ */
+XRegExp.split = (str, separator, limit) => fixed.split.call(nullThrows(str), separator, limit);
+
+/**
+ * Executes a regex search in a specified string. Returns `true` or `false`. Optional `pos` and
+ * `sticky` arguments specify the search start position, and whether the match must start at the
+ * specified position only. The `lastIndex` property of the provided regex is not used, but is
+ * updated for compatibility. Also fixes browser bugs compared to the native
+ * `RegExp.prototype.test` and can be used reliably cross-browser.
+ *
+ * @memberOf XRegExp
+ * @param {String} str String to search.
+ * @param {RegExp} regex Regex to search with.
+ * @param {Number} [pos=0] Zero-based index at which to start the search.
+ * @param {Boolean|String} [sticky=false] Whether the match must start at the specified position
+ *   only. The string `'sticky'` is accepted as an alternative to `true`.
+ * @returns {boolean} Whether the regex matched the provided value.
+ * @example
+ *
+ * // Basic use
+ * XRegExp.test('abc', /c/); // -> true
+ *
+ * // With pos and sticky
+ * XRegExp.test('abc', /c/, 0, 'sticky'); // -> false
+ * XRegExp.test('abc', /c/, 2, 'sticky'); // -> true
+ */
+// Do this the easy way :-)
+XRegExp.test = (str, regex, pos, sticky) => !!XRegExp.exec(str, regex, pos, sticky);
+
+/**
+ * Uninstalls optional features according to the specified options. Used to undo the actions of
+ * `XRegExp.install`.
+ *
+ * @memberOf XRegExp
+ * @param {Object|String} options Options object or string.
+ * @example
+ *
+ * // With an options object
+ * XRegExp.uninstall({
+ *   // Disables support for astral code points in Unicode addons (unless enabled per regex)
+ *   astral: true,
+ *
+ *   // Don't add named capture groups to the `groups` property of matches
+ *   namespacing: true
+ * });
+ *
+ * // With an options string
+ * XRegExp.uninstall('astral namespacing');
+ */
+XRegExp.uninstall = (options) => {
+    options = prepareOptions(options);
+
+    if (features.astral && options.astral) {
+        setAstral(false);
+    }
+
+    if (features.namespacing && options.namespacing) {
+        setNamespacing(false);
+    }
+};
+
+/**
+ * Returns an XRegExp object that is the union of the given patterns. Patterns can be provided as
+ * regex objects or strings. Metacharacters are escaped in patterns provided as strings.
+ * Backreferences in provided regex objects are automatically renumbered to work correctly within
+ * the larger combined pattern. Native flags used by provided regexes are ignored in favor of the
+ * `flags` argument.
+ *
+ * @memberOf XRegExp
+ * @param {Array} patterns Regexes and strings to combine.
+ * @param {String} [flags] Any combination of XRegExp flags.
+ * @param {Object} [options] Options object with optional properties:
+ *   - `conjunction` {String} Type of conjunction to use: 'or' (default) or 'none'.
+ * @returns {RegExp} Union of the provided regexes and strings.
+ * @example
+ *
+ * XRegExp.union(['a+b*c', /(dogs)\1/, /(cats)\1/], 'i');
+ * // -> /a\+b\*c|(dogs)\1|(cats)\2/i
+ *
+ * XRegExp.union([/man/, /bear/, /pig/], 'i', {conjunction: 'none'});
+ * // -> /manbearpig/i
+ */
+XRegExp.union = (patterns, flags, options) => {
+    options = options || {};
+    const conjunction = options.conjunction || 'or';
+    let numCaptures = 0;
+    let numPriorCaptures;
+    let captureNames;
+
+    function rewrite(match, paren, backref) {
+        const name = captureNames[numCaptures - numPriorCaptures];
+
+        // Capturing group
+        if (paren) {
+            ++numCaptures;
+            // If the current capture has a name, preserve the name
+            if (name) {
+                return `(?<${name}>`;
+            }
+        // Backreference
+        } else if (backref) {
+            // Rewrite the backreference
+            return `\\${+backref + numPriorCaptures}`;
+        }
+
+        return match;
+    }
+
+    if (!(isType(patterns, 'Array') && patterns.length)) {
+        throw new TypeError('Must provide a nonempty array of patterns to merge');
+    }
+
+    const parts = /(\()(?!\?)|\\([1-9]\d*)|\\[\s\S]|\[(?:[^\\\]]|\\[\s\S])*\]/g;
+    const output = [];
+    for (const pattern of patterns) {
+        if (XRegExp.isRegExp(pattern)) {
+            numPriorCaptures = numCaptures;
+            captureNames = (pattern[REGEX_DATA] && pattern[REGEX_DATA].captureNames) || [];
+
+            // Rewrite backreferences. Passing to XRegExp dies on octals and ensures patterns are
+            // independently valid; helps keep this simple. Named captures are put back
+            output.push(XRegExp(pattern.source).source.replace(parts, rewrite));
+        } else {
+            output.push(XRegExp.escape(pattern));
+        }
+    }
+
+    const separator = conjunction === 'none' ? '' : '|';
+    return XRegExp(output.join(separator), flags);
+};
+
+// ==--------------------------==
+// Fixed/extended native methods
+// ==--------------------------==
+
+/**
+ * Adds named capture support (with backreferences returned as `result.name`), and fixes browser
+ * bugs in the native `RegExp.prototype.exec`. Use via `XRegExp.exec`.
+ *
+ * @memberOf RegExp
+ * @param {String} str String to search.
+ * @returns {Array} Match array with named backreference properties, or `null`.
+ */
+fixed.exec = function(str) {
+    const origLastIndex = this.lastIndex;
+    const match = RegExp.prototype.exec.apply(this, arguments);
+
+    if (match) {
+        // Fix browsers whose `exec` methods don't return `undefined` for nonparticipating capturing
+        // groups. This fixes IE 5.5-8, but not IE 9's quirks mode or emulation of older IEs. IE 9
+        // in standards mode follows the spec.
+        if (!correctExecNpcg && match.length > 1 && match.includes('')) {
+            const r2 = copyRegex(this, {
+                removeG: true,
+                isInternalOnly: true
+            });
+            // Using `str.slice(match.index)` rather than `match[0]` in case lookahead allowed
+            // matching due to characters outside the match
+            String(str).slice(match.index).replace(r2, (...args) => {
+                const len = args.length;
+                // Skip index 0 and the last 2
+                for (let i = 1; i < len - 2; ++i) {
+                    if (args[i] === undefined) {
+                        match[i] = undefined;
+                    }
+                }
+            });
+        }
+
+        // Attach named capture properties
+        if (this[REGEX_DATA] && this[REGEX_DATA].captureNames) {
+            let groupsObject = match;
+            if (XRegExp.isInstalled('namespacing')) {
+                // https://tc39.github.io/proposal-regexp-named-groups/#sec-regexpbuiltinexec
+                match.groups = Object.create(null);
+                groupsObject = match.groups;
+            }
+            // Skip index 0
+            for (let i = 1; i < match.length; ++i) {
+                const name = this[REGEX_DATA].captureNames[i - 1];
+                if (name) {
+                    groupsObject[name] = match[i];
+                }
+            }
+        // Preserve any existing `groups` obj that came from native ES2018 named capture
+        } else if (!match.groups && XRegExp.isInstalled('namespacing')) {
+            match.groups = undefined;
+        }
+
+        // Fix browsers that increment `lastIndex` after zero-length matches
+        if (this.global && !match[0].length && (this.lastIndex > match.index)) {
+            this.lastIndex = match.index;
+        }
+    }
+
+    if (!this.global) {
+        // Fixes IE, Opera bug (last tested IE 9, Opera 11.6)
+        this.lastIndex = origLastIndex;
+    }
+
+    return match;
+};
+
+/**
+ * Fixes browser bugs in the native `RegExp.prototype.test`.
+ *
+ * @memberOf RegExp
+ * @param {String} str String to search.
+ * @returns {boolean} Whether the regex matched the provided value.
+ */
+fixed.test = function(str) {
+    // Do this the easy way :-)
+    return !!fixed.exec.call(this, str);
+};
+
+/**
+ * Adds named capture support (with backreferences returned as `result.name`), and fixes browser
+ * bugs in the native `String.prototype.match`.
+ *
+ * @memberOf String
+ * @param {RegExp|*} regex Regex to search with. If not a regex object, it is passed to `RegExp`.
+ * @returns {Array} If `regex` uses flag g, an array of match strings or `null`. Without flag g,
+ *   the result of calling `regex.exec(this)`.
+ */
+fixed.match = function(regex) {
+    if (!XRegExp.isRegExp(regex)) {
+        // Use the native `RegExp` rather than `XRegExp`
+        regex = new RegExp(regex);
+    } else if (regex.global) {
+        const result = String.prototype.match.apply(this, arguments);
+        // Fixes IE bug
+        regex.lastIndex = 0;
+
+        return result;
+    }
+
+    return fixed.exec.call(regex, nullThrows(this));
+};
+
+/**
+ * Adds support for `${n}` (or `$<n>`) tokens for named and numbered backreferences in replacement
+ * text, and provides named backreferences to replacement functions as `arguments[0].name`. Also
+ * fixes browser bugs in replacement text syntax when performing a replacement using a nonregex
+ * search value, and the value of a replacement regex's `lastIndex` property during replacement
+ * iterations and upon completion. Note that this doesn't support SpiderMonkey's proprietary third
+ * (`flags`) argument. Use via `XRegExp.replace`.
+ *
+ * @memberOf String
+ * @param {RegExp|String} search Search pattern to be replaced.
+ * @param {String|Function} replacement Replacement string or a function invoked to create it.
+ * @returns {string} New string with one or all matches replaced.
+ */
+fixed.replace = function(search, replacement) {
+    const isRegex = XRegExp.isRegExp(search);
+    let origLastIndex;
+    let captureNames;
+    let result;
+
+    if (isRegex) {
+        if (search[REGEX_DATA]) {
+            ({captureNames} = search[REGEX_DATA]);
+        }
+        // Only needed if `search` is nonglobal
+        origLastIndex = search.lastIndex;
+    } else {
+        search += ''; // Type-convert
+    }
+
+    // Don't use `typeof`; some older browsers return 'function' for regex objects
+    if (isType(replacement, 'Function')) {
+        // Stringifying `this` fixes a bug in IE < 9 where the last argument in replacement
+        // functions isn't type-converted to a string
+        result = String(this).replace(search, (...args) => {
+            if (captureNames) {
+                let groupsObject;
+
+                if (XRegExp.isInstalled('namespacing')) {
+                    // https://tc39.github.io/proposal-regexp-named-groups/#sec-regexpbuiltinexec
+                    groupsObject = Object.create(null);
+                    args.push(groupsObject);
+                } else {
+                    // Change the `args[0]` string primitive to a `String` object that can store
+                    // properties. This really does need to use `String` as a constructor
+                    args[0] = new String(args[0]);
+                    [groupsObject] = args;
+                }
+
+                // Store named backreferences
+                for (let i = 0; i < captureNames.length; ++i) {
+                    if (captureNames[i]) {
+                        groupsObject[captureNames[i]] = args[i + 1];
+                    }
+                }
+            }
+            // ES6 specs the context for replacement functions as `undefined`
+            return replacement(...args);
+        });
+    } else {
+        // Ensure that the last value of `args` will be a string when given nonstring `this`,
+        // while still throwing on null or undefined context
+        result = String(nullThrows(this)).replace(search, (...args) => {
+            return String(replacement).replace(replacementToken, replacer);
+
+            function replacer($0, bracketed, angled, dollarToken) {
+                bracketed = bracketed || angled;
+
+                // ES2018 added a new trailing `groups` arg that's passed to replacement functions
+                // when the search regex uses native named capture
+                const numNonCaptureArgs = isType(args[args.length - 1], 'Object') ? 4 : 3;
+                const numCaptures = args.length - numNonCaptureArgs;
+
+                // Handle named or numbered backreference with curly or angled braces: ${n}, $<n>
+                if (bracketed) {
+                    // Handle backreference to numbered capture, if `bracketed` is an integer. Use
+                    // `0` for the entire match. Any number of leading zeros may be used.
+                    if (/^\d+$/.test(bracketed)) {
+                        // Type-convert and drop leading zeros
+                        const n = +bracketed;
+                        if (n <= numCaptures) {
+                            return args[n] || '';
+                        }
+                    }
+
+                    // Handle backreference to named capture. If the name does not refer to an
+                    // existing capturing group, it's an error. Also handles the error for numbered
+                    // backference that does not refer to an existing group.
+                    // Using `indexOf` since having groups with the same name is already an error,
+                    // otherwise would need `lastIndexOf`.
+                    const n = captureNames ? captureNames.indexOf(bracketed) : -1;
+                    if (n < 0) {
+                        throw new SyntaxError(`Backreference to undefined group ${$0}`);
+                    }
+                    return args[n + 1] || '';
+                }
+
+                // Handle `$`-prefixed variable
+                // Handle space/blank first because type conversion with `+` drops space padding
+                // and converts spaces and empty strings to `0`
+                if (dollarToken === '' || dollarToken === ' ') {
+                    throw new SyntaxError(`Invalid token ${$0}`);
+                }
+                if (dollarToken === '&' || +dollarToken === 0) { // $&, $0 (not followed by 1-9), $00
+                    return args[0];
+                }
+                if (dollarToken === '$') { // $$
+                    return '$';
+                }
+                if (dollarToken === '`') { // $` (left context)
+                    return args[args.length - 1].slice(0, args[args.length - 2]);
+                }
+                if (dollarToken === "'") { // $' (right context)
+                    return args[args.length - 1].slice(args[args.length - 2] + args[0].length);
+                }
+
+                // Handle numbered backreference without braces
+                // Type-convert and drop leading zero
+                dollarToken = +dollarToken;
+                // XRegExp behavior for `$n` and `$nn`:
+                // - Backrefs end after 1 or 2 digits. Use `${..}` or `$<..>` for more digits.
+                // - `$1` is an error if no capturing groups.
+                // - `$10` is an error if less than 10 capturing groups. Use `${1}0` or `$<1>0`
+                //   instead.
+                // - `$01` is `$1` if at least one capturing group, else it's an error.
+                // - `$0` (not followed by 1-9) and `$00` are the entire match.
+                // Native behavior, for comparison:
+                // - Backrefs end after 1 or 2 digits. Cannot reference capturing group 100+.
+                // - `$1` is a literal `$1` if no capturing groups.
+                // - `$10` is `$1` followed by a literal `0` if less than 10 capturing groups.
+                // - `$01` is `$1` if at least one capturing group, else it's a literal `$01`.
+                // - `$0` is a literal `$0`.
+                if (!isNaN(dollarToken)) {
+                    if (dollarToken > numCaptures) {
+                        throw new SyntaxError(`Backreference to undefined group ${$0}`);
+                    }
+                    return args[dollarToken] || '';
+                }
+
+                // `$` followed by an unsupported char is an error, unlike native JS
+                throw new SyntaxError(`Invalid token ${$0}`);
+            }
+        });
+    }
+
+    if (isRegex) {
+        if (search.global) {
+            // Fixes IE, Safari bug (last tested IE 9, Safari 5.1)
+            search.lastIndex = 0;
+        } else {
+            // Fixes IE, Opera bug (last tested IE 9, Opera 11.6)
+            search.lastIndex = origLastIndex;
+        }
+    }
+
+    return result;
+};
+
+/**
+ * Fixes browser bugs in the native `String.prototype.split`. Use via `XRegExp.split`.
+ *
+ * @memberOf String
+ * @param {RegExp|String} separator Regex or string to use for separating the string.
+ * @param {Number} [limit] Maximum number of items to include in the result array.
+ * @returns {!Array} Array of substrings.
+ */
+fixed.split = function(separator, limit) {
+    if (!XRegExp.isRegExp(separator)) {
+        // Browsers handle nonregex split correctly, so use the faster native method
+        return String.prototype.split.apply(this, arguments);
+    }
+
+    const str = String(this);
+    const output = [];
+    const origLastIndex = separator.lastIndex;
+    let lastLastIndex = 0;
+    let lastLength;
+
+    // Values for `limit`, per the spec:
+    // If undefined: pow(2,32) - 1
+    // If 0, Infinity, or NaN: 0
+    // If positive number: limit = floor(limit); if (limit >= pow(2,32)) limit -= pow(2,32);
+    // If negative number: pow(2,32) - floor(abs(limit))
+    // If other: Type-convert, then use the above rules
+    // This line fails in very strange ways for some values of `limit` in Opera 10.5-10.63, unless
+    // Opera Dragonfly is open (go figure). It works in at least Opera 9.5-10.1 and 11+
+    limit = (limit === undefined ? -1 : limit) >>> 0;
+
+    XRegExp.forEach(str, separator, (match) => {
+        // This condition is not the same as `if (match[0].length)`
+        if ((match.index + match[0].length) > lastLastIndex) {
+            output.push(str.slice(lastLastIndex, match.index));
+            if (match.length > 1 && match.index < str.length) {
+                Array.prototype.push.apply(output, match.slice(1));
+            }
+            lastLength = match[0].length;
+            lastLastIndex = match.index + lastLength;
+        }
+    });
+
+    if (lastLastIndex === str.length) {
+        if (!separator.test('') || lastLength) {
+            output.push('');
+        }
+    } else {
+        output.push(str.slice(lastLastIndex));
+    }
+
+    separator.lastIndex = origLastIndex;
+    return output.length > limit ? output.slice(0, limit) : output;
+};
+
+// ==--------------------------==
+// Built-in syntax/flag tokens
+// ==--------------------------==
+
+/*
+ * Letter escapes that natively match literal characters: `\a`, `\A`, etc. These should be
+ * SyntaxErrors but are allowed in web reality. XRegExp makes them errors for cross-browser
+ * consistency and to reserve their syntax, but lets them be superseded by addons.
+ */
+XRegExp.addToken(
+    /\\([ABCE-RTUVXYZaeg-mopqyz]|c(?![A-Za-z])|u(?![\dA-Fa-f]{4}|{[\dA-Fa-f]+})|x(?![\dA-Fa-f]{2}))/,
+    (match, scope) => {
+        // \B is allowed in default scope only
+        if (match[1] === 'B' && scope === defaultScope) {
+            return match[0];
+        }
+        throw new SyntaxError(`Invalid escape ${match[0]}`);
+    },
+    {
+        scope: 'all',
+        leadChar: '\\'
+    }
+);
+
+/*
+ * Unicode code point escape with curly braces: `\u{N..}`. `N..` is any one or more digit
+ * hexadecimal number from 0-10FFFF, and can include leading zeros. Requires the native ES6 `u` flag
+ * to support code points greater than U+FFFF. Avoids converting code points above U+FFFF to
+ * surrogate pairs (which could be done without flag `u`), since that could lead to broken behavior
+ * if you follow a `\u{N..}` token that references a code point above U+FFFF with a quantifier, or
+ * if you use the same in a character class.
+ */
+XRegExp.addToken(
+    /\\u{([\dA-Fa-f]+)}/,
+    (match, scope, flags) => {
+        const code = dec(match[1]);
+        if (code > 0x10FFFF) {
+            throw new SyntaxError(`Invalid Unicode code point ${match[0]}`);
+        }
+        if (code <= 0xFFFF) {
+            // Converting to \uNNNN avoids needing to escape the literal character and keep it
+            // separate from preceding tokens
+            return `\\u${pad4(hex(code))}`;
+        }
+        // If `code` is between 0xFFFF and 0x10FFFF, require and defer to native handling
+        if (hasNativeU && flags.includes('u')) {
+            return match[0];
+        }
+        throw new SyntaxError('Cannot use Unicode code point above \\u{FFFF} without flag u');
+    },
+    {
+        scope: 'all',
+        leadChar: '\\'
+    }
+);
+
+/*
+ * Comment pattern: `(?# )`. Inline comments are an alternative to the line comments allowed in
+ * free-spacing mode (flag x).
+ */
+XRegExp.addToken(
+    /\(\?#[^)]*\)/,
+    getContextualTokenSeparator,
+    {leadChar: '('}
+);
+
+/*
+ * Whitespace and line comments, in free-spacing mode (aka extended mode, flag x) only.
+ */
+XRegExp.addToken(
+    /\s+|#[^\n]*\n?/,
+    getContextualTokenSeparator,
+    {flag: 'x'}
+);
+
+/*
+ * Dot, in dotAll mode (aka singleline mode, flag s) only.
+ */
+if (!hasNativeS) {
+    XRegExp.addToken(
+        /\./,
+        () => '[\\s\\S]',
+        {
+            flag: 's',
+            leadChar: '.'
+        }
+    );
+}
+
+/*
+ * Named backreference: `\k<name>`. Backreference names can use RegExpIdentifierName characters
+ * only. Also allows numbered backreferences as `\k<n>`.
+ */
+XRegExp.addToken(
+    /\\k<([^>]+)>/,
+    function(match) {
+        // Groups with the same name is an error, else would need `lastIndexOf`
+        const index = isNaN(match[1]) ? (this.captureNames.indexOf(match[1]) + 1) : +match[1];
+        const endIndex = match.index + match[0].length;
+        if (!index || index > this.captureNames.length) {
+            throw new SyntaxError(`Backreference to undefined group ${match[0]}`);
+        }
+        // Keep backreferences separate from subsequent literal numbers. This avoids e.g.
+        // inadvertedly changing `(?<n>)\k<n>1` to `()\11`.
+        return `\\${index}${
+            endIndex === match.input.length || isNaN(match.input[endIndex]) ?
+                '' : '(?:)'
+        }`;
+    },
+    {leadChar: '\\'}
+);
+
+/*
+ * Numbered backreference or octal, plus any following digits: `\0`, `\11`, etc. Octals except `\0`
+ * not followed by 0-9 and backreferences to unopened capture groups throw an error. Other matches
+ * are returned unaltered. IE < 9 doesn't support backreferences above `\99` in regex syntax.
+ */
+XRegExp.addToken(
+    /\\(\d+)/,
+    function(match, scope) {
+        if (
+            !(
+                scope === defaultScope &&
+                /^[1-9]/.test(match[1]) &&
+                +match[1] <= this.captureNames.length
+            ) &&
+            match[1] !== '0'
+        ) {
+            throw new SyntaxError(`Cannot use octal escape or backreference to undefined group ${match[0]}`);
+        }
+        return match[0];
+    },
+    {
+        scope: 'all',
+        leadChar: '\\'
+    }
+);
+
+/*
+ * Named capturing group; match the opening delimiter only: `(?<name>`. Capture names can use the
+ * RegExpIdentifierName characters only. Names can't be integers. Supports Python-style
+ * `(?P<name>` as an alternate syntax to avoid issues in some older versions of Opera which natively
+ * supported the Python-style syntax. Otherwise, XRegExp might treat numbered backreferences to
+ * Python-style named capture as octals.
+ */
+XRegExp.addToken(
+    /\(\?P?<([\p{ID_Start}$_][\p{ID_Continue}$_\u200C\u200D]*)>/u,
+    function(match) {
+        if (!XRegExp.isInstalled('namespacing') && (match[1] === 'length' || match[1] === '__proto__')) {
+            throw new SyntaxError(`Cannot use reserved word as capture name ${match[0]}`);
+        }
+        if (this.captureNames.includes(match[1])) {
+            throw new SyntaxError(`Cannot use same name for multiple groups ${match[0]}`);
+        }
+        this.captureNames.push(match[1]);
+        this.hasNamedCapture = true;
+        return '(';
+    },
+    {leadChar: '('}
+);
+
+/*
+ * Capturing group; match the opening parenthesis only. Required for support of named capturing
+ * groups. Also adds named capture only mode (flag n).
+ */
+XRegExp.addToken(
+    /\((?!\?)/,
+    function(match, scope, flags) {
+        if (flags.includes('n')) {
+            return '(?:';
+        }
+        this.captureNames.push(null);
+        return '(';
+    },
+    {
+        optionalFlags: 'n',
+        leadChar: '('
+    }
+);
+
+/*!
+ * XRegExp.build 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2012-present MIT License
+ */
+
+var build = (XRegExp) => {
+    const REGEX_DATA = 'xregexp';
+    const subParts = /(\()(?!\?)|\\([1-9]\d*)|\\[\s\S]|\[(?:[^\\\]]|\\[\s\S])*\]/g;
+    const parts = XRegExp.union([/\({{([\w$]+)}}\)|{{([\w$]+)}}/, subParts], 'g', {
+        conjunction: 'or'
+    });
+
+    /**
+     * Strips a leading `^` and trailing unescaped `$`, if both are present.
+     *
+     * @private
+     * @param {String} pattern Pattern to process.
+     * @returns {String} Pattern with edge anchors removed.
+     */
+    function deanchor(pattern) {
+        // Allow any number of empty noncapturing groups before/after anchors, because regexes
+        // built/generated by XRegExp sometimes include them
+        const leadingAnchor = /^(?:\(\?:\))*\^/;
+        const trailingAnchor = /\$(?:\(\?:\))*$/;
+
+        if (
+            leadingAnchor.test(pattern) &&
+            trailingAnchor.test(pattern) &&
+            // Ensure that the trailing `$` isn't escaped
+            trailingAnchor.test(pattern.replace(/\\[\s\S]/g, ''))
+        ) {
+            return pattern.replace(leadingAnchor, '').replace(trailingAnchor, '');
+        }
+
+        return pattern;
+    }
+
+    /**
+     * Converts the provided value to an XRegExp. Native RegExp flags are not preserved.
+     *
+     * @private
+     * @param {String|RegExp} value Value to convert.
+     * @param {Boolean} [addFlagX] Whether to apply the `x` flag in cases when `value` is not
+     *   already a regex generated by XRegExp
+     * @returns {RegExp} XRegExp object with XRegExp syntax applied.
+     */
+    function asXRegExp(value, addFlagX) {
+        const flags = addFlagX ? 'x' : '';
+        return XRegExp.isRegExp(value) ?
+            (value[REGEX_DATA] && value[REGEX_DATA].captureNames ?
+                // Don't recompile, to preserve capture names
+                value :
+                // Recompile as XRegExp
+                XRegExp(value.source, flags)
+            ) :
+            // Compile string as XRegExp
+            XRegExp(value, flags);
+    }
+
+    function interpolate(substitution) {
+        return substitution instanceof RegExp ? substitution : XRegExp.escape(substitution);
+    }
+
+    function reduceToSubpatternsObject(subpatterns, interpolated, subpatternIndex) {
+        subpatterns[`subpattern${subpatternIndex}`] = interpolated;
+        return subpatterns;
+    }
+
+    function embedSubpatternAfter(raw, subpatternIndex, rawLiterals) {
+        const hasSubpattern = subpatternIndex < rawLiterals.length - 1;
+        return raw + (hasSubpattern ? `{{subpattern${subpatternIndex}}}` : '');
+    }
+
+    /**
+     * Provides tagged template literals that create regexes with XRegExp syntax and flags. The
+     * provided pattern is handled as a raw string, so backslashes don't need to be escaped.
+     *
+     * Interpolation of strings and regexes shares the features of `XRegExp.build`. Interpolated
+     * patterns are treated as atomic units when quantified, interpolated strings have their special
+     * characters escaped, a leading `^` and trailing unescaped `$` are stripped from interpolated
+     * regexes if both are present, and any backreferences within an interpolated regex are
+     * rewritten to work within the overall pattern.
+     *
+     * @memberOf XRegExp
+     * @param {String} [flags] Any combination of XRegExp flags.
+     * @returns {Function} Handler for template literals that construct regexes with XRegExp syntax.
+     * @example
+     *
+     * XRegExp.tag()`\b\w+\b`.test('word'); // -> true
+     *
+     * const hours = /1[0-2]|0?[1-9]/;
+     * const minutes = /(?<minutes>[0-5][0-9])/;
+     * const time = XRegExp.tag('x')`\b ${hours} : ${minutes} \b`;
+     * time.test('10:59'); // -> true
+     * XRegExp.exec('10:59', time).groups.minutes; // -> '59'
+     *
+     * const backref1 = /(a)\1/;
+     * const backref2 = /(b)\1/;
+     * XRegExp.tag()`${backref1}${backref2}`.test('aabb'); // -> true
+     */
+    XRegExp.tag = (flags) => (literals, ...substitutions) => {
+        const subpatterns = substitutions.map(interpolate).reduce(reduceToSubpatternsObject, {});
+        const pattern = literals.raw.map(embedSubpatternAfter).join('');
+        return XRegExp.build(pattern, subpatterns, flags);
+    };
+
+    /**
+     * Builds regexes using named subpatterns, for readability and pattern reuse. Backreferences in
+     * the outer pattern and provided subpatterns are automatically renumbered to work correctly.
+     * Native flags used by provided subpatterns are ignored in favor of the `flags` argument.
+     *
+     * @memberOf XRegExp
+     * @param {String} pattern XRegExp pattern using `{{name}}` for embedded subpatterns. Allows
+     *   `({{name}})` as shorthand for `(?<name>{{name}})`. Patterns cannot be embedded within
+     *   character classes.
+     * @param {Object} subs Lookup object for named subpatterns. Values can be strings or regexes. A
+     *   leading `^` and trailing unescaped `$` are stripped from subpatterns, if both are present.
+     * @param {String} [flags] Any combination of XRegExp flags.
+     * @returns {RegExp} Regex with interpolated subpatterns.
+     * @example
+     *
+     * const time = XRegExp.build('(?x)^ {{hours}} ({{minutes}}) $', {
+     *   hours: XRegExp.build('{{h12}} : | {{h24}}', {
+     *     h12: /1[0-2]|0?[1-9]/,
+     *     h24: /2[0-3]|[01][0-9]/
+     *   }, 'x'),
+     *   minutes: /^[0-5][0-9]$/
+     * });
+     * time.test('10:59'); // -> true
+     * XRegExp.exec('10:59', time).groups.minutes; // -> '59'
+     */
+    XRegExp.build = (pattern, subs, flags) => {
+        flags = flags || '';
+        // Used with `asXRegExp` calls for `pattern` and subpatterns in `subs`, to work around how
+        // some browsers convert `RegExp('\n')` to a regex that contains the literal characters `\`
+        // and `n`. See more details at <https://github.com/slevithan/xregexp/pull/163>.
+        const addFlagX = flags.includes('x');
+        const inlineFlags = /^\(\?([\w$]+)\)/.exec(pattern);
+        // Add flags within a leading mode modifier to the overall pattern's flags
+        if (inlineFlags) {
+            flags = XRegExp._clipDuplicates(flags + inlineFlags[1]);
+        }
+
+        const data = {};
+        for (const p in subs) {
+            if (subs.hasOwnProperty(p)) {
+                // Passing to XRegExp enables extended syntax and ensures independent validity,
+                // lest an unescaped `(`, `)`, `[`, or trailing `\` breaks the `(?:)` wrapper. For
+                // subpatterns provided as native regexes, it dies on octals and adds the property
+                // used to hold extended regex instance data, for simplicity.
+                const sub = asXRegExp(subs[p], addFlagX);
+                data[p] = {
+                    // Deanchoring allows embedding independently useful anchored regexes. If you
+                    // really need to keep your anchors, double them (i.e., `^^...$$`).
+                    pattern: deanchor(sub.source),
+                    names: sub[REGEX_DATA].captureNames || []
+                };
+            }
+        }
+
+        // Passing to XRegExp dies on octals and ensures the outer pattern is independently valid;
+        // helps keep this simple. Named captures will be put back.
+        const patternAsRegex = asXRegExp(pattern, addFlagX);
+
+        // 'Caps' is short for 'captures'
+        let numCaps = 0;
+        let numPriorCaps;
+        let numOuterCaps = 0;
+        const outerCapsMap = [0];
+        const outerCapNames = patternAsRegex[REGEX_DATA].captureNames || [];
+        const output = patternAsRegex.source.replace(parts, ($0, $1, $2, $3, $4) => {
+            const subName = $1 || $2;
+            let capName;
+            let intro;
+            let localCapIndex;
+            // Named subpattern
+            if (subName) {
+                if (!data.hasOwnProperty(subName)) {
+                    throw new ReferenceError(`Undefined property ${$0}`);
+                }
+                // Named subpattern was wrapped in a capturing group
+                if ($1) {
+                    capName = outerCapNames[numOuterCaps];
+                    outerCapsMap[++numOuterCaps] = ++numCaps;
+                    // If it's a named group, preserve the name. Otherwise, use the subpattern name
+                    // as the capture name
+                    intro = `(?<${capName || subName}>`;
+                } else {
+                    intro = '(?:';
+                }
+                numPriorCaps = numCaps;
+                const rewrittenSubpattern = data[subName].pattern.replace(subParts, (match, paren, backref) => {
+                    // Capturing group
+                    if (paren) {
+                        capName = data[subName].names[numCaps - numPriorCaps];
+                        ++numCaps;
+                        // If the current capture has a name, preserve the name
+                        if (capName) {
+                            return `(?<${capName}>`;
+                        }
+                    // Backreference
+                    } else if (backref) {
+                        localCapIndex = +backref - 1;
+                        // Rewrite the backreference
+                        return data[subName].names[localCapIndex] ?
+                            // Need to preserve the backreference name in case using flag `n`
+                            `\\k<${data[subName].names[localCapIndex]}>` :
+                            `\\${+backref + numPriorCaps}`;
+                    }
+                    return match;
+                });
+                return `${intro}${rewrittenSubpattern})`;
+            }
+            // Capturing group
+            if ($3) {
+                capName = outerCapNames[numOuterCaps];
+                outerCapsMap[++numOuterCaps] = ++numCaps;
+                // If the current capture has a name, preserve the name
+                if (capName) {
+                    return `(?<${capName}>`;
+                }
+            // Backreference
+            } else if ($4) {
+                localCapIndex = +$4 - 1;
+                // Rewrite the backreference
+                return outerCapNames[localCapIndex] ?
+                    // Need to preserve the backreference name in case using flag `n`
+                    `\\k<${outerCapNames[localCapIndex]}>` :
+                    `\\${outerCapsMap[+$4]}`;
+            }
+            return $0;
+        });
+
+        return XRegExp(output, flags);
+    };
+};
+
+/*!
+ * XRegExp.matchRecursive 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2009-present MIT License
+ */
+
+var matchRecursive = (XRegExp) => {
+
+    /**
+     * Returns a match detail object composed of the provided values.
+     *
+     * @private
+     */
+    function row(name, value, start, end) {
+        return {
+            name,
+            value,
+            start,
+            end
+        };
+    }
+
+    /**
+     * Returns an array of match strings between outermost left and right delimiters, or an array of
+     * objects with detailed match parts and position data. By default, an error is thrown if
+     * delimiters are unbalanced within the subject string.
+     *
+     * @memberOf XRegExp
+     * @param {String} str String to search.
+     * @param {String} left Left delimiter as an XRegExp pattern.
+     * @param {String} right Right delimiter as an XRegExp pattern.
+     * @param {String} [flags] Any combination of XRegExp flags, used for the left and right delimiters.
+     * @param {Object} [options] Options object with optional properties:
+     *   - `valueNames` {Array} Providing `valueNames` changes the return value from an array of
+     *     matched strings to an array of objects that provide the value and start/end positions
+     *     for the matched strings as well as the matched delimiters and unmatched string segments.
+     *     To use this extended information mode, provide an array of 4 strings that name the parts
+     *     to be returned:
+     *     1. String segments outside of (before, between, and after) matches.
+     *     2. Matched outermost left delimiters.
+     *     3. Matched text between the outermost left and right delimiters.
+     *     4. Matched outermost right delimiters.
+     *     Taken together, these parts include the entire subject string if used with flag g.
+     *     Use `null` for any of these values to omit unneeded parts from the returned results.
+     *   - `escapeChar` {String} Single char used to escape delimiters within the subject string.
+     *   - `unbalanced` {String} Handling mode for unbalanced delimiters. Options are:
+     *     - 'error' - throw (default)
+     *     - 'skip' - unbalanced delimiters are treated as part of the text between delimiters, and
+     *       searches continue at the end of the unbalanced delimiter.
+     *     - 'skip-lazy' - unbalanced delimiters are treated as part of the text between delimiters,
+     *       and searches continue one character after the start of the unbalanced delimiter.
+     * @returns {Array} Array of matches, or an empty array.
+     * @example
+     *
+     * // Basic usage
+     * const str1 = '(t((e))s)t()(ing)';
+     * XRegExp.matchRecursive(str1, '\\(', '\\)', 'g');
+     * // -> ['t((e))s', '', 'ing']
+     *
+     * // Extended information mode with valueNames
+     * const str2 = 'Here is <div> <div>an</div></div> example';
+     * XRegExp.matchRecursive(str2, '<div\\s*>', '</div>', 'gi', {
+     *   valueNames: ['between', 'left', 'match', 'right']
+     * });
+     * // -> [
+     * // {name: 'between', value: 'Here is ',       start: 0,  end: 8},
+     * // {name: 'left',    value: '<div>',          start: 8,  end: 13},
+     * // {name: 'match',   value: ' <div>an</div>', start: 13, end: 27},
+     * // {name: 'right',   value: '</div>',         start: 27, end: 33},
+     * // {name: 'between', value: ' example',       start: 33, end: 41}
+     * // ]
+     *
+     * // Omitting unneeded parts with null valueNames, and using escapeChar
+     * const str3 = '...{1}.\\{{function(x,y){return {y:x}}}';
+     * XRegExp.matchRecursive(str3, '{', '}', 'g', {
+     *   valueNames: ['literal', null, 'value', null],
+     *   escapeChar: '\\'
+     * });
+     * // -> [
+     * // {name: 'literal', value: '...',  start: 0, end: 3},
+     * // {name: 'value',   value: '1',    start: 4, end: 5},
+     * // {name: 'literal', value: '.\\{', start: 6, end: 9},
+     * // {name: 'value',   value: 'function(x,y){return {y:x}}', start: 10, end: 37}
+     * // ]
+     *
+     * // Sticky mode via flag y
+     * const str4 = '<1><<<2>>><3>4<5>';
+     * XRegExp.matchRecursive(str4, '<', '>', 'gy');
+     * // -> ['1', '<<2>>', '3']
+     *
+     * // Skipping unbalanced delimiters instead of erroring
+     * const str5 = 'Here is <div> <div>an</div> unbalanced example';
+     * XRegExp.matchRecursive(str5, '<div\\s*>', '</div>', 'gi', {
+     *     unbalanced: 'skip'
+     * });
+     * // -> ['an']
+     */
+    XRegExp.matchRecursive = (str, left, right, flags, options) => {
+        flags = flags || '';
+        options = options || {};
+        const global = flags.includes('g');
+        const sticky = flags.includes('y');
+        // Flag `y` is handled manually
+        const basicFlags = flags.replace(/y/g, '');
+        left = XRegExp(left, basicFlags);
+        right = XRegExp(right, basicFlags);
+
+        let esc;
+        let {escapeChar} = options;
+        if (escapeChar) {
+            if (escapeChar.length > 1) {
+                throw new Error('Cannot use more than one escape character');
+            }
+            escapeChar = XRegExp.escape(escapeChar);
+            // Example of concatenated `esc` regex:
+            // `escapeChar`: '%'
+            // `left`: '<'
+            // `right`: '>'
+            // Regex is: /(?:%[\S\s]|(?:(?!<|>)[^%])+)+/
+            esc = new RegExp(
+                `(?:${escapeChar}[\\S\\s]|(?:(?!${
+                    // Using `XRegExp.union` safely rewrites backreferences in `left` and `right`.
+                    // Intentionally not passing `basicFlags` to `XRegExp.union` since any syntax
+                    // transformation resulting from those flags was already applied to `left` and
+                    // `right` when they were passed through the XRegExp constructor above.
+                    XRegExp.union([left, right], '', {conjunction: 'or'}).source
+                })[^${escapeChar}])+)+`,
+                // Flags `dgy` not needed here
+                flags.replace(XRegExp._hasNativeFlag('s') ? /[^imsu]/g : /[^imu]/g, '')
+            );
+        }
+
+        let openTokens = 0;
+        let delimStart = 0;
+        let delimEnd = 0;
+        let lastOuterEnd = 0;
+        let outerStart;
+        let innerStart;
+        let leftMatch;
+        let rightMatch;
+        const vN = options.valueNames;
+        const output = [];
+
+        while (true) {
+            // If using an escape character, advance to the delimiter's next starting position,
+            // skipping any escaped characters in between
+            if (escapeChar) {
+                delimEnd += (XRegExp.exec(str, esc, delimEnd, 'sticky') || [''])[0].length;
+            }
+
+            leftMatch = XRegExp.exec(str, left, delimEnd);
+            rightMatch = XRegExp.exec(str, right, delimEnd);
+            // Keep the leftmost match only
+            if (leftMatch && rightMatch) {
+                if (leftMatch.index <= rightMatch.index) {
+                    rightMatch = null;
+                } else {
+                    leftMatch = null;
+                }
+            }
+
+            // Paths (LM: leftMatch, RM: rightMatch, OT: openTokens):
+            // LM | RM | OT | Result
+            // 1  | 0  | 1  | loop
+            // 1  | 0  | 0  | loop
+            // 0  | 1  | 1  | loop
+            // 0  | 1  | 0  | throw
+            // 0  | 0  | 1  | throw
+            // 0  | 0  | 0  | break
+            // The paths above don't include the sticky mode special case. The loop ends after the
+            // first completed match if not `global`.
+            if (leftMatch || rightMatch) {
+                delimStart = (leftMatch || rightMatch).index;
+                delimEnd = delimStart + (leftMatch || rightMatch)[0].length;
+            } else if (!openTokens) {
+                break;
+            }
+            if (sticky && !openTokens && delimStart > lastOuterEnd) {
+                break;
+            }
+            if (leftMatch) {
+                if (!openTokens) {
+                    outerStart = delimStart;
+                    innerStart = delimEnd;
+                }
+                openTokens += 1;
+            } else if (rightMatch && openTokens) {
+                openTokens -= 1;
+                if (!openTokens) {
+                    if (vN) {
+                        if (vN[0] && outerStart > lastOuterEnd) {
+                            output.push(row(vN[0], str.slice(lastOuterEnd, outerStart), lastOuterEnd, outerStart));
+                        }
+                        if (vN[1]) {
+                            output.push(row(vN[1], str.slice(outerStart, innerStart), outerStart, innerStart));
+                        }
+                        if (vN[2]) {
+                            output.push(row(vN[2], str.slice(innerStart, delimStart), innerStart, delimStart));
+                        }
+                        if (vN[3]) {
+                            output.push(row(vN[3], str.slice(delimStart, delimEnd), delimStart, delimEnd));
+                        }
+                    } else {
+                        output.push(str.slice(innerStart, delimStart));
+                    }
+                    lastOuterEnd = delimEnd;
+                    if (!global) {
+                        break;
+                    }
+                }
+            // Found unbalanced delimiter
+            } else {
+                const unbalanced = options.unbalanced || 'error';
+                if (unbalanced === 'skip' || unbalanced === 'skip-lazy') {
+                    if (rightMatch) {
+                        rightMatch = null;
+                    // No `leftMatch` for unbalanced left delimiter because we've reached the string end
+                    } else {
+                        if (unbalanced === 'skip') {
+                            const outerStartDelimLength = XRegExp.exec(str, left, outerStart, 'sticky')[0].length;
+                            delimEnd = outerStart + (outerStartDelimLength || 1);
+                        } else {
+                            delimEnd = outerStart + 1;
+                        }
+                        openTokens = 0;
+                    }
+                } else if (unbalanced === 'error') {
+                    const delimSide = rightMatch ? 'right' : 'left';
+                    const errorPos = rightMatch ? delimStart : outerStart;
+                    throw new Error(`Unbalanced ${delimSide} delimiter found in string at position ${errorPos}`);
+                } else {
+                    throw new Error(`Unsupported value for unbalanced: ${unbalanced}`);
+                }
+            }
+
+            // If the delimiter matched an empty string, avoid an infinite loop
+            if (delimStart === delimEnd) {
+                delimEnd += 1;
+            }
+        }
+
+        if (global && output.length > 0 && !sticky && vN && vN[0] && str.length > lastOuterEnd) {
+            output.push(row(vN[0], str.slice(lastOuterEnd), lastOuterEnd, str.length));
+        }
+
+        return output;
+    };
+};
+
+/*!
+ * XRegExp Unicode Base 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2008-present MIT License
+ */
+
+var unicodeBase = (XRegExp) => {
+
+    /**
+     * Adds base support for Unicode matching:
+     * - Adds syntax `\p{..}` for matching Unicode tokens. Tokens can be inverted using `\P{..}` or
+     *   `\p{^..}`. Token names ignore case, spaces, hyphens, and underscores. You can omit the
+     *   braces for token names that are a single letter (e.g. `\pL` or `PL`).
+     * - Adds flag A (astral), which enables 21-bit Unicode support.
+     * - Adds the `XRegExp.addUnicodeData` method used by other addons to provide character data.
+     *
+     * Unicode Base relies on externally provided Unicode character data. Official addons are
+     * available to provide data for Unicode categories, scripts, and properties.
+     *
+     * @requires XRegExp
+     */
+
+    // ==--------------------------==
+    // Private stuff
+    // ==--------------------------==
+
+    // Storage for Unicode data
+    const unicode = {};
+    const unicodeTypes = {};
+
+    // Reuse utils
+    const dec = XRegExp._dec;
+    const hex = XRegExp._hex;
+    const pad4 = XRegExp._pad4;
+
+    // Generates a token lookup name: lowercase, with hyphens, spaces, and underscores removed
+    function normalize(name) {
+        return name.replace(/[- _]+/g, '').toLowerCase();
+    }
+
+    // Gets the decimal code of a literal code unit, \xHH, \uHHHH, or a backslash-escaped literal
+    function charCode(chr) {
+        const esc = /^\\[xu](.+)/.exec(chr);
+        return esc ?
+            dec(esc[1]) :
+            chr.charCodeAt(chr[0] === '\\' ? 1 : 0);
+    }
+
+    // Inverts a list of ordered BMP characters and ranges
+    function invertBmp(range) {
+        let output = '';
+        let lastEnd = -1;
+
+        XRegExp.forEach(
+            range,
+            /(\\x..|\\u....|\\?[\s\S])(?:-(\\x..|\\u....|\\?[\s\S]))?/,
+            (m) => {
+                const start = charCode(m[1]);
+                if (start > (lastEnd + 1)) {
+                    output += `\\u${pad4(hex(lastEnd + 1))}`;
+                    if (start > (lastEnd + 2)) {
+                        output += `-\\u${pad4(hex(start - 1))}`;
+                    }
+                }
+                lastEnd = charCode(m[2] || m[1]);
+            }
+        );
+
+        if (lastEnd < 0xFFFF) {
+            output += `\\u${pad4(hex(lastEnd + 1))}`;
+            if (lastEnd < 0xFFFE) {
+                output += '-\\uFFFF';
+            }
+        }
+
+        return output;
+    }
+
+    // Generates an inverted BMP range on first use
+    function cacheInvertedBmp(slug) {
+        const prop = 'b!';
+        return (
+            unicode[slug][prop] ||
+            (unicode[slug][prop] = invertBmp(unicode[slug].bmp))
+        );
+    }
+
+    // Combines and optionally negates BMP and astral data
+    function buildAstral(slug, isNegated) {
+        const item = unicode[slug];
+        let combined = '';
+
+        if (item.bmp && !item.isBmpLast) {
+            combined = `[${item.bmp}]${item.astral ? '|' : ''}`;
+        }
+        if (item.astral) {
+            combined += item.astral;
+        }
+        if (item.isBmpLast && item.bmp) {
+            combined += `${item.astral ? '|' : ''}[${item.bmp}]`;
+        }
+
+        // Astral Unicode tokens always match a code point, never a code unit
+        return isNegated ?
+            `(?:(?!${combined})(?:[\uD800-\uDBFF][\uDC00-\uDFFF]|[\0-\uFFFF]))` :
+            `(?:${combined})`;
+    }
+
+    // Builds a complete astral pattern on first use
+    function cacheAstral(slug, isNegated) {
+        const prop = isNegated ? 'a!' : 'a=';
+        return (
+            unicode[slug][prop] ||
+            (unicode[slug][prop] = buildAstral(slug, isNegated))
+        );
+    }
+
+    // ==--------------------------==
+    // Core functionality
+    // ==--------------------------==
+
+    /*
+     * Add astral mode (flag A) and Unicode token syntax: `\p{..}`, `\P{..}`, `\p{^..}`, `\pC`.
+     */
+    XRegExp.addToken(
+        // Use `*` instead of `+` to avoid capturing `^` as the token name in `\p{^}`
+        /\\([pP])(?:{(\^?)(?:(\w+)=)?([^}]*)}|([A-Za-z]))/,
+        (match, scope, flags) => {
+            const ERR_DOUBLE_NEG = 'Invalid double negation ';
+            const ERR_UNKNOWN_NAME = 'Unknown Unicode token ';
+            const ERR_UNKNOWN_REF = 'Unicode token missing data ';
+            const ERR_ASTRAL_ONLY = 'Astral mode required for Unicode token ';
+            const ERR_ASTRAL_IN_CLASS = 'Astral mode does not support Unicode tokens within character classes';
+            const [
+                fullToken,
+                pPrefix,
+                caretNegation,
+                typePrefix,
+                tokenName,
+                tokenSingleCharName
+            ] = match;
+            // Negated via \P{..} or \p{^..}
+            let isNegated = pPrefix === 'P' || !!caretNegation;
+            // Switch from BMP (0-FFFF) to astral (0-10FFFF) mode via flag A
+            const isAstralMode = flags.includes('A');
+            // Token lookup name. Check `tokenSingleCharName` first to avoid passing `undefined`
+            // via `\p{}`
+            let slug = normalize(tokenSingleCharName || tokenName);
+            // Token data object
+            let item = unicode[slug];
+
+            if (pPrefix === 'P' && caretNegation) {
+                throw new SyntaxError(ERR_DOUBLE_NEG + fullToken);
+            }
+            if (!unicode.hasOwnProperty(slug)) {
+                throw new SyntaxError(ERR_UNKNOWN_NAME + fullToken);
+            }
+
+            if (typePrefix) {
+                if (!(unicodeTypes[typePrefix] && unicodeTypes[typePrefix][slug])) {
+                    throw new SyntaxError(ERR_UNKNOWN_NAME + fullToken);
+                }
+            }
+
+            // Switch to the negated form of the referenced Unicode token
+            if (item.inverseOf) {
+                slug = normalize(item.inverseOf);
+                if (!unicode.hasOwnProperty(slug)) {
+                    throw new ReferenceError(`${ERR_UNKNOWN_REF + fullToken} -> ${item.inverseOf}`);
+                }
+                item = unicode[slug];
+                isNegated = !isNegated;
+            }
+
+            if (!(item.bmp || isAstralMode)) {
+                throw new SyntaxError(ERR_ASTRAL_ONLY + fullToken);
+            }
+            if (isAstralMode) {
+                if (scope === 'class') {
+                    throw new SyntaxError(ERR_ASTRAL_IN_CLASS);
+                }
+
+                return cacheAstral(slug, isNegated);
+            }
+
+            return scope === 'class' ?
+                (isNegated ? cacheInvertedBmp(slug) : item.bmp) :
+                `${(isNegated ? '[^' : '[') + item.bmp}]`;
+        },
+        {
+            scope: 'all',
+            optionalFlags: 'A',
+            leadChar: '\\'
+        }
+    );
+
+    /**
+     * Adds to the list of Unicode tokens that XRegExp regexes can match via `\p` or `\P`.
+     *
+     * @memberOf XRegExp
+     * @param {Array} data Objects with named character ranges. Each object may have properties
+     *   `name`, `alias`, `isBmpLast`, `inverseOf`, `bmp`, and `astral`. All but `name` are
+     *   optional, although one of `bmp` or `astral` is required (unless `inverseOf` is set). If
+     *   `astral` is absent, the `bmp` data is used for BMP and astral modes. If `bmp` is absent,
+     *   the name errors in BMP mode but works in astral mode. If both `bmp` and `astral` are
+     *   provided, the `bmp` data only is used in BMP mode, and the combination of `bmp` and
+     *   `astral` data is used in astral mode. `isBmpLast` is needed when a token matches orphan
+     *   high surrogates *and* uses surrogate pairs to match astral code points. The `bmp` and
+     *   `astral` data should be a combination of literal characters and `\xHH` or `\uHHHH` escape
+     *   sequences, with hyphens to create ranges. Any regex metacharacters in the data should be
+     *   escaped, apart from range-creating hyphens. The `astral` data can additionally use
+     *   character classes and alternation, and should use surrogate pairs to represent astral code
+     *   points. `inverseOf` can be used to avoid duplicating character data if a Unicode token is
+     *   defined as the exact inverse of another token.
+     * @param {String} [typePrefix] Enables optionally using this type as a prefix for all of the
+     *   provided Unicode tokens, e.g. if given `'Type'`, then `\p{TokenName}` can also be written
+     *   as `\p{Type=TokenName}`.
+     * @example
+     *
+     * // Basic use
+     * XRegExp.addUnicodeData([{
+     *   name: 'XDigit',
+     *   alias: 'Hexadecimal',
+     *   bmp: '0-9A-Fa-f'
+     * }]);
+     * XRegExp('\\p{XDigit}:\\p{Hexadecimal}+').test('0:3D'); // -> true
+     */
+    XRegExp.addUnicodeData = (data, typePrefix) => {
+        const ERR_NO_NAME = 'Unicode token requires name';
+        const ERR_NO_DATA = 'Unicode token has no character data ';
+
+        if (typePrefix) {
+            // Case sensitive to match ES2018
+            unicodeTypes[typePrefix] = {};
+        }
+
+        for (const item of data) {
+            if (!item.name) {
+                throw new Error(ERR_NO_NAME);
+            }
+            if (!(item.inverseOf || item.bmp || item.astral)) {
+                throw new Error(ERR_NO_DATA + item.name);
+            }
+
+            const normalizedName = normalize(item.name);
+            unicode[normalizedName] = item;
+            if (typePrefix) {
+                unicodeTypes[typePrefix][normalizedName] = true;
+            }
+
+            if (item.alias) {
+                const normalizedAlias = normalize(item.alias);
+                unicode[normalizedAlias] = item;
+                if (typePrefix) {
+                    unicodeTypes[typePrefix][normalizedAlias] = true;
+                }
+            }
+        }
+
+        // Reset the pattern cache used by the `XRegExp` constructor, since the same pattern and
+        // flags might now produce different results
+        XRegExp.cache.flush('patterns');
+    };
+
+    /**
+     * @ignore
+     *
+     * Return a reference to the internal Unicode definition structure for the given Unicode
+     * Property if the given name is a legal Unicode Property for use in XRegExp `\p` or `\P` regex
+     * constructs.
+     *
+     * @memberOf XRegExp
+     * @param {String} name Name by which the Unicode Property may be recognized (case-insensitive),
+     *   e.g. `'N'` or `'Number'`. The given name is matched against all registered Unicode
+     *   Properties and Property Aliases.
+     * @returns {Object} Reference to definition structure when the name matches a Unicode Property.
+     *
+     * @note
+     * For more info on Unicode Properties, see also http://unicode.org/reports/tr18/#Categories.
+     *
+     * @note
+     * This method is *not* part of the officially documented API and may change or be removed in
+     * the future. It is meant for userland code that wishes to reuse the (large) internal Unicode
+     * structures set up by XRegExp.
+     */
+    XRegExp._getUnicodeProperty = (name) => {
+        const slug = normalize(name);
+        return unicode[slug];
+    };
+};
+
+var categories$1;
+var hasRequiredCategories;
+
+function requireCategories () {
+	if (hasRequiredCategories) return categories$1;
+	hasRequiredCategories = 1;
+	categories$1 = [
+	    {
+	        'name': 'C',
+	        'alias': 'Other',
+	        'isBmpLast': true,
+	        'bmp': '\0-\x1F\x7F-\x9F\xAD\u0378\u0379\u0380-\u0383\u038B\u038D\u03A2\u0530\u0557\u0558\u058B\u058C\u0590\u05C8-\u05CF\u05EB-\u05EE\u05F5-\u0605\u061C\u06DD\u070E\u070F\u074B\u074C\u07B2-\u07BF\u07FB\u07FC\u082E\u082F\u083F\u085C\u085D\u085F\u086B-\u086F\u088F-\u0897\u08E2\u0984\u098D\u098E\u0991\u0992\u09A9\u09B1\u09B3-\u09B5\u09BA\u09BB\u09C5\u09C6\u09C9\u09CA\u09CF-\u09D6\u09D8-\u09DB\u09DE\u09E4\u09E5\u09FF\u0A00\u0A04\u0A0B-\u0A0E\u0A11\u0A12\u0A29\u0A31\u0A34\u0A37\u0A3A\u0A3B\u0A3D\u0A43-\u0A46\u0A49\u0A4A\u0A4E-\u0A50\u0A52-\u0A58\u0A5D\u0A5F-\u0A65\u0A77-\u0A80\u0A84\u0A8E\u0A92\u0AA9\u0AB1\u0AB4\u0ABA\u0ABB\u0AC6\u0ACA\u0ACE\u0ACF\u0AD1-\u0ADF\u0AE4\u0AE5\u0AF2-\u0AF8\u0B00\u0B04\u0B0D\u0B0E\u0B11\u0B12\u0B29\u0B31\u0B34\u0B3A\u0B3B\u0B45\u0B46\u0B49\u0B4A\u0B4E-\u0B54\u0B58-\u0B5B\u0B5E\u0B64\u0B65\u0B78-\u0B81\u0B84\u0B8B-\u0B8D\u0B91\u0B96-\u0B98\u0B9B\u0B9D\u0BA0-\u0BA2\u0BA5-\u0BA7\u0BAB-\u0BAD\u0BBA-\u0BBD\u0BC3-\u0BC5\u0BC9\u0BCE\u0BCF\u0BD1-\u0BD6\u0BD8-\u0BE5\u0BFB-\u0BFF\u0C0D\u0C11\u0C29\u0C3A\u0C3B\u0C45\u0C49\u0C4E-\u0C54\u0C57\u0C5B\u0C5C\u0C5E\u0C5F\u0C64\u0C65\u0C70-\u0C76\u0C8D\u0C91\u0CA9\u0CB4\u0CBA\u0CBB\u0CC5\u0CC9\u0CCE-\u0CD4\u0CD7-\u0CDC\u0CDF\u0CE4\u0CE5\u0CF0\u0CF3-\u0CFF\u0D0D\u0D11\u0D45\u0D49\u0D50-\u0D53\u0D64\u0D65\u0D80\u0D84\u0D97-\u0D99\u0DB2\u0DBC\u0DBE\u0DBF\u0DC7-\u0DC9\u0DCB-\u0DCE\u0DD5\u0DD7\u0DE0-\u0DE5\u0DF0\u0DF1\u0DF5-\u0E00\u0E3B-\u0E3E\u0E5C-\u0E80\u0E83\u0E85\u0E8B\u0EA4\u0EA6\u0EBE\u0EBF\u0EC5\u0EC7\u0ECE\u0ECF\u0EDA\u0EDB\u0EE0-\u0EFF\u0F48\u0F6D-\u0F70\u0F98\u0FBD\u0FCD\u0FDB-\u0FFF\u10C6\u10C8-\u10CC\u10CE\u10CF\u1249\u124E\u124F\u1257\u1259\u125E\u125F\u1289\u128E\u128F\u12B1\u12B6\u12B7\u12BF\u12C1\u12C6\u12C7\u12D7\u1311\u1316\u1317\u135B\u135C\u137D-\u137F\u139A-\u139F\u13F6\u13F7\u13FE\u13FF\u169D-\u169F\u16F9-\u16FF\u1716-\u171E\u1737-\u173F\u1754-\u175F\u176D\u1771\u1774-\u177F\u17DE\u17DF\u17EA-\u17EF\u17FA-\u17FF\u180E\u181A-\u181F\u1879-\u187F\u18AB-\u18AF\u18F6-\u18FF\u191F\u192C-\u192F\u193C-\u193F\u1941-\u1943\u196E\u196F\u1975-\u197F\u19AC-\u19AF\u19CA-\u19CF\u19DB-\u19DD\u1A1C\u1A1D\u1A5F\u1A7D\u1A7E\u1A8A-\u1A8F\u1A9A-\u1A9F\u1AAE\u1AAF\u1ACF-\u1AFF\u1B4D-\u1B4F\u1B7F\u1BF4-\u1BFB\u1C38-\u1C3A\u1C4A-\u1C4C\u1C89-\u1C8F\u1CBB\u1CBC\u1CC8-\u1CCF\u1CFB-\u1CFF\u1F16\u1F17\u1F1E\u1F1F\u1F46\u1F47\u1F4E\u1F4F\u1F58\u1F5A\u1F5C\u1F5E\u1F7E\u1F7F\u1FB5\u1FC5\u1FD4\u1FD5\u1FDC\u1FF0\u1FF1\u1FF5\u1FFF\u200B-\u200F\u202A-\u202E\u2060-\u206F\u2072\u2073\u208F\u209D-\u209F\u20C1-\u20CF\u20F1-\u20FF\u218C-\u218F\u2427-\u243F\u244B-\u245F\u2B74\u2B75\u2B96\u2CF4-\u2CF8\u2D26\u2D28-\u2D2C\u2D2E\u2D2F\u2D68-\u2D6E\u2D71-\u2D7E\u2D97-\u2D9F\u2DA7\u2DAF\u2DB7\u2DBF\u2DC7\u2DCF\u2DD7\u2DDF\u2E5E-\u2E7F\u2E9A\u2EF4-\u2EFF\u2FD6-\u2FEF\u2FFC-\u2FFF\u3040\u3097\u3098\u3100-\u3104\u3130\u318F\u31E4-\u31EF\u321F\uA48D-\uA48F\uA4C7-\uA4CF\uA62C-\uA63F\uA6F8-\uA6FF\uA7CB-\uA7CF\uA7D2\uA7D4\uA7DA-\uA7F1\uA82D-\uA82F\uA83A-\uA83F\uA878-\uA87F\uA8C6-\uA8CD\uA8DA-\uA8DF\uA954-\uA95E\uA97D-\uA97F\uA9CE\uA9DA-\uA9DD\uA9FF\uAA37-\uAA3F\uAA4E\uAA4F\uAA5A\uAA5B\uAAC3-\uAADA\uAAF7-\uAB00\uAB07\uAB08\uAB0F\uAB10\uAB17-\uAB1F\uAB27\uAB2F\uAB6C-\uAB6F\uABEE\uABEF\uABFA-\uABFF\uD7A4-\uD7AF\uD7C7-\uD7CA\uD7FC-\uF8FF\uFA6E\uFA6F\uFADA-\uFAFF\uFB07-\uFB12\uFB18-\uFB1C\uFB37\uFB3D\uFB3F\uFB42\uFB45\uFBC3-\uFBD2\uFD90\uFD91\uFDC8-\uFDCE\uFDD0-\uFDEF\uFE1A-\uFE1F\uFE53\uFE67\uFE6C-\uFE6F\uFE75\uFEFD-\uFF00\uFFBF-\uFFC1\uFFC8\uFFC9\uFFD0\uFFD1\uFFD8\uFFD9\uFFDD-\uFFDF\uFFE7\uFFEF-\uFFFB\uFFFE\uFFFF',
+	        'astral': '\uD800[\uDC0C\uDC27\uDC3B\uDC3E\uDC4E\uDC4F\uDC5E-\uDC7F\uDCFB-\uDCFF\uDD03-\uDD06\uDD34-\uDD36\uDD8F\uDD9D-\uDD9F\uDDA1-\uDDCF\uDDFE-\uDE7F\uDE9D-\uDE9F\uDED1-\uDEDF\uDEFC-\uDEFF\uDF24-\uDF2C\uDF4B-\uDF4F\uDF7B-\uDF7F\uDF9E\uDFC4-\uDFC7\uDFD6-\uDFFF]|\uD801[\uDC9E\uDC9F\uDCAA-\uDCAF\uDCD4-\uDCD7\uDCFC-\uDCFF\uDD28-\uDD2F\uDD64-\uDD6E\uDD7B\uDD8B\uDD93\uDD96\uDDA2\uDDB2\uDDBA\uDDBD-\uDDFF\uDF37-\uDF3F\uDF56-\uDF5F\uDF68-\uDF7F\uDF86\uDFB1\uDFBB-\uDFFF]|\uD802[\uDC06\uDC07\uDC09\uDC36\uDC39-\uDC3B\uDC3D\uDC3E\uDC56\uDC9F-\uDCA6\uDCB0-\uDCDF\uDCF3\uDCF6-\uDCFA\uDD1C-\uDD1E\uDD3A-\uDD3E\uDD40-\uDD7F\uDDB8-\uDDBB\uDDD0\uDDD1\uDE04\uDE07-\uDE0B\uDE14\uDE18\uDE36\uDE37\uDE3B-\uDE3E\uDE49-\uDE4F\uDE59-\uDE5F\uDEA0-\uDEBF\uDEE7-\uDEEA\uDEF7-\uDEFF\uDF36-\uDF38\uDF56\uDF57\uDF73-\uDF77\uDF92-\uDF98\uDF9D-\uDFA8\uDFB0-\uDFFF]|\uD803[\uDC49-\uDC7F\uDCB3-\uDCBF\uDCF3-\uDCF9\uDD28-\uDD2F\uDD3A-\uDE5F\uDE7F\uDEAA\uDEAE\uDEAF\uDEB2-\uDEFF\uDF28-\uDF2F\uDF5A-\uDF6F\uDF8A-\uDFAF\uDFCC-\uDFDF\uDFF7-\uDFFF]|\uD804[\uDC4E-\uDC51\uDC76-\uDC7E\uDCBD\uDCC3-\uDCCF\uDCE9-\uDCEF\uDCFA-\uDCFF\uDD35\uDD48-\uDD4F\uDD77-\uDD7F\uDDE0\uDDF5-\uDDFF\uDE12\uDE3F-\uDE7F\uDE87\uDE89\uDE8E\uDE9E\uDEAA-\uDEAF\uDEEB-\uDEEF\uDEFA-\uDEFF\uDF04\uDF0D\uDF0E\uDF11\uDF12\uDF29\uDF31\uDF34\uDF3A\uDF45\uDF46\uDF49\uDF4A\uDF4E\uDF4F\uDF51-\uDF56\uDF58-\uDF5C\uDF64\uDF65\uDF6D-\uDF6F\uDF75-\uDFFF]|\uD805[\uDC5C\uDC62-\uDC7F\uDCC8-\uDCCF\uDCDA-\uDD7F\uDDB6\uDDB7\uDDDE-\uDDFF\uDE45-\uDE4F\uDE5A-\uDE5F\uDE6D-\uDE7F\uDEBA-\uDEBF\uDECA-\uDEFF\uDF1B\uDF1C\uDF2C-\uDF2F\uDF47-\uDFFF]|\uD806[\uDC3C-\uDC9F\uDCF3-\uDCFE\uDD07\uDD08\uDD0A\uDD0B\uDD14\uDD17\uDD36\uDD39\uDD3A\uDD47-\uDD4F\uDD5A-\uDD9F\uDDA8\uDDA9\uDDD8\uDDD9\uDDE5-\uDDFF\uDE48-\uDE4F\uDEA3-\uDEAF\uDEF9-\uDFFF]|\uD807[\uDC09\uDC37\uDC46-\uDC4F\uDC6D-\uDC6F\uDC90\uDC91\uDCA8\uDCB7-\uDCFF\uDD07\uDD0A\uDD37-\uDD39\uDD3B\uDD3E\uDD48-\uDD4F\uDD5A-\uDD5F\uDD66\uDD69\uDD8F\uDD92\uDD99-\uDD9F\uDDAA-\uDEDF\uDEF9-\uDFAF\uDFB1-\uDFBF\uDFF2-\uDFFE]|\uD808[\uDF9A-\uDFFF]|\uD809[\uDC6F\uDC75-\uDC7F\uDD44-\uDFFF]|[\uD80A\uD80E-\uD810\uD812-\uD819\uD824-\uD82A\uD82D\uD82E\uD830-\uD832\uD83F\uD87B-\uD87D\uD87F\uD885-\uDB3F\uDB41-\uDBFF][\uDC00-\uDFFF]|\uD80B[\uDC00-\uDF8F\uDFF3-\uDFFF]|\uD80D[\uDC2F-\uDFFF]|\uD811[\uDE47-\uDFFF]|\uD81A[\uDE39-\uDE3F\uDE5F\uDE6A-\uDE6D\uDEBF\uDECA-\uDECF\uDEEE\uDEEF\uDEF6-\uDEFF\uDF46-\uDF4F\uDF5A\uDF62\uDF78-\uDF7C\uDF90-\uDFFF]|\uD81B[\uDC00-\uDE3F\uDE9B-\uDEFF\uDF4B-\uDF4E\uDF88-\uDF8E\uDFA0-\uDFDF\uDFE5-\uDFEF\uDFF2-\uDFFF]|\uD821[\uDFF8-\uDFFF]|\uD823[\uDCD6-\uDCFF\uDD09-\uDFFF]|\uD82B[\uDC00-\uDFEF\uDFF4\uDFFC\uDFFF]|\uD82C[\uDD23-\uDD4F\uDD53-\uDD63\uDD68-\uDD6F\uDEFC-\uDFFF]|\uD82F[\uDC6B-\uDC6F\uDC7D-\uDC7F\uDC89-\uDC8F\uDC9A\uDC9B\uDCA0-\uDFFF]|\uD833[\uDC00-\uDEFF\uDF2E\uDF2F\uDF47-\uDF4F\uDFC4-\uDFFF]|\uD834[\uDCF6-\uDCFF\uDD27\uDD28\uDD73-\uDD7A\uDDEB-\uDDFF\uDE46-\uDEDF\uDEF4-\uDEFF\uDF57-\uDF5F\uDF79-\uDFFF]|\uD835[\uDC55\uDC9D\uDCA0\uDCA1\uDCA3\uDCA4\uDCA7\uDCA8\uDCAD\uDCBA\uDCBC\uDCC4\uDD06\uDD0B\uDD0C\uDD15\uDD1D\uDD3A\uDD3F\uDD45\uDD47-\uDD49\uDD51\uDEA6\uDEA7\uDFCC\uDFCD]|\uD836[\uDE8C-\uDE9A\uDEA0\uDEB0-\uDFFF]|\uD837[\uDC00-\uDEFF\uDF1F-\uDFFF]|\uD838[\uDC07\uDC19\uDC1A\uDC22\uDC25\uDC2B-\uDCFF\uDD2D-\uDD2F\uDD3E\uDD3F\uDD4A-\uDD4D\uDD50-\uDE8F\uDEAF-\uDEBF\uDEFA-\uDEFE\uDF00-\uDFFF]|\uD839[\uDC00-\uDFDF\uDFE7\uDFEC\uDFEF\uDFFF]|\uD83A[\uDCC5\uDCC6\uDCD7-\uDCFF\uDD4C-\uDD4F\uDD5A-\uDD5D\uDD60-\uDFFF]|\uD83B[\uDC00-\uDC70\uDCB5-\uDD00\uDD3E-\uDDFF\uDE04\uDE20\uDE23\uDE25\uDE26\uDE28\uDE33\uDE38\uDE3A\uDE3C-\uDE41\uDE43-\uDE46\uDE48\uDE4A\uDE4C\uDE50\uDE53\uDE55\uDE56\uDE58\uDE5A\uDE5C\uDE5E\uDE60\uDE63\uDE65\uDE66\uDE6B\uDE73\uDE78\uDE7D\uDE7F\uDE8A\uDE9C-\uDEA0\uDEA4\uDEAA\uDEBC-\uDEEF\uDEF2-\uDFFF]|\uD83C[\uDC2C-\uDC2F\uDC94-\uDC9F\uDCAF\uDCB0\uDCC0\uDCD0\uDCF6-\uDCFF\uDDAE-\uDDE5\uDE03-\uDE0F\uDE3C-\uDE3F\uDE49-\uDE4F\uDE52-\uDE5F\uDE66-\uDEFF]|\uD83D[\uDED8-\uDEDC\uDEED-\uDEEF\uDEFD-\uDEFF\uDF74-\uDF7F\uDFD9-\uDFDF\uDFEC-\uDFEF\uDFF1-\uDFFF]|\uD83E[\uDC0C-\uDC0F\uDC48-\uDC4F\uDC5A-\uDC5F\uDC88-\uDC8F\uDCAE\uDCAF\uDCB2-\uDCFF\uDE54-\uDE5F\uDE6E\uDE6F\uDE75-\uDE77\uDE7D-\uDE7F\uDE87-\uDE8F\uDEAD-\uDEAF\uDEBB-\uDEBF\uDEC6-\uDECF\uDEDA-\uDEDF\uDEE8-\uDEEF\uDEF7-\uDEFF\uDF93\uDFCB-\uDFEF\uDFFA-\uDFFF]|\uD869[\uDEE0-\uDEFF]|\uD86D[\uDF39-\uDF3F]|\uD86E[\uDC1E\uDC1F]|\uD873[\uDEA2-\uDEAF]|\uD87A[\uDFE1-\uDFFF]|\uD87E[\uDE1E-\uDFFF]|\uD884[\uDF4B-\uDFFF]|\uDB40[\uDC00-\uDCFF\uDDF0-\uDFFF]'
+	    },
+	    {
+	        'name': 'Cc',
+	        'alias': 'Control',
+	        'bmp': '\0-\x1F\x7F-\x9F'
+	    },
+	    {
+	        'name': 'Cf',
+	        'alias': 'Format',
+	        'bmp': '\xAD\u0600-\u0605\u061C\u06DD\u070F\u0890\u0891\u08E2\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\uFFF9-\uFFFB',
+	        'astral': '\uD804[\uDCBD\uDCCD]|\uD80D[\uDC30-\uDC38]|\uD82F[\uDCA0-\uDCA3]|\uD834[\uDD73-\uDD7A]|\uDB40[\uDC01\uDC20-\uDC7F]'
+	    },
+	    {
+	        'name': 'Cn',
+	        'alias': 'Unassigned',
+	        'bmp': '\u0378\u0379\u0380-\u0383\u038B\u038D\u03A2\u0530\u0557\u0558\u058B\u058C\u0590\u05C8-\u05CF\u05EB-\u05EE\u05F5-\u05FF\u070E\u074B\u074C\u07B2-\u07BF\u07FB\u07FC\u082E\u082F\u083F\u085C\u085D\u085F\u086B-\u086F\u088F\u0892-\u0897\u0984\u098D\u098E\u0991\u0992\u09A9\u09B1\u09B3-\u09B5\u09BA\u09BB\u09C5\u09C6\u09C9\u09CA\u09CF-\u09D6\u09D8-\u09DB\u09DE\u09E4\u09E5\u09FF\u0A00\u0A04\u0A0B-\u0A0E\u0A11\u0A12\u0A29\u0A31\u0A34\u0A37\u0A3A\u0A3B\u0A3D\u0A43-\u0A46\u0A49\u0A4A\u0A4E-\u0A50\u0A52-\u0A58\u0A5D\u0A5F-\u0A65\u0A77-\u0A80\u0A84\u0A8E\u0A92\u0AA9\u0AB1\u0AB4\u0ABA\u0ABB\u0AC6\u0ACA\u0ACE\u0ACF\u0AD1-\u0ADF\u0AE4\u0AE5\u0AF2-\u0AF8\u0B00\u0B04\u0B0D\u0B0E\u0B11\u0B12\u0B29\u0B31\u0B34\u0B3A\u0B3B\u0B45\u0B46\u0B49\u0B4A\u0B4E-\u0B54\u0B58-\u0B5B\u0B5E\u0B64\u0B65\u0B78-\u0B81\u0B84\u0B8B-\u0B8D\u0B91\u0B96-\u0B98\u0B9B\u0B9D\u0BA0-\u0BA2\u0BA5-\u0BA7\u0BAB-\u0BAD\u0BBA-\u0BBD\u0BC3-\u0BC5\u0BC9\u0BCE\u0BCF\u0BD1-\u0BD6\u0BD8-\u0BE5\u0BFB-\u0BFF\u0C0D\u0C11\u0C29\u0C3A\u0C3B\u0C45\u0C49\u0C4E-\u0C54\u0C57\u0C5B\u0C5C\u0C5E\u0C5F\u0C64\u0C65\u0C70-\u0C76\u0C8D\u0C91\u0CA9\u0CB4\u0CBA\u0CBB\u0CC5\u0CC9\u0CCE-\u0CD4\u0CD7-\u0CDC\u0CDF\u0CE4\u0CE5\u0CF0\u0CF3-\u0CFF\u0D0D\u0D11\u0D45\u0D49\u0D50-\u0D53\u0D64\u0D65\u0D80\u0D84\u0D97-\u0D99\u0DB2\u0DBC\u0DBE\u0DBF\u0DC7-\u0DC9\u0DCB-\u0DCE\u0DD5\u0DD7\u0DE0-\u0DE5\u0DF0\u0DF1\u0DF5-\u0E00\u0E3B-\u0E3E\u0E5C-\u0E80\u0E83\u0E85\u0E8B\u0EA4\u0EA6\u0EBE\u0EBF\u0EC5\u0EC7\u0ECE\u0ECF\u0EDA\u0EDB\u0EE0-\u0EFF\u0F48\u0F6D-\u0F70\u0F98\u0FBD\u0FCD\u0FDB-\u0FFF\u10C6\u10C8-\u10CC\u10CE\u10CF\u1249\u124E\u124F\u1257\u1259\u125E\u125F\u1289\u128E\u128F\u12B1\u12B6\u12B7\u12BF\u12C1\u12C6\u12C7\u12D7\u1311\u1316\u1317\u135B\u135C\u137D-\u137F\u139A-\u139F\u13F6\u13F7\u13FE\u13FF\u169D-\u169F\u16F9-\u16FF\u1716-\u171E\u1737-\u173F\u1754-\u175F\u176D\u1771\u1774-\u177F\u17DE\u17DF\u17EA-\u17EF\u17FA-\u17FF\u181A-\u181F\u1879-\u187F\u18AB-\u18AF\u18F6-\u18FF\u191F\u192C-\u192F\u193C-\u193F\u1941-\u1943\u196E\u196F\u1975-\u197F\u19AC-\u19AF\u19CA-\u19CF\u19DB-\u19DD\u1A1C\u1A1D\u1A5F\u1A7D\u1A7E\u1A8A-\u1A8F\u1A9A-\u1A9F\u1AAE\u1AAF\u1ACF-\u1AFF\u1B4D-\u1B4F\u1B7F\u1BF4-\u1BFB\u1C38-\u1C3A\u1C4A-\u1C4C\u1C89-\u1C8F\u1CBB\u1CBC\u1CC8-\u1CCF\u1CFB-\u1CFF\u1F16\u1F17\u1F1E\u1F1F\u1F46\u1F47\u1F4E\u1F4F\u1F58\u1F5A\u1F5C\u1F5E\u1F7E\u1F7F\u1FB5\u1FC5\u1FD4\u1FD5\u1FDC\u1FF0\u1FF1\u1FF5\u1FFF\u2065\u2072\u2073\u208F\u209D-\u209F\u20C1-\u20CF\u20F1-\u20FF\u218C-\u218F\u2427-\u243F\u244B-\u245F\u2B74\u2B75\u2B96\u2CF4-\u2CF8\u2D26\u2D28-\u2D2C\u2D2E\u2D2F\u2D68-\u2D6E\u2D71-\u2D7E\u2D97-\u2D9F\u2DA7\u2DAF\u2DB7\u2DBF\u2DC7\u2DCF\u2DD7\u2DDF\u2E5E-\u2E7F\u2E9A\u2EF4-\u2EFF\u2FD6-\u2FEF\u2FFC-\u2FFF\u3040\u3097\u3098\u3100-\u3104\u3130\u318F\u31E4-\u31EF\u321F\uA48D-\uA48F\uA4C7-\uA4CF\uA62C-\uA63F\uA6F8-\uA6FF\uA7CB-\uA7CF\uA7D2\uA7D4\uA7DA-\uA7F1\uA82D-\uA82F\uA83A-\uA83F\uA878-\uA87F\uA8C6-\uA8CD\uA8DA-\uA8DF\uA954-\uA95E\uA97D-\uA97F\uA9CE\uA9DA-\uA9DD\uA9FF\uAA37-\uAA3F\uAA4E\uAA4F\uAA5A\uAA5B\uAAC3-\uAADA\uAAF7-\uAB00\uAB07\uAB08\uAB0F\uAB10\uAB17-\uAB1F\uAB27\uAB2F\uAB6C-\uAB6F\uABEE\uABEF\uABFA-\uABFF\uD7A4-\uD7AF\uD7C7-\uD7CA\uD7FC-\uD7FF\uFA6E\uFA6F\uFADA-\uFAFF\uFB07-\uFB12\uFB18-\uFB1C\uFB37\uFB3D\uFB3F\uFB42\uFB45\uFBC3-\uFBD2\uFD90\uFD91\uFDC8-\uFDCE\uFDD0-\uFDEF\uFE1A-\uFE1F\uFE53\uFE67\uFE6C-\uFE6F\uFE75\uFEFD\uFEFE\uFF00\uFFBF-\uFFC1\uFFC8\uFFC9\uFFD0\uFFD1\uFFD8\uFFD9\uFFDD-\uFFDF\uFFE7\uFFEF-\uFFF8\uFFFE\uFFFF',
+	        'astral': '\uD800[\uDC0C\uDC27\uDC3B\uDC3E\uDC4E\uDC4F\uDC5E-\uDC7F\uDCFB-\uDCFF\uDD03-\uDD06\uDD34-\uDD36\uDD8F\uDD9D-\uDD9F\uDDA1-\uDDCF\uDDFE-\uDE7F\uDE9D-\uDE9F\uDED1-\uDEDF\uDEFC-\uDEFF\uDF24-\uDF2C\uDF4B-\uDF4F\uDF7B-\uDF7F\uDF9E\uDFC4-\uDFC7\uDFD6-\uDFFF]|\uD801[\uDC9E\uDC9F\uDCAA-\uDCAF\uDCD4-\uDCD7\uDCFC-\uDCFF\uDD28-\uDD2F\uDD64-\uDD6E\uDD7B\uDD8B\uDD93\uDD96\uDDA2\uDDB2\uDDBA\uDDBD-\uDDFF\uDF37-\uDF3F\uDF56-\uDF5F\uDF68-\uDF7F\uDF86\uDFB1\uDFBB-\uDFFF]|\uD802[\uDC06\uDC07\uDC09\uDC36\uDC39-\uDC3B\uDC3D\uDC3E\uDC56\uDC9F-\uDCA6\uDCB0-\uDCDF\uDCF3\uDCF6-\uDCFA\uDD1C-\uDD1E\uDD3A-\uDD3E\uDD40-\uDD7F\uDDB8-\uDDBB\uDDD0\uDDD1\uDE04\uDE07-\uDE0B\uDE14\uDE18\uDE36\uDE37\uDE3B-\uDE3E\uDE49-\uDE4F\uDE59-\uDE5F\uDEA0-\uDEBF\uDEE7-\uDEEA\uDEF7-\uDEFF\uDF36-\uDF38\uDF56\uDF57\uDF73-\uDF77\uDF92-\uDF98\uDF9D-\uDFA8\uDFB0-\uDFFF]|\uD803[\uDC49-\uDC7F\uDCB3-\uDCBF\uDCF3-\uDCF9\uDD28-\uDD2F\uDD3A-\uDE5F\uDE7F\uDEAA\uDEAE\uDEAF\uDEB2-\uDEFF\uDF28-\uDF2F\uDF5A-\uDF6F\uDF8A-\uDFAF\uDFCC-\uDFDF\uDFF7-\uDFFF]|\uD804[\uDC4E-\uDC51\uDC76-\uDC7E\uDCC3-\uDCCC\uDCCE\uDCCF\uDCE9-\uDCEF\uDCFA-\uDCFF\uDD35\uDD48-\uDD4F\uDD77-\uDD7F\uDDE0\uDDF5-\uDDFF\uDE12\uDE3F-\uDE7F\uDE87\uDE89\uDE8E\uDE9E\uDEAA-\uDEAF\uDEEB-\uDEEF\uDEFA-\uDEFF\uDF04\uDF0D\uDF0E\uDF11\uDF12\uDF29\uDF31\uDF34\uDF3A\uDF45\uDF46\uDF49\uDF4A\uDF4E\uDF4F\uDF51-\uDF56\uDF58-\uDF5C\uDF64\uDF65\uDF6D-\uDF6F\uDF75-\uDFFF]|\uD805[\uDC5C\uDC62-\uDC7F\uDCC8-\uDCCF\uDCDA-\uDD7F\uDDB6\uDDB7\uDDDE-\uDDFF\uDE45-\uDE4F\uDE5A-\uDE5F\uDE6D-\uDE7F\uDEBA-\uDEBF\uDECA-\uDEFF\uDF1B\uDF1C\uDF2C-\uDF2F\uDF47-\uDFFF]|\uD806[\uDC3C-\uDC9F\uDCF3-\uDCFE\uDD07\uDD08\uDD0A\uDD0B\uDD14\uDD17\uDD36\uDD39\uDD3A\uDD47-\uDD4F\uDD5A-\uDD9F\uDDA8\uDDA9\uDDD8\uDDD9\uDDE5-\uDDFF\uDE48-\uDE4F\uDEA3-\uDEAF\uDEF9-\uDFFF]|\uD807[\uDC09\uDC37\uDC46-\uDC4F\uDC6D-\uDC6F\uDC90\uDC91\uDCA8\uDCB7-\uDCFF\uDD07\uDD0A\uDD37-\uDD39\uDD3B\uDD3E\uDD48-\uDD4F\uDD5A-\uDD5F\uDD66\uDD69\uDD8F\uDD92\uDD99-\uDD9F\uDDAA-\uDEDF\uDEF9-\uDFAF\uDFB1-\uDFBF\uDFF2-\uDFFE]|\uD808[\uDF9A-\uDFFF]|\uD809[\uDC6F\uDC75-\uDC7F\uDD44-\uDFFF]|[\uD80A\uD80E-\uD810\uD812-\uD819\uD824-\uD82A\uD82D\uD82E\uD830-\uD832\uD83F\uD87B-\uD87D\uD87F\uD885-\uDB3F\uDB41-\uDB7F][\uDC00-\uDFFF]|\uD80B[\uDC00-\uDF8F\uDFF3-\uDFFF]|\uD80D[\uDC2F\uDC39-\uDFFF]|\uD811[\uDE47-\uDFFF]|\uD81A[\uDE39-\uDE3F\uDE5F\uDE6A-\uDE6D\uDEBF\uDECA-\uDECF\uDEEE\uDEEF\uDEF6-\uDEFF\uDF46-\uDF4F\uDF5A\uDF62\uDF78-\uDF7C\uDF90-\uDFFF]|\uD81B[\uDC00-\uDE3F\uDE9B-\uDEFF\uDF4B-\uDF4E\uDF88-\uDF8E\uDFA0-\uDFDF\uDFE5-\uDFEF\uDFF2-\uDFFF]|\uD821[\uDFF8-\uDFFF]|\uD823[\uDCD6-\uDCFF\uDD09-\uDFFF]|\uD82B[\uDC00-\uDFEF\uDFF4\uDFFC\uDFFF]|\uD82C[\uDD23-\uDD4F\uDD53-\uDD63\uDD68-\uDD6F\uDEFC-\uDFFF]|\uD82F[\uDC6B-\uDC6F\uDC7D-\uDC7F\uDC89-\uDC8F\uDC9A\uDC9B\uDCA4-\uDFFF]|\uD833[\uDC00-\uDEFF\uDF2E\uDF2F\uDF47-\uDF4F\uDFC4-\uDFFF]|\uD834[\uDCF6-\uDCFF\uDD27\uDD28\uDDEB-\uDDFF\uDE46-\uDEDF\uDEF4-\uDEFF\uDF57-\uDF5F\uDF79-\uDFFF]|\uD835[\uDC55\uDC9D\uDCA0\uDCA1\uDCA3\uDCA4\uDCA7\uDCA8\uDCAD\uDCBA\uDCBC\uDCC4\uDD06\uDD0B\uDD0C\uDD15\uDD1D\uDD3A\uDD3F\uDD45\uDD47-\uDD49\uDD51\uDEA6\uDEA7\uDFCC\uDFCD]|\uD836[\uDE8C-\uDE9A\uDEA0\uDEB0-\uDFFF]|\uD837[\uDC00-\uDEFF\uDF1F-\uDFFF]|\uD838[\uDC07\uDC19\uDC1A\uDC22\uDC25\uDC2B-\uDCFF\uDD2D-\uDD2F\uDD3E\uDD3F\uDD4A-\uDD4D\uDD50-\uDE8F\uDEAF-\uDEBF\uDEFA-\uDEFE\uDF00-\uDFFF]|\uD839[\uDC00-\uDFDF\uDFE7\uDFEC\uDFEF\uDFFF]|\uD83A[\uDCC5\uDCC6\uDCD7-\uDCFF\uDD4C-\uDD4F\uDD5A-\uDD5D\uDD60-\uDFFF]|\uD83B[\uDC00-\uDC70\uDCB5-\uDD00\uDD3E-\uDDFF\uDE04\uDE20\uDE23\uDE25\uDE26\uDE28\uDE33\uDE38\uDE3A\uDE3C-\uDE41\uDE43-\uDE46\uDE48\uDE4A\uDE4C\uDE50\uDE53\uDE55\uDE56\uDE58\uDE5A\uDE5C\uDE5E\uDE60\uDE63\uDE65\uDE66\uDE6B\uDE73\uDE78\uDE7D\uDE7F\uDE8A\uDE9C-\uDEA0\uDEA4\uDEAA\uDEBC-\uDEEF\uDEF2-\uDFFF]|\uD83C[\uDC2C-\uDC2F\uDC94-\uDC9F\uDCAF\uDCB0\uDCC0\uDCD0\uDCF6-\uDCFF\uDDAE-\uDDE5\uDE03-\uDE0F\uDE3C-\uDE3F\uDE49-\uDE4F\uDE52-\uDE5F\uDE66-\uDEFF]|\uD83D[\uDED8-\uDEDC\uDEED-\uDEEF\uDEFD-\uDEFF\uDF74-\uDF7F\uDFD9-\uDFDF\uDFEC-\uDFEF\uDFF1-\uDFFF]|\uD83E[\uDC0C-\uDC0F\uDC48-\uDC4F\uDC5A-\uDC5F\uDC88-\uDC8F\uDCAE\uDCAF\uDCB2-\uDCFF\uDE54-\uDE5F\uDE6E\uDE6F\uDE75-\uDE77\uDE7D-\uDE7F\uDE87-\uDE8F\uDEAD-\uDEAF\uDEBB-\uDEBF\uDEC6-\uDECF\uDEDA-\uDEDF\uDEE8-\uDEEF\uDEF7-\uDEFF\uDF93\uDFCB-\uDFEF\uDFFA-\uDFFF]|\uD869[\uDEE0-\uDEFF]|\uD86D[\uDF39-\uDF3F]|\uD86E[\uDC1E\uDC1F]|\uD873[\uDEA2-\uDEAF]|\uD87A[\uDFE1-\uDFFF]|\uD87E[\uDE1E-\uDFFF]|\uD884[\uDF4B-\uDFFF]|\uDB40[\uDC00\uDC02-\uDC1F\uDC80-\uDCFF\uDDF0-\uDFFF]|[\uDBBF\uDBFF][\uDFFE\uDFFF]'
+	    },
+	    {
+	        'name': 'Co',
+	        'alias': 'Private_Use',
+	        'bmp': '\uE000-\uF8FF',
+	        'astral': '[\uDB80-\uDBBE\uDBC0-\uDBFE][\uDC00-\uDFFF]|[\uDBBF\uDBFF][\uDC00-\uDFFD]'
+	    },
+	    {
+	        'name': 'Cs',
+	        'alias': 'Surrogate',
+	        'bmp': '\uD800-\uDFFF'
+	    },
+	    {
+	        'name': 'L',
+	        'alias': 'Letter',
+	        'bmp': 'A-Za-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0370-\u0374\u0376\u0377\u037A-\u037D\u037F\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u052F\u0531-\u0556\u0559\u0560-\u0588\u05D0-\u05EA\u05EF-\u05F2\u0620-\u064A\u066E\u066F\u0671-\u06D3\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FC\u06FF\u0710\u0712-\u072F\u074D-\u07A5\u07B1\u07CA-\u07EA\u07F4\u07F5\u07FA\u0800-\u0815\u081A\u0824\u0828\u0840-\u0858\u0860-\u086A\u0870-\u0887\u0889-\u088E\u08A0-\u08C9\u0904-\u0939\u093D\u0950\u0958-\u0961\u0971-\u0980\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BD\u09CE\u09DC\u09DD\u09DF-\u09E1\u09F0\u09F1\u09FC\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A59-\u0A5C\u0A5E\u0A72-\u0A74\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABD\u0AD0\u0AE0\u0AE1\u0AF9\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3D\u0B5C\u0B5D\u0B5F-\u0B61\u0B71\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BD0\u0C05-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C39\u0C3D\u0C58-\u0C5A\u0C5D\u0C60\u0C61\u0C80\u0C85-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBD\u0CDD\u0CDE\u0CE0\u0CE1\u0CF1\u0CF2\u0D04-\u0D0C\u0D0E-\u0D10\u0D12-\u0D3A\u0D3D\u0D4E\u0D54-\u0D56\u0D5F-\u0D61\u0D7A-\u0D7F\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0E01-\u0E30\u0E32\u0E33\u0E40-\u0E46\u0E81\u0E82\u0E84\u0E86-\u0E8A\u0E8C-\u0EA3\u0EA5\u0EA7-\u0EB0\u0EB2\u0EB3\u0EBD\u0EC0-\u0EC4\u0EC6\u0EDC-\u0EDF\u0F00\u0F40-\u0F47\u0F49-\u0F6C\u0F88-\u0F8C\u1000-\u102A\u103F\u1050-\u1055\u105A-\u105D\u1061\u1065\u1066\u106E-\u1070\u1075-\u1081\u108E\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FC-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u1380-\u138F\u13A0-\u13F5\u13F8-\u13FD\u1401-\u166C\u166F-\u167F\u1681-\u169A\u16A0-\u16EA\u16F1-\u16F8\u1700-\u1711\u171F-\u1731\u1740-\u1751\u1760-\u176C\u176E-\u1770\u1780-\u17B3\u17D7\u17DC\u1820-\u1878\u1880-\u1884\u1887-\u18A8\u18AA\u18B0-\u18F5\u1900-\u191E\u1950-\u196D\u1970-\u1974\u1980-\u19AB\u19B0-\u19C9\u1A00-\u1A16\u1A20-\u1A54\u1AA7\u1B05-\u1B33\u1B45-\u1B4C\u1B83-\u1BA0\u1BAE\u1BAF\u1BBA-\u1BE5\u1C00-\u1C23\u1C4D-\u1C4F\u1C5A-\u1C7D\u1C80-\u1C88\u1C90-\u1CBA\u1CBD-\u1CBF\u1CE9-\u1CEC\u1CEE-\u1CF3\u1CF5\u1CF6\u1CFA\u1D00-\u1DBF\u1E00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FBC\u1FBE\u1FC2-\u1FC4\u1FC6-\u1FCC\u1FD0-\u1FD3\u1FD6-\u1FDB\u1FE0-\u1FEC\u1FF2-\u1FF4\u1FF6-\u1FFC\u2071\u207F\u2090-\u209C\u2102\u2107\u210A-\u2113\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u212F-\u2139\u213C-\u213F\u2145-\u2149\u214E\u2183\u2184\u2C00-\u2CE4\u2CEB-\u2CEE\u2CF2\u2CF3\u2D00-\u2D25\u2D27\u2D2D\u2D30-\u2D67\u2D6F\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\u2E2F\u3005\u3006\u3031-\u3035\u303B\u303C\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FC-\u30FF\u3105-\u312F\u3131-\u318E\u31A0-\u31BF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\uA48C\uA4D0-\uA4FD\uA500-\uA60C\uA610-\uA61F\uA62A\uA62B\uA640-\uA66E\uA67F-\uA69D\uA6A0-\uA6E5\uA717-\uA71F\uA722-\uA788\uA78B-\uA7CA\uA7D0\uA7D1\uA7D3\uA7D5-\uA7D9\uA7F2-\uA801\uA803-\uA805\uA807-\uA80A\uA80C-\uA822\uA840-\uA873\uA882-\uA8B3\uA8F2-\uA8F7\uA8FB\uA8FD\uA8FE\uA90A-\uA925\uA930-\uA946\uA960-\uA97C\uA984-\uA9B2\uA9CF\uA9E0-\uA9E4\uA9E6-\uA9EF\uA9FA-\uA9FE\uAA00-\uAA28\uAA40-\uAA42\uAA44-\uAA4B\uAA60-\uAA76\uAA7A\uAA7E-\uAAAF\uAAB1\uAAB5\uAAB6\uAAB9-\uAABD\uAAC0\uAAC2\uAADB-\uAADD\uAAE0-\uAAEA\uAAF2-\uAAF4\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E\uAB30-\uAB5A\uAB5C-\uAB69\uAB70-\uABE2\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uF900-\uFA6D\uFA70-\uFAD9\uFB00-\uFB06\uFB13-\uFB17\uFB1D\uFB1F-\uFB28\uFB2A-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFBB1\uFBD3-\uFD3D\uFD50-\uFD8F\uFD92-\uFDC7\uFDF0-\uFDFB\uFE70-\uFE74\uFE76-\uFEFC\uFF21-\uFF3A\uFF41-\uFF5A\uFF66-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC',
+	        'astral': '\uD800[\uDC00-\uDC0B\uDC0D-\uDC26\uDC28-\uDC3A\uDC3C\uDC3D\uDC3F-\uDC4D\uDC50-\uDC5D\uDC80-\uDCFA\uDE80-\uDE9C\uDEA0-\uDED0\uDF00-\uDF1F\uDF2D-\uDF40\uDF42-\uDF49\uDF50-\uDF75\uDF80-\uDF9D\uDFA0-\uDFC3\uDFC8-\uDFCF]|\uD801[\uDC00-\uDC9D\uDCB0-\uDCD3\uDCD8-\uDCFB\uDD00-\uDD27\uDD30-\uDD63\uDD70-\uDD7A\uDD7C-\uDD8A\uDD8C-\uDD92\uDD94\uDD95\uDD97-\uDDA1\uDDA3-\uDDB1\uDDB3-\uDDB9\uDDBB\uDDBC\uDE00-\uDF36\uDF40-\uDF55\uDF60-\uDF67\uDF80-\uDF85\uDF87-\uDFB0\uDFB2-\uDFBA]|\uD802[\uDC00-\uDC05\uDC08\uDC0A-\uDC35\uDC37\uDC38\uDC3C\uDC3F-\uDC55\uDC60-\uDC76\uDC80-\uDC9E\uDCE0-\uDCF2\uDCF4\uDCF5\uDD00-\uDD15\uDD20-\uDD39\uDD80-\uDDB7\uDDBE\uDDBF\uDE00\uDE10-\uDE13\uDE15-\uDE17\uDE19-\uDE35\uDE60-\uDE7C\uDE80-\uDE9C\uDEC0-\uDEC7\uDEC9-\uDEE4\uDF00-\uDF35\uDF40-\uDF55\uDF60-\uDF72\uDF80-\uDF91]|\uD803[\uDC00-\uDC48\uDC80-\uDCB2\uDCC0-\uDCF2\uDD00-\uDD23\uDE80-\uDEA9\uDEB0\uDEB1\uDF00-\uDF1C\uDF27\uDF30-\uDF45\uDF70-\uDF81\uDFB0-\uDFC4\uDFE0-\uDFF6]|\uD804[\uDC03-\uDC37\uDC71\uDC72\uDC75\uDC83-\uDCAF\uDCD0-\uDCE8\uDD03-\uDD26\uDD44\uDD47\uDD50-\uDD72\uDD76\uDD83-\uDDB2\uDDC1-\uDDC4\uDDDA\uDDDC\uDE00-\uDE11\uDE13-\uDE2B\uDE80-\uDE86\uDE88\uDE8A-\uDE8D\uDE8F-\uDE9D\uDE9F-\uDEA8\uDEB0-\uDEDE\uDF05-\uDF0C\uDF0F\uDF10\uDF13-\uDF28\uDF2A-\uDF30\uDF32\uDF33\uDF35-\uDF39\uDF3D\uDF50\uDF5D-\uDF61]|\uD805[\uDC00-\uDC34\uDC47-\uDC4A\uDC5F-\uDC61\uDC80-\uDCAF\uDCC4\uDCC5\uDCC7\uDD80-\uDDAE\uDDD8-\uDDDB\uDE00-\uDE2F\uDE44\uDE80-\uDEAA\uDEB8\uDF00-\uDF1A\uDF40-\uDF46]|\uD806[\uDC00-\uDC2B\uDCA0-\uDCDF\uDCFF-\uDD06\uDD09\uDD0C-\uDD13\uDD15\uDD16\uDD18-\uDD2F\uDD3F\uDD41\uDDA0-\uDDA7\uDDAA-\uDDD0\uDDE1\uDDE3\uDE00\uDE0B-\uDE32\uDE3A\uDE50\uDE5C-\uDE89\uDE9D\uDEB0-\uDEF8]|\uD807[\uDC00-\uDC08\uDC0A-\uDC2E\uDC40\uDC72-\uDC8F\uDD00-\uDD06\uDD08\uDD09\uDD0B-\uDD30\uDD46\uDD60-\uDD65\uDD67\uDD68\uDD6A-\uDD89\uDD98\uDEE0-\uDEF2\uDFB0]|\uD808[\uDC00-\uDF99]|\uD809[\uDC80-\uDD43]|\uD80B[\uDF90-\uDFF0]|[\uD80C\uD81C-\uD820\uD822\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879\uD880-\uD883][\uDC00-\uDFFF]|\uD80D[\uDC00-\uDC2E]|\uD811[\uDC00-\uDE46]|\uD81A[\uDC00-\uDE38\uDE40-\uDE5E\uDE70-\uDEBE\uDED0-\uDEED\uDF00-\uDF2F\uDF40-\uDF43\uDF63-\uDF77\uDF7D-\uDF8F]|\uD81B[\uDE40-\uDE7F\uDF00-\uDF4A\uDF50\uDF93-\uDF9F\uDFE0\uDFE1\uDFE3]|\uD821[\uDC00-\uDFF7]|\uD823[\uDC00-\uDCD5\uDD00-\uDD08]|\uD82B[\uDFF0-\uDFF3\uDFF5-\uDFFB\uDFFD\uDFFE]|\uD82C[\uDC00-\uDD22\uDD50-\uDD52\uDD64-\uDD67\uDD70-\uDEFB]|\uD82F[\uDC00-\uDC6A\uDC70-\uDC7C\uDC80-\uDC88\uDC90-\uDC99]|\uD835[\uDC00-\uDC54\uDC56-\uDC9C\uDC9E\uDC9F\uDCA2\uDCA5\uDCA6\uDCA9-\uDCAC\uDCAE-\uDCB9\uDCBB\uDCBD-\uDCC3\uDCC5-\uDD05\uDD07-\uDD0A\uDD0D-\uDD14\uDD16-\uDD1C\uDD1E-\uDD39\uDD3B-\uDD3E\uDD40-\uDD44\uDD46\uDD4A-\uDD50\uDD52-\uDEA5\uDEA8-\uDEC0\uDEC2-\uDEDA\uDEDC-\uDEFA\uDEFC-\uDF14\uDF16-\uDF34\uDF36-\uDF4E\uDF50-\uDF6E\uDF70-\uDF88\uDF8A-\uDFA8\uDFAA-\uDFC2\uDFC4-\uDFCB]|\uD837[\uDF00-\uDF1E]|\uD838[\uDD00-\uDD2C\uDD37-\uDD3D\uDD4E\uDE90-\uDEAD\uDEC0-\uDEEB]|\uD839[\uDFE0-\uDFE6\uDFE8-\uDFEB\uDFED\uDFEE\uDFF0-\uDFFE]|\uD83A[\uDC00-\uDCC4\uDD00-\uDD43\uDD4B]|\uD83B[\uDE00-\uDE03\uDE05-\uDE1F\uDE21\uDE22\uDE24\uDE27\uDE29-\uDE32\uDE34-\uDE37\uDE39\uDE3B\uDE42\uDE47\uDE49\uDE4B\uDE4D-\uDE4F\uDE51\uDE52\uDE54\uDE57\uDE59\uDE5B\uDE5D\uDE5F\uDE61\uDE62\uDE64\uDE67-\uDE6A\uDE6C-\uDE72\uDE74-\uDE77\uDE79-\uDE7C\uDE7E\uDE80-\uDE89\uDE8B-\uDE9B\uDEA1-\uDEA3\uDEA5-\uDEA9\uDEAB-\uDEBB]|\uD869[\uDC00-\uDEDF\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF38\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0]|\uD87E[\uDC00-\uDE1D]|\uD884[\uDC00-\uDF4A]'
+	    },
+	    {
+	        'name': 'LC',
+	        'alias': 'Cased_Letter',
+	        'bmp': 'A-Za-z\xB5\xC0-\xD6\xD8-\xF6\xF8-\u01BA\u01BC-\u01BF\u01C4-\u0293\u0295-\u02AF\u0370-\u0373\u0376\u0377\u037B-\u037D\u037F\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u052F\u0531-\u0556\u0560-\u0588\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FD-\u10FF\u13A0-\u13F5\u13F8-\u13FD\u1C80-\u1C88\u1C90-\u1CBA\u1CBD-\u1CBF\u1D00-\u1D2B\u1D6B-\u1D77\u1D79-\u1D9A\u1E00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FBC\u1FBE\u1FC2-\u1FC4\u1FC6-\u1FCC\u1FD0-\u1FD3\u1FD6-\u1FDB\u1FE0-\u1FEC\u1FF2-\u1FF4\u1FF6-\u1FFC\u2102\u2107\u210A-\u2113\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u212F-\u2134\u2139\u213C-\u213F\u2145-\u2149\u214E\u2183\u2184\u2C00-\u2C7B\u2C7E-\u2CE4\u2CEB-\u2CEE\u2CF2\u2CF3\u2D00-\u2D25\u2D27\u2D2D\uA640-\uA66D\uA680-\uA69B\uA722-\uA76F\uA771-\uA787\uA78B-\uA78E\uA790-\uA7CA\uA7D0\uA7D1\uA7D3\uA7D5-\uA7D9\uA7F5\uA7F6\uA7FA\uAB30-\uAB5A\uAB60-\uAB68\uAB70-\uABBF\uFB00-\uFB06\uFB13-\uFB17\uFF21-\uFF3A\uFF41-\uFF5A',
+	        'astral': '\uD801[\uDC00-\uDC4F\uDCB0-\uDCD3\uDCD8-\uDCFB\uDD70-\uDD7A\uDD7C-\uDD8A\uDD8C-\uDD92\uDD94\uDD95\uDD97-\uDDA1\uDDA3-\uDDB1\uDDB3-\uDDB9\uDDBB\uDDBC]|\uD803[\uDC80-\uDCB2\uDCC0-\uDCF2]|\uD806[\uDCA0-\uDCDF]|\uD81B[\uDE40-\uDE7F]|\uD835[\uDC00-\uDC54\uDC56-\uDC9C\uDC9E\uDC9F\uDCA2\uDCA5\uDCA6\uDCA9-\uDCAC\uDCAE-\uDCB9\uDCBB\uDCBD-\uDCC3\uDCC5-\uDD05\uDD07-\uDD0A\uDD0D-\uDD14\uDD16-\uDD1C\uDD1E-\uDD39\uDD3B-\uDD3E\uDD40-\uDD44\uDD46\uDD4A-\uDD50\uDD52-\uDEA5\uDEA8-\uDEC0\uDEC2-\uDEDA\uDEDC-\uDEFA\uDEFC-\uDF14\uDF16-\uDF34\uDF36-\uDF4E\uDF50-\uDF6E\uDF70-\uDF88\uDF8A-\uDFA8\uDFAA-\uDFC2\uDFC4-\uDFCB]|\uD837[\uDF00-\uDF09\uDF0B-\uDF1E]|\uD83A[\uDD00-\uDD43]'
+	    },
+	    {
+	        'name': 'Ll',
+	        'alias': 'Lowercase_Letter',
+	        'bmp': 'a-z\xB5\xDF-\xF6\xF8-\xFF\u0101\u0103\u0105\u0107\u0109\u010B\u010D\u010F\u0111\u0113\u0115\u0117\u0119\u011B\u011D\u011F\u0121\u0123\u0125\u0127\u0129\u012B\u012D\u012F\u0131\u0133\u0135\u0137\u0138\u013A\u013C\u013E\u0140\u0142\u0144\u0146\u0148\u0149\u014B\u014D\u014F\u0151\u0153\u0155\u0157\u0159\u015B\u015D\u015F\u0161\u0163\u0165\u0167\u0169\u016B\u016D\u016F\u0171\u0173\u0175\u0177\u017A\u017C\u017E-\u0180\u0183\u0185\u0188\u018C\u018D\u0192\u0195\u0199-\u019B\u019E\u01A1\u01A3\u01A5\u01A8\u01AA\u01AB\u01AD\u01B0\u01B4\u01B6\u01B9\u01BA\u01BD-\u01BF\u01C6\u01C9\u01CC\u01CE\u01D0\u01D2\u01D4\u01D6\u01D8\u01DA\u01DC\u01DD\u01DF\u01E1\u01E3\u01E5\u01E7\u01E9\u01EB\u01ED\u01EF\u01F0\u01F3\u01F5\u01F9\u01FB\u01FD\u01FF\u0201\u0203\u0205\u0207\u0209\u020B\u020D\u020F\u0211\u0213\u0215\u0217\u0219\u021B\u021D\u021F\u0221\u0223\u0225\u0227\u0229\u022B\u022D\u022F\u0231\u0233-\u0239\u023C\u023F\u0240\u0242\u0247\u0249\u024B\u024D\u024F-\u0293\u0295-\u02AF\u0371\u0373\u0377\u037B-\u037D\u0390\u03AC-\u03CE\u03D0\u03D1\u03D5-\u03D7\u03D9\u03DB\u03DD\u03DF\u03E1\u03E3\u03E5\u03E7\u03E9\u03EB\u03ED\u03EF-\u03F3\u03F5\u03F8\u03FB\u03FC\u0430-\u045F\u0461\u0463\u0465\u0467\u0469\u046B\u046D\u046F\u0471\u0473\u0475\u0477\u0479\u047B\u047D\u047F\u0481\u048B\u048D\u048F\u0491\u0493\u0495\u0497\u0499\u049B\u049D\u049F\u04A1\u04A3\u04A5\u04A7\u04A9\u04AB\u04AD\u04AF\u04B1\u04B3\u04B5\u04B7\u04B9\u04BB\u04BD\u04BF\u04C2\u04C4\u04C6\u04C8\u04CA\u04CC\u04CE\u04CF\u04D1\u04D3\u04D5\u04D7\u04D9\u04DB\u04DD\u04DF\u04E1\u04E3\u04E5\u04E7\u04E9\u04EB\u04ED\u04EF\u04F1\u04F3\u04F5\u04F7\u04F9\u04FB\u04FD\u04FF\u0501\u0503\u0505\u0507\u0509\u050B\u050D\u050F\u0511\u0513\u0515\u0517\u0519\u051B\u051D\u051F\u0521\u0523\u0525\u0527\u0529\u052B\u052D\u052F\u0560-\u0588\u10D0-\u10FA\u10FD-\u10FF\u13F8-\u13FD\u1C80-\u1C88\u1D00-\u1D2B\u1D6B-\u1D77\u1D79-\u1D9A\u1E01\u1E03\u1E05\u1E07\u1E09\u1E0B\u1E0D\u1E0F\u1E11\u1E13\u1E15\u1E17\u1E19\u1E1B\u1E1D\u1E1F\u1E21\u1E23\u1E25\u1E27\u1E29\u1E2B\u1E2D\u1E2F\u1E31\u1E33\u1E35\u1E37\u1E39\u1E3B\u1E3D\u1E3F\u1E41\u1E43\u1E45\u1E47\u1E49\u1E4B\u1E4D\u1E4F\u1E51\u1E53\u1E55\u1E57\u1E59\u1E5B\u1E5D\u1E5F\u1E61\u1E63\u1E65\u1E67\u1E69\u1E6B\u1E6D\u1E6F\u1E71\u1E73\u1E75\u1E77\u1E79\u1E7B\u1E7D\u1E7F\u1E81\u1E83\u1E85\u1E87\u1E89\u1E8B\u1E8D\u1E8F\u1E91\u1E93\u1E95-\u1E9D\u1E9F\u1EA1\u1EA3\u1EA5\u1EA7\u1EA9\u1EAB\u1EAD\u1EAF\u1EB1\u1EB3\u1EB5\u1EB7\u1EB9\u1EBB\u1EBD\u1EBF\u1EC1\u1EC3\u1EC5\u1EC7\u1EC9\u1ECB\u1ECD\u1ECF\u1ED1\u1ED3\u1ED5\u1ED7\u1ED9\u1EDB\u1EDD\u1EDF\u1EE1\u1EE3\u1EE5\u1EE7\u1EE9\u1EEB\u1EED\u1EEF\u1EF1\u1EF3\u1EF5\u1EF7\u1EF9\u1EFB\u1EFD\u1EFF-\u1F07\u1F10-\u1F15\u1F20-\u1F27\u1F30-\u1F37\u1F40-\u1F45\u1F50-\u1F57\u1F60-\u1F67\u1F70-\u1F7D\u1F80-\u1F87\u1F90-\u1F97\u1FA0-\u1FA7\u1FB0-\u1FB4\u1FB6\u1FB7\u1FBE\u1FC2-\u1FC4\u1FC6\u1FC7\u1FD0-\u1FD3\u1FD6\u1FD7\u1FE0-\u1FE7\u1FF2-\u1FF4\u1FF6\u1FF7\u210A\u210E\u210F\u2113\u212F\u2134\u2139\u213C\u213D\u2146-\u2149\u214E\u2184\u2C30-\u2C5F\u2C61\u2C65\u2C66\u2C68\u2C6A\u2C6C\u2C71\u2C73\u2C74\u2C76-\u2C7B\u2C81\u2C83\u2C85\u2C87\u2C89\u2C8B\u2C8D\u2C8F\u2C91\u2C93\u2C95\u2C97\u2C99\u2C9B\u2C9D\u2C9F\u2CA1\u2CA3\u2CA5\u2CA7\u2CA9\u2CAB\u2CAD\u2CAF\u2CB1\u2CB3\u2CB5\u2CB7\u2CB9\u2CBB\u2CBD\u2CBF\u2CC1\u2CC3\u2CC5\u2CC7\u2CC9\u2CCB\u2CCD\u2CCF\u2CD1\u2CD3\u2CD5\u2CD7\u2CD9\u2CDB\u2CDD\u2CDF\u2CE1\u2CE3\u2CE4\u2CEC\u2CEE\u2CF3\u2D00-\u2D25\u2D27\u2D2D\uA641\uA643\uA645\uA647\uA649\uA64B\uA64D\uA64F\uA651\uA653\uA655\uA657\uA659\uA65B\uA65D\uA65F\uA661\uA663\uA665\uA667\uA669\uA66B\uA66D\uA681\uA683\uA685\uA687\uA689\uA68B\uA68D\uA68F\uA691\uA693\uA695\uA697\uA699\uA69B\uA723\uA725\uA727\uA729\uA72B\uA72D\uA72F-\uA731\uA733\uA735\uA737\uA739\uA73B\uA73D\uA73F\uA741\uA743\uA745\uA747\uA749\uA74B\uA74D\uA74F\uA751\uA753\uA755\uA757\uA759\uA75B\uA75D\uA75F\uA761\uA763\uA765\uA767\uA769\uA76B\uA76D\uA76F\uA771-\uA778\uA77A\uA77C\uA77F\uA781\uA783\uA785\uA787\uA78C\uA78E\uA791\uA793-\uA795\uA797\uA799\uA79B\uA79D\uA79F\uA7A1\uA7A3\uA7A5\uA7A7\uA7A9\uA7AF\uA7B5\uA7B7\uA7B9\uA7BB\uA7BD\uA7BF\uA7C1\uA7C3\uA7C8\uA7CA\uA7D1\uA7D3\uA7D5\uA7D7\uA7D9\uA7F6\uA7FA\uAB30-\uAB5A\uAB60-\uAB68\uAB70-\uABBF\uFB00-\uFB06\uFB13-\uFB17\uFF41-\uFF5A',
+	        'astral': '\uD801[\uDC28-\uDC4F\uDCD8-\uDCFB\uDD97-\uDDA1\uDDA3-\uDDB1\uDDB3-\uDDB9\uDDBB\uDDBC]|\uD803[\uDCC0-\uDCF2]|\uD806[\uDCC0-\uDCDF]|\uD81B[\uDE60-\uDE7F]|\uD835[\uDC1A-\uDC33\uDC4E-\uDC54\uDC56-\uDC67\uDC82-\uDC9B\uDCB6-\uDCB9\uDCBB\uDCBD-\uDCC3\uDCC5-\uDCCF\uDCEA-\uDD03\uDD1E-\uDD37\uDD52-\uDD6B\uDD86-\uDD9F\uDDBA-\uDDD3\uDDEE-\uDE07\uDE22-\uDE3B\uDE56-\uDE6F\uDE8A-\uDEA5\uDEC2-\uDEDA\uDEDC-\uDEE1\uDEFC-\uDF14\uDF16-\uDF1B\uDF36-\uDF4E\uDF50-\uDF55\uDF70-\uDF88\uDF8A-\uDF8F\uDFAA-\uDFC2\uDFC4-\uDFC9\uDFCB]|\uD837[\uDF00-\uDF09\uDF0B-\uDF1E]|\uD83A[\uDD22-\uDD43]'
+	    },
+	    {
+	        'name': 'Lm',
+	        'alias': 'Modifier_Letter',
+	        'bmp': '\u02B0-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0374\u037A\u0559\u0640\u06E5\u06E6\u07F4\u07F5\u07FA\u081A\u0824\u0828\u08C9\u0971\u0E46\u0EC6\u10FC\u17D7\u1843\u1AA7\u1C78-\u1C7D\u1D2C-\u1D6A\u1D78\u1D9B-\u1DBF\u2071\u207F\u2090-\u209C\u2C7C\u2C7D\u2D6F\u2E2F\u3005\u3031-\u3035\u303B\u309D\u309E\u30FC-\u30FE\uA015\uA4F8-\uA4FD\uA60C\uA67F\uA69C\uA69D\uA717-\uA71F\uA770\uA788\uA7F2-\uA7F4\uA7F8\uA7F9\uA9CF\uA9E6\uAA70\uAADD\uAAF3\uAAF4\uAB5C-\uAB5F\uAB69\uFF70\uFF9E\uFF9F',
+	        'astral': '\uD801[\uDF80-\uDF85\uDF87-\uDFB0\uDFB2-\uDFBA]|\uD81A[\uDF40-\uDF43]|\uD81B[\uDF93-\uDF9F\uDFE0\uDFE1\uDFE3]|\uD82B[\uDFF0-\uDFF3\uDFF5-\uDFFB\uDFFD\uDFFE]|\uD838[\uDD37-\uDD3D]|\uD83A\uDD4B'
+	    },
+	    {
+	        'name': 'Lo',
+	        'alias': 'Other_Letter',
+	        'bmp': '\xAA\xBA\u01BB\u01C0-\u01C3\u0294\u05D0-\u05EA\u05EF-\u05F2\u0620-\u063F\u0641-\u064A\u066E\u066F\u0671-\u06D3\u06D5\u06EE\u06EF\u06FA-\u06FC\u06FF\u0710\u0712-\u072F\u074D-\u07A5\u07B1\u07CA-\u07EA\u0800-\u0815\u0840-\u0858\u0860-\u086A\u0870-\u0887\u0889-\u088E\u08A0-\u08C8\u0904-\u0939\u093D\u0950\u0958-\u0961\u0972-\u0980\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BD\u09CE\u09DC\u09DD\u09DF-\u09E1\u09F0\u09F1\u09FC\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A59-\u0A5C\u0A5E\u0A72-\u0A74\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABD\u0AD0\u0AE0\u0AE1\u0AF9\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3D\u0B5C\u0B5D\u0B5F-\u0B61\u0B71\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BD0\u0C05-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C39\u0C3D\u0C58-\u0C5A\u0C5D\u0C60\u0C61\u0C80\u0C85-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBD\u0CDD\u0CDE\u0CE0\u0CE1\u0CF1\u0CF2\u0D04-\u0D0C\u0D0E-\u0D10\u0D12-\u0D3A\u0D3D\u0D4E\u0D54-\u0D56\u0D5F-\u0D61\u0D7A-\u0D7F\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0E01-\u0E30\u0E32\u0E33\u0E40-\u0E45\u0E81\u0E82\u0E84\u0E86-\u0E8A\u0E8C-\u0EA3\u0EA5\u0EA7-\u0EB0\u0EB2\u0EB3\u0EBD\u0EC0-\u0EC4\u0EDC-\u0EDF\u0F00\u0F40-\u0F47\u0F49-\u0F6C\u0F88-\u0F8C\u1000-\u102A\u103F\u1050-\u1055\u105A-\u105D\u1061\u1065\u1066\u106E-\u1070\u1075-\u1081\u108E\u1100-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u1380-\u138F\u1401-\u166C\u166F-\u167F\u1681-\u169A\u16A0-\u16EA\u16F1-\u16F8\u1700-\u1711\u171F-\u1731\u1740-\u1751\u1760-\u176C\u176E-\u1770\u1780-\u17B3\u17DC\u1820-\u1842\u1844-\u1878\u1880-\u1884\u1887-\u18A8\u18AA\u18B0-\u18F5\u1900-\u191E\u1950-\u196D\u1970-\u1974\u1980-\u19AB\u19B0-\u19C9\u1A00-\u1A16\u1A20-\u1A54\u1B05-\u1B33\u1B45-\u1B4C\u1B83-\u1BA0\u1BAE\u1BAF\u1BBA-\u1BE5\u1C00-\u1C23\u1C4D-\u1C4F\u1C5A-\u1C77\u1CE9-\u1CEC\u1CEE-\u1CF3\u1CF5\u1CF6\u1CFA\u2135-\u2138\u2D30-\u2D67\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\u3006\u303C\u3041-\u3096\u309F\u30A1-\u30FA\u30FF\u3105-\u312F\u3131-\u318E\u31A0-\u31BF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\uA014\uA016-\uA48C\uA4D0-\uA4F7\uA500-\uA60B\uA610-\uA61F\uA62A\uA62B\uA66E\uA6A0-\uA6E5\uA78F\uA7F7\uA7FB-\uA801\uA803-\uA805\uA807-\uA80A\uA80C-\uA822\uA840-\uA873\uA882-\uA8B3\uA8F2-\uA8F7\uA8FB\uA8FD\uA8FE\uA90A-\uA925\uA930-\uA946\uA960-\uA97C\uA984-\uA9B2\uA9E0-\uA9E4\uA9E7-\uA9EF\uA9FA-\uA9FE\uAA00-\uAA28\uAA40-\uAA42\uAA44-\uAA4B\uAA60-\uAA6F\uAA71-\uAA76\uAA7A\uAA7E-\uAAAF\uAAB1\uAAB5\uAAB6\uAAB9-\uAABD\uAAC0\uAAC2\uAADB\uAADC\uAAE0-\uAAEA\uAAF2\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E\uABC0-\uABE2\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uF900-\uFA6D\uFA70-\uFAD9\uFB1D\uFB1F-\uFB28\uFB2A-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFBB1\uFBD3-\uFD3D\uFD50-\uFD8F\uFD92-\uFDC7\uFDF0-\uFDFB\uFE70-\uFE74\uFE76-\uFEFC\uFF66-\uFF6F\uFF71-\uFF9D\uFFA0-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC',
+	        'astral': '\uD800[\uDC00-\uDC0B\uDC0D-\uDC26\uDC28-\uDC3A\uDC3C\uDC3D\uDC3F-\uDC4D\uDC50-\uDC5D\uDC80-\uDCFA\uDE80-\uDE9C\uDEA0-\uDED0\uDF00-\uDF1F\uDF2D-\uDF40\uDF42-\uDF49\uDF50-\uDF75\uDF80-\uDF9D\uDFA0-\uDFC3\uDFC8-\uDFCF]|\uD801[\uDC50-\uDC9D\uDD00-\uDD27\uDD30-\uDD63\uDE00-\uDF36\uDF40-\uDF55\uDF60-\uDF67]|\uD802[\uDC00-\uDC05\uDC08\uDC0A-\uDC35\uDC37\uDC38\uDC3C\uDC3F-\uDC55\uDC60-\uDC76\uDC80-\uDC9E\uDCE0-\uDCF2\uDCF4\uDCF5\uDD00-\uDD15\uDD20-\uDD39\uDD80-\uDDB7\uDDBE\uDDBF\uDE00\uDE10-\uDE13\uDE15-\uDE17\uDE19-\uDE35\uDE60-\uDE7C\uDE80-\uDE9C\uDEC0-\uDEC7\uDEC9-\uDEE4\uDF00-\uDF35\uDF40-\uDF55\uDF60-\uDF72\uDF80-\uDF91]|\uD803[\uDC00-\uDC48\uDD00-\uDD23\uDE80-\uDEA9\uDEB0\uDEB1\uDF00-\uDF1C\uDF27\uDF30-\uDF45\uDF70-\uDF81\uDFB0-\uDFC4\uDFE0-\uDFF6]|\uD804[\uDC03-\uDC37\uDC71\uDC72\uDC75\uDC83-\uDCAF\uDCD0-\uDCE8\uDD03-\uDD26\uDD44\uDD47\uDD50-\uDD72\uDD76\uDD83-\uDDB2\uDDC1-\uDDC4\uDDDA\uDDDC\uDE00-\uDE11\uDE13-\uDE2B\uDE80-\uDE86\uDE88\uDE8A-\uDE8D\uDE8F-\uDE9D\uDE9F-\uDEA8\uDEB0-\uDEDE\uDF05-\uDF0C\uDF0F\uDF10\uDF13-\uDF28\uDF2A-\uDF30\uDF32\uDF33\uDF35-\uDF39\uDF3D\uDF50\uDF5D-\uDF61]|\uD805[\uDC00-\uDC34\uDC47-\uDC4A\uDC5F-\uDC61\uDC80-\uDCAF\uDCC4\uDCC5\uDCC7\uDD80-\uDDAE\uDDD8-\uDDDB\uDE00-\uDE2F\uDE44\uDE80-\uDEAA\uDEB8\uDF00-\uDF1A\uDF40-\uDF46]|\uD806[\uDC00-\uDC2B\uDCFF-\uDD06\uDD09\uDD0C-\uDD13\uDD15\uDD16\uDD18-\uDD2F\uDD3F\uDD41\uDDA0-\uDDA7\uDDAA-\uDDD0\uDDE1\uDDE3\uDE00\uDE0B-\uDE32\uDE3A\uDE50\uDE5C-\uDE89\uDE9D\uDEB0-\uDEF8]|\uD807[\uDC00-\uDC08\uDC0A-\uDC2E\uDC40\uDC72-\uDC8F\uDD00-\uDD06\uDD08\uDD09\uDD0B-\uDD30\uDD46\uDD60-\uDD65\uDD67\uDD68\uDD6A-\uDD89\uDD98\uDEE0-\uDEF2\uDFB0]|\uD808[\uDC00-\uDF99]|\uD809[\uDC80-\uDD43]|\uD80B[\uDF90-\uDFF0]|[\uD80C\uD81C-\uD820\uD822\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879\uD880-\uD883][\uDC00-\uDFFF]|\uD80D[\uDC00-\uDC2E]|\uD811[\uDC00-\uDE46]|\uD81A[\uDC00-\uDE38\uDE40-\uDE5E\uDE70-\uDEBE\uDED0-\uDEED\uDF00-\uDF2F\uDF63-\uDF77\uDF7D-\uDF8F]|\uD81B[\uDF00-\uDF4A\uDF50]|\uD821[\uDC00-\uDFF7]|\uD823[\uDC00-\uDCD5\uDD00-\uDD08]|\uD82C[\uDC00-\uDD22\uDD50-\uDD52\uDD64-\uDD67\uDD70-\uDEFB]|\uD82F[\uDC00-\uDC6A\uDC70-\uDC7C\uDC80-\uDC88\uDC90-\uDC99]|\uD837\uDF0A|\uD838[\uDD00-\uDD2C\uDD4E\uDE90-\uDEAD\uDEC0-\uDEEB]|\uD839[\uDFE0-\uDFE6\uDFE8-\uDFEB\uDFED\uDFEE\uDFF0-\uDFFE]|\uD83A[\uDC00-\uDCC4]|\uD83B[\uDE00-\uDE03\uDE05-\uDE1F\uDE21\uDE22\uDE24\uDE27\uDE29-\uDE32\uDE34-\uDE37\uDE39\uDE3B\uDE42\uDE47\uDE49\uDE4B\uDE4D-\uDE4F\uDE51\uDE52\uDE54\uDE57\uDE59\uDE5B\uDE5D\uDE5F\uDE61\uDE62\uDE64\uDE67-\uDE6A\uDE6C-\uDE72\uDE74-\uDE77\uDE79-\uDE7C\uDE7E\uDE80-\uDE89\uDE8B-\uDE9B\uDEA1-\uDEA3\uDEA5-\uDEA9\uDEAB-\uDEBB]|\uD869[\uDC00-\uDEDF\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF38\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0]|\uD87E[\uDC00-\uDE1D]|\uD884[\uDC00-\uDF4A]'
+	    },
+	    {
+	        'name': 'Lt',
+	        'alias': 'Titlecase_Letter',
+	        'bmp': '\u01C5\u01C8\u01CB\u01F2\u1F88-\u1F8F\u1F98-\u1F9F\u1FA8-\u1FAF\u1FBC\u1FCC\u1FFC'
+	    },
+	    {
+	        'name': 'Lu',
+	        'alias': 'Uppercase_Letter',
+	        'bmp': 'A-Z\xC0-\xD6\xD8-\xDE\u0100\u0102\u0104\u0106\u0108\u010A\u010C\u010E\u0110\u0112\u0114\u0116\u0118\u011A\u011C\u011E\u0120\u0122\u0124\u0126\u0128\u012A\u012C\u012E\u0130\u0132\u0134\u0136\u0139\u013B\u013D\u013F\u0141\u0143\u0145\u0147\u014A\u014C\u014E\u0150\u0152\u0154\u0156\u0158\u015A\u015C\u015E\u0160\u0162\u0164\u0166\u0168\u016A\u016C\u016E\u0170\u0172\u0174\u0176\u0178\u0179\u017B\u017D\u0181\u0182\u0184\u0186\u0187\u0189-\u018B\u018E-\u0191\u0193\u0194\u0196-\u0198\u019C\u019D\u019F\u01A0\u01A2\u01A4\u01A6\u01A7\u01A9\u01AC\u01AE\u01AF\u01B1-\u01B3\u01B5\u01B7\u01B8\u01BC\u01C4\u01C7\u01CA\u01CD\u01CF\u01D1\u01D3\u01D5\u01D7\u01D9\u01DB\u01DE\u01E0\u01E2\u01E4\u01E6\u01E8\u01EA\u01EC\u01EE\u01F1\u01F4\u01F6-\u01F8\u01FA\u01FC\u01FE\u0200\u0202\u0204\u0206\u0208\u020A\u020C\u020E\u0210\u0212\u0214\u0216\u0218\u021A\u021C\u021E\u0220\u0222\u0224\u0226\u0228\u022A\u022C\u022E\u0230\u0232\u023A\u023B\u023D\u023E\u0241\u0243-\u0246\u0248\u024A\u024C\u024E\u0370\u0372\u0376\u037F\u0386\u0388-\u038A\u038C\u038E\u038F\u0391-\u03A1\u03A3-\u03AB\u03CF\u03D2-\u03D4\u03D8\u03DA\u03DC\u03DE\u03E0\u03E2\u03E4\u03E6\u03E8\u03EA\u03EC\u03EE\u03F4\u03F7\u03F9\u03FA\u03FD-\u042F\u0460\u0462\u0464\u0466\u0468\u046A\u046C\u046E\u0470\u0472\u0474\u0476\u0478\u047A\u047C\u047E\u0480\u048A\u048C\u048E\u0490\u0492\u0494\u0496\u0498\u049A\u049C\u049E\u04A0\u04A2\u04A4\u04A6\u04A8\u04AA\u04AC\u04AE\u04B0\u04B2\u04B4\u04B6\u04B8\u04BA\u04BC\u04BE\u04C0\u04C1\u04C3\u04C5\u04C7\u04C9\u04CB\u04CD\u04D0\u04D2\u04D4\u04D6\u04D8\u04DA\u04DC\u04DE\u04E0\u04E2\u04E4\u04E6\u04E8\u04EA\u04EC\u04EE\u04F0\u04F2\u04F4\u04F6\u04F8\u04FA\u04FC\u04FE\u0500\u0502\u0504\u0506\u0508\u050A\u050C\u050E\u0510\u0512\u0514\u0516\u0518\u051A\u051C\u051E\u0520\u0522\u0524\u0526\u0528\u052A\u052C\u052E\u0531-\u0556\u10A0-\u10C5\u10C7\u10CD\u13A0-\u13F5\u1C90-\u1CBA\u1CBD-\u1CBF\u1E00\u1E02\u1E04\u1E06\u1E08\u1E0A\u1E0C\u1E0E\u1E10\u1E12\u1E14\u1E16\u1E18\u1E1A\u1E1C\u1E1E\u1E20\u1E22\u1E24\u1E26\u1E28\u1E2A\u1E2C\u1E2E\u1E30\u1E32\u1E34\u1E36\u1E38\u1E3A\u1E3C\u1E3E\u1E40\u1E42\u1E44\u1E46\u1E48\u1E4A\u1E4C\u1E4E\u1E50\u1E52\u1E54\u1E56\u1E58\u1E5A\u1E5C\u1E5E\u1E60\u1E62\u1E64\u1E66\u1E68\u1E6A\u1E6C\u1E6E\u1E70\u1E72\u1E74\u1E76\u1E78\u1E7A\u1E7C\u1E7E\u1E80\u1E82\u1E84\u1E86\u1E88\u1E8A\u1E8C\u1E8E\u1E90\u1E92\u1E94\u1E9E\u1EA0\u1EA2\u1EA4\u1EA6\u1EA8\u1EAA\u1EAC\u1EAE\u1EB0\u1EB2\u1EB4\u1EB6\u1EB8\u1EBA\u1EBC\u1EBE\u1EC0\u1EC2\u1EC4\u1EC6\u1EC8\u1ECA\u1ECC\u1ECE\u1ED0\u1ED2\u1ED4\u1ED6\u1ED8\u1EDA\u1EDC\u1EDE\u1EE0\u1EE2\u1EE4\u1EE6\u1EE8\u1EEA\u1EEC\u1EEE\u1EF0\u1EF2\u1EF4\u1EF6\u1EF8\u1EFA\u1EFC\u1EFE\u1F08-\u1F0F\u1F18-\u1F1D\u1F28-\u1F2F\u1F38-\u1F3F\u1F48-\u1F4D\u1F59\u1F5B\u1F5D\u1F5F\u1F68-\u1F6F\u1FB8-\u1FBB\u1FC8-\u1FCB\u1FD8-\u1FDB\u1FE8-\u1FEC\u1FF8-\u1FFB\u2102\u2107\u210B-\u210D\u2110-\u2112\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u2130-\u2133\u213E\u213F\u2145\u2183\u2C00-\u2C2F\u2C60\u2C62-\u2C64\u2C67\u2C69\u2C6B\u2C6D-\u2C70\u2C72\u2C75\u2C7E-\u2C80\u2C82\u2C84\u2C86\u2C88\u2C8A\u2C8C\u2C8E\u2C90\u2C92\u2C94\u2C96\u2C98\u2C9A\u2C9C\u2C9E\u2CA0\u2CA2\u2CA4\u2CA6\u2CA8\u2CAA\u2CAC\u2CAE\u2CB0\u2CB2\u2CB4\u2CB6\u2CB8\u2CBA\u2CBC\u2CBE\u2CC0\u2CC2\u2CC4\u2CC6\u2CC8\u2CCA\u2CCC\u2CCE\u2CD0\u2CD2\u2CD4\u2CD6\u2CD8\u2CDA\u2CDC\u2CDE\u2CE0\u2CE2\u2CEB\u2CED\u2CF2\uA640\uA642\uA644\uA646\uA648\uA64A\uA64C\uA64E\uA650\uA652\uA654\uA656\uA658\uA65A\uA65C\uA65E\uA660\uA662\uA664\uA666\uA668\uA66A\uA66C\uA680\uA682\uA684\uA686\uA688\uA68A\uA68C\uA68E\uA690\uA692\uA694\uA696\uA698\uA69A\uA722\uA724\uA726\uA728\uA72A\uA72C\uA72E\uA732\uA734\uA736\uA738\uA73A\uA73C\uA73E\uA740\uA742\uA744\uA746\uA748\uA74A\uA74C\uA74E\uA750\uA752\uA754\uA756\uA758\uA75A\uA75C\uA75E\uA760\uA762\uA764\uA766\uA768\uA76A\uA76C\uA76E\uA779\uA77B\uA77D\uA77E\uA780\uA782\uA784\uA786\uA78B\uA78D\uA790\uA792\uA796\uA798\uA79A\uA79C\uA79E\uA7A0\uA7A2\uA7A4\uA7A6\uA7A8\uA7AA-\uA7AE\uA7B0-\uA7B4\uA7B6\uA7B8\uA7BA\uA7BC\uA7BE\uA7C0\uA7C2\uA7C4-\uA7C7\uA7C9\uA7D0\uA7D6\uA7D8\uA7F5\uFF21-\uFF3A',
+	        'astral': '\uD801[\uDC00-\uDC27\uDCB0-\uDCD3\uDD70-\uDD7A\uDD7C-\uDD8A\uDD8C-\uDD92\uDD94\uDD95]|\uD803[\uDC80-\uDCB2]|\uD806[\uDCA0-\uDCBF]|\uD81B[\uDE40-\uDE5F]|\uD835[\uDC00-\uDC19\uDC34-\uDC4D\uDC68-\uDC81\uDC9C\uDC9E\uDC9F\uDCA2\uDCA5\uDCA6\uDCA9-\uDCAC\uDCAE-\uDCB5\uDCD0-\uDCE9\uDD04\uDD05\uDD07-\uDD0A\uDD0D-\uDD14\uDD16-\uDD1C\uDD38\uDD39\uDD3B-\uDD3E\uDD40-\uDD44\uDD46\uDD4A-\uDD50\uDD6C-\uDD85\uDDA0-\uDDB9\uDDD4-\uDDED\uDE08-\uDE21\uDE3C-\uDE55\uDE70-\uDE89\uDEA8-\uDEC0\uDEE2-\uDEFA\uDF1C-\uDF34\uDF56-\uDF6E\uDF90-\uDFA8\uDFCA]|\uD83A[\uDD00-\uDD21]'
+	    },
+	    {
+	        'name': 'M',
+	        'alias': 'Mark',
+	        'bmp': '\u0300-\u036F\u0483-\u0489\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED\u0711\u0730-\u074A\u07A6-\u07B0\u07EB-\u07F3\u07FD\u0816-\u0819\u081B-\u0823\u0825-\u0827\u0829-\u082D\u0859-\u085B\u0898-\u089F\u08CA-\u08E1\u08E3-\u0903\u093A-\u093C\u093E-\u094F\u0951-\u0957\u0962\u0963\u0981-\u0983\u09BC\u09BE-\u09C4\u09C7\u09C8\u09CB-\u09CD\u09D7\u09E2\u09E3\u09FE\u0A01-\u0A03\u0A3C\u0A3E-\u0A42\u0A47\u0A48\u0A4B-\u0A4D\u0A51\u0A70\u0A71\u0A75\u0A81-\u0A83\u0ABC\u0ABE-\u0AC5\u0AC7-\u0AC9\u0ACB-\u0ACD\u0AE2\u0AE3\u0AFA-\u0AFF\u0B01-\u0B03\u0B3C\u0B3E-\u0B44\u0B47\u0B48\u0B4B-\u0B4D\u0B55-\u0B57\u0B62\u0B63\u0B82\u0BBE-\u0BC2\u0BC6-\u0BC8\u0BCA-\u0BCD\u0BD7\u0C00-\u0C04\u0C3C\u0C3E-\u0C44\u0C46-\u0C48\u0C4A-\u0C4D\u0C55\u0C56\u0C62\u0C63\u0C81-\u0C83\u0CBC\u0CBE-\u0CC4\u0CC6-\u0CC8\u0CCA-\u0CCD\u0CD5\u0CD6\u0CE2\u0CE3\u0D00-\u0D03\u0D3B\u0D3C\u0D3E-\u0D44\u0D46-\u0D48\u0D4A-\u0D4D\u0D57\u0D62\u0D63\u0D81-\u0D83\u0DCA\u0DCF-\u0DD4\u0DD6\u0DD8-\u0DDF\u0DF2\u0DF3\u0E31\u0E34-\u0E3A\u0E47-\u0E4E\u0EB1\u0EB4-\u0EBC\u0EC8-\u0ECD\u0F18\u0F19\u0F35\u0F37\u0F39\u0F3E\u0F3F\u0F71-\u0F84\u0F86\u0F87\u0F8D-\u0F97\u0F99-\u0FBC\u0FC6\u102B-\u103E\u1056-\u1059\u105E-\u1060\u1062-\u1064\u1067-\u106D\u1071-\u1074\u1082-\u108D\u108F\u109A-\u109D\u135D-\u135F\u1712-\u1715\u1732-\u1734\u1752\u1753\u1772\u1773\u17B4-\u17D3\u17DD\u180B-\u180D\u180F\u1885\u1886\u18A9\u1920-\u192B\u1930-\u193B\u1A17-\u1A1B\u1A55-\u1A5E\u1A60-\u1A7C\u1A7F\u1AB0-\u1ACE\u1B00-\u1B04\u1B34-\u1B44\u1B6B-\u1B73\u1B80-\u1B82\u1BA1-\u1BAD\u1BE6-\u1BF3\u1C24-\u1C37\u1CD0-\u1CD2\u1CD4-\u1CE8\u1CED\u1CF4\u1CF7-\u1CF9\u1DC0-\u1DFF\u20D0-\u20F0\u2CEF-\u2CF1\u2D7F\u2DE0-\u2DFF\u302A-\u302F\u3099\u309A\uA66F-\uA672\uA674-\uA67D\uA69E\uA69F\uA6F0\uA6F1\uA802\uA806\uA80B\uA823-\uA827\uA82C\uA880\uA881\uA8B4-\uA8C5\uA8E0-\uA8F1\uA8FF\uA926-\uA92D\uA947-\uA953\uA980-\uA983\uA9B3-\uA9C0\uA9E5\uAA29-\uAA36\uAA43\uAA4C\uAA4D\uAA7B-\uAA7D\uAAB0\uAAB2-\uAAB4\uAAB7\uAAB8\uAABE\uAABF\uAAC1\uAAEB-\uAAEF\uAAF5\uAAF6\uABE3-\uABEA\uABEC\uABED\uFB1E\uFE00-\uFE0F\uFE20-\uFE2F',
+	        'astral': '\uD800[\uDDFD\uDEE0\uDF76-\uDF7A]|\uD802[\uDE01-\uDE03\uDE05\uDE06\uDE0C-\uDE0F\uDE38-\uDE3A\uDE3F\uDEE5\uDEE6]|\uD803[\uDD24-\uDD27\uDEAB\uDEAC\uDF46-\uDF50\uDF82-\uDF85]|\uD804[\uDC00-\uDC02\uDC38-\uDC46\uDC70\uDC73\uDC74\uDC7F-\uDC82\uDCB0-\uDCBA\uDCC2\uDD00-\uDD02\uDD27-\uDD34\uDD45\uDD46\uDD73\uDD80-\uDD82\uDDB3-\uDDC0\uDDC9-\uDDCC\uDDCE\uDDCF\uDE2C-\uDE37\uDE3E\uDEDF-\uDEEA\uDF00-\uDF03\uDF3B\uDF3C\uDF3E-\uDF44\uDF47\uDF48\uDF4B-\uDF4D\uDF57\uDF62\uDF63\uDF66-\uDF6C\uDF70-\uDF74]|\uD805[\uDC35-\uDC46\uDC5E\uDCB0-\uDCC3\uDDAF-\uDDB5\uDDB8-\uDDC0\uDDDC\uDDDD\uDE30-\uDE40\uDEAB-\uDEB7\uDF1D-\uDF2B]|\uD806[\uDC2C-\uDC3A\uDD30-\uDD35\uDD37\uDD38\uDD3B-\uDD3E\uDD40\uDD42\uDD43\uDDD1-\uDDD7\uDDDA-\uDDE0\uDDE4\uDE01-\uDE0A\uDE33-\uDE39\uDE3B-\uDE3E\uDE47\uDE51-\uDE5B\uDE8A-\uDE99]|\uD807[\uDC2F-\uDC36\uDC38-\uDC3F\uDC92-\uDCA7\uDCA9-\uDCB6\uDD31-\uDD36\uDD3A\uDD3C\uDD3D\uDD3F-\uDD45\uDD47\uDD8A-\uDD8E\uDD90\uDD91\uDD93-\uDD97\uDEF3-\uDEF6]|\uD81A[\uDEF0-\uDEF4\uDF30-\uDF36]|\uD81B[\uDF4F\uDF51-\uDF87\uDF8F-\uDF92\uDFE4\uDFF0\uDFF1]|\uD82F[\uDC9D\uDC9E]|\uD833[\uDF00-\uDF2D\uDF30-\uDF46]|\uD834[\uDD65-\uDD69\uDD6D-\uDD72\uDD7B-\uDD82\uDD85-\uDD8B\uDDAA-\uDDAD\uDE42-\uDE44]|\uD836[\uDE00-\uDE36\uDE3B-\uDE6C\uDE75\uDE84\uDE9B-\uDE9F\uDEA1-\uDEAF]|\uD838[\uDC00-\uDC06\uDC08-\uDC18\uDC1B-\uDC21\uDC23\uDC24\uDC26-\uDC2A\uDD30-\uDD36\uDEAE\uDEEC-\uDEEF]|\uD83A[\uDCD0-\uDCD6\uDD44-\uDD4A]|\uDB40[\uDD00-\uDDEF]'
+	    },
+	    {
+	        'name': 'Mc',
+	        'alias': 'Spacing_Mark',
+	        'bmp': '\u0903\u093B\u093E-\u0940\u0949-\u094C\u094E\u094F\u0982\u0983\u09BE-\u09C0\u09C7\u09C8\u09CB\u09CC\u09D7\u0A03\u0A3E-\u0A40\u0A83\u0ABE-\u0AC0\u0AC9\u0ACB\u0ACC\u0B02\u0B03\u0B3E\u0B40\u0B47\u0B48\u0B4B\u0B4C\u0B57\u0BBE\u0BBF\u0BC1\u0BC2\u0BC6-\u0BC8\u0BCA-\u0BCC\u0BD7\u0C01-\u0C03\u0C41-\u0C44\u0C82\u0C83\u0CBE\u0CC0-\u0CC4\u0CC7\u0CC8\u0CCA\u0CCB\u0CD5\u0CD6\u0D02\u0D03\u0D3E-\u0D40\u0D46-\u0D48\u0D4A-\u0D4C\u0D57\u0D82\u0D83\u0DCF-\u0DD1\u0DD8-\u0DDF\u0DF2\u0DF3\u0F3E\u0F3F\u0F7F\u102B\u102C\u1031\u1038\u103B\u103C\u1056\u1057\u1062-\u1064\u1067-\u106D\u1083\u1084\u1087-\u108C\u108F\u109A-\u109C\u1715\u1734\u17B6\u17BE-\u17C5\u17C7\u17C8\u1923-\u1926\u1929-\u192B\u1930\u1931\u1933-\u1938\u1A19\u1A1A\u1A55\u1A57\u1A61\u1A63\u1A64\u1A6D-\u1A72\u1B04\u1B35\u1B3B\u1B3D-\u1B41\u1B43\u1B44\u1B82\u1BA1\u1BA6\u1BA7\u1BAA\u1BE7\u1BEA-\u1BEC\u1BEE\u1BF2\u1BF3\u1C24-\u1C2B\u1C34\u1C35\u1CE1\u1CF7\u302E\u302F\uA823\uA824\uA827\uA880\uA881\uA8B4-\uA8C3\uA952\uA953\uA983\uA9B4\uA9B5\uA9BA\uA9BB\uA9BE-\uA9C0\uAA2F\uAA30\uAA33\uAA34\uAA4D\uAA7B\uAA7D\uAAEB\uAAEE\uAAEF\uAAF5\uABE3\uABE4\uABE6\uABE7\uABE9\uABEA\uABEC',
+	        'astral': '\uD804[\uDC00\uDC02\uDC82\uDCB0-\uDCB2\uDCB7\uDCB8\uDD2C\uDD45\uDD46\uDD82\uDDB3-\uDDB5\uDDBF\uDDC0\uDDCE\uDE2C-\uDE2E\uDE32\uDE33\uDE35\uDEE0-\uDEE2\uDF02\uDF03\uDF3E\uDF3F\uDF41-\uDF44\uDF47\uDF48\uDF4B-\uDF4D\uDF57\uDF62\uDF63]|\uD805[\uDC35-\uDC37\uDC40\uDC41\uDC45\uDCB0-\uDCB2\uDCB9\uDCBB-\uDCBE\uDCC1\uDDAF-\uDDB1\uDDB8-\uDDBB\uDDBE\uDE30-\uDE32\uDE3B\uDE3C\uDE3E\uDEAC\uDEAE\uDEAF\uDEB6\uDF20\uDF21\uDF26]|\uD806[\uDC2C-\uDC2E\uDC38\uDD30-\uDD35\uDD37\uDD38\uDD3D\uDD40\uDD42\uDDD1-\uDDD3\uDDDC-\uDDDF\uDDE4\uDE39\uDE57\uDE58\uDE97]|\uD807[\uDC2F\uDC3E\uDCA9\uDCB1\uDCB4\uDD8A-\uDD8E\uDD93\uDD94\uDD96\uDEF5\uDEF6]|\uD81B[\uDF51-\uDF87\uDFF0\uDFF1]|\uD834[\uDD65\uDD66\uDD6D-\uDD72]'
+	    },
+	    {
+	        'name': 'Me',
+	        'alias': 'Enclosing_Mark',
+	        'bmp': '\u0488\u0489\u1ABE\u20DD-\u20E0\u20E2-\u20E4\uA670-\uA672'
+	    },
+	    {
+	        'name': 'Mn',
+	        'alias': 'Nonspacing_Mark',
+	        'bmp': '\u0300-\u036F\u0483-\u0487\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED\u0711\u0730-\u074A\u07A6-\u07B0\u07EB-\u07F3\u07FD\u0816-\u0819\u081B-\u0823\u0825-\u0827\u0829-\u082D\u0859-\u085B\u0898-\u089F\u08CA-\u08E1\u08E3-\u0902\u093A\u093C\u0941-\u0948\u094D\u0951-\u0957\u0962\u0963\u0981\u09BC\u09C1-\u09C4\u09CD\u09E2\u09E3\u09FE\u0A01\u0A02\u0A3C\u0A41\u0A42\u0A47\u0A48\u0A4B-\u0A4D\u0A51\u0A70\u0A71\u0A75\u0A81\u0A82\u0ABC\u0AC1-\u0AC5\u0AC7\u0AC8\u0ACD\u0AE2\u0AE3\u0AFA-\u0AFF\u0B01\u0B3C\u0B3F\u0B41-\u0B44\u0B4D\u0B55\u0B56\u0B62\u0B63\u0B82\u0BC0\u0BCD\u0C00\u0C04\u0C3C\u0C3E-\u0C40\u0C46-\u0C48\u0C4A-\u0C4D\u0C55\u0C56\u0C62\u0C63\u0C81\u0CBC\u0CBF\u0CC6\u0CCC\u0CCD\u0CE2\u0CE3\u0D00\u0D01\u0D3B\u0D3C\u0D41-\u0D44\u0D4D\u0D62\u0D63\u0D81\u0DCA\u0DD2-\u0DD4\u0DD6\u0E31\u0E34-\u0E3A\u0E47-\u0E4E\u0EB1\u0EB4-\u0EBC\u0EC8-\u0ECD\u0F18\u0F19\u0F35\u0F37\u0F39\u0F71-\u0F7E\u0F80-\u0F84\u0F86\u0F87\u0F8D-\u0F97\u0F99-\u0FBC\u0FC6\u102D-\u1030\u1032-\u1037\u1039\u103A\u103D\u103E\u1058\u1059\u105E-\u1060\u1071-\u1074\u1082\u1085\u1086\u108D\u109D\u135D-\u135F\u1712-\u1714\u1732\u1733\u1752\u1753\u1772\u1773\u17B4\u17B5\u17B7-\u17BD\u17C6\u17C9-\u17D3\u17DD\u180B-\u180D\u180F\u1885\u1886\u18A9\u1920-\u1922\u1927\u1928\u1932\u1939-\u193B\u1A17\u1A18\u1A1B\u1A56\u1A58-\u1A5E\u1A60\u1A62\u1A65-\u1A6C\u1A73-\u1A7C\u1A7F\u1AB0-\u1ABD\u1ABF-\u1ACE\u1B00-\u1B03\u1B34\u1B36-\u1B3A\u1B3C\u1B42\u1B6B-\u1B73\u1B80\u1B81\u1BA2-\u1BA5\u1BA8\u1BA9\u1BAB-\u1BAD\u1BE6\u1BE8\u1BE9\u1BED\u1BEF-\u1BF1\u1C2C-\u1C33\u1C36\u1C37\u1CD0-\u1CD2\u1CD4-\u1CE0\u1CE2-\u1CE8\u1CED\u1CF4\u1CF8\u1CF9\u1DC0-\u1DFF\u20D0-\u20DC\u20E1\u20E5-\u20F0\u2CEF-\u2CF1\u2D7F\u2DE0-\u2DFF\u302A-\u302D\u3099\u309A\uA66F\uA674-\uA67D\uA69E\uA69F\uA6F0\uA6F1\uA802\uA806\uA80B\uA825\uA826\uA82C\uA8C4\uA8C5\uA8E0-\uA8F1\uA8FF\uA926-\uA92D\uA947-\uA951\uA980-\uA982\uA9B3\uA9B6-\uA9B9\uA9BC\uA9BD\uA9E5\uAA29-\uAA2E\uAA31\uAA32\uAA35\uAA36\uAA43\uAA4C\uAA7C\uAAB0\uAAB2-\uAAB4\uAAB7\uAAB8\uAABE\uAABF\uAAC1\uAAEC\uAAED\uAAF6\uABE5\uABE8\uABED\uFB1E\uFE00-\uFE0F\uFE20-\uFE2F',
+	        'astral': '\uD800[\uDDFD\uDEE0\uDF76-\uDF7A]|\uD802[\uDE01-\uDE03\uDE05\uDE06\uDE0C-\uDE0F\uDE38-\uDE3A\uDE3F\uDEE5\uDEE6]|\uD803[\uDD24-\uDD27\uDEAB\uDEAC\uDF46-\uDF50\uDF82-\uDF85]|\uD804[\uDC01\uDC38-\uDC46\uDC70\uDC73\uDC74\uDC7F-\uDC81\uDCB3-\uDCB6\uDCB9\uDCBA\uDCC2\uDD00-\uDD02\uDD27-\uDD2B\uDD2D-\uDD34\uDD73\uDD80\uDD81\uDDB6-\uDDBE\uDDC9-\uDDCC\uDDCF\uDE2F-\uDE31\uDE34\uDE36\uDE37\uDE3E\uDEDF\uDEE3-\uDEEA\uDF00\uDF01\uDF3B\uDF3C\uDF40\uDF66-\uDF6C\uDF70-\uDF74]|\uD805[\uDC38-\uDC3F\uDC42-\uDC44\uDC46\uDC5E\uDCB3-\uDCB8\uDCBA\uDCBF\uDCC0\uDCC2\uDCC3\uDDB2-\uDDB5\uDDBC\uDDBD\uDDBF\uDDC0\uDDDC\uDDDD\uDE33-\uDE3A\uDE3D\uDE3F\uDE40\uDEAB\uDEAD\uDEB0-\uDEB5\uDEB7\uDF1D-\uDF1F\uDF22-\uDF25\uDF27-\uDF2B]|\uD806[\uDC2F-\uDC37\uDC39\uDC3A\uDD3B\uDD3C\uDD3E\uDD43\uDDD4-\uDDD7\uDDDA\uDDDB\uDDE0\uDE01-\uDE0A\uDE33-\uDE38\uDE3B-\uDE3E\uDE47\uDE51-\uDE56\uDE59-\uDE5B\uDE8A-\uDE96\uDE98\uDE99]|\uD807[\uDC30-\uDC36\uDC38-\uDC3D\uDC3F\uDC92-\uDCA7\uDCAA-\uDCB0\uDCB2\uDCB3\uDCB5\uDCB6\uDD31-\uDD36\uDD3A\uDD3C\uDD3D\uDD3F-\uDD45\uDD47\uDD90\uDD91\uDD95\uDD97\uDEF3\uDEF4]|\uD81A[\uDEF0-\uDEF4\uDF30-\uDF36]|\uD81B[\uDF4F\uDF8F-\uDF92\uDFE4]|\uD82F[\uDC9D\uDC9E]|\uD833[\uDF00-\uDF2D\uDF30-\uDF46]|\uD834[\uDD67-\uDD69\uDD7B-\uDD82\uDD85-\uDD8B\uDDAA-\uDDAD\uDE42-\uDE44]|\uD836[\uDE00-\uDE36\uDE3B-\uDE6C\uDE75\uDE84\uDE9B-\uDE9F\uDEA1-\uDEAF]|\uD838[\uDC00-\uDC06\uDC08-\uDC18\uDC1B-\uDC21\uDC23\uDC24\uDC26-\uDC2A\uDD30-\uDD36\uDEAE\uDEEC-\uDEEF]|\uD83A[\uDCD0-\uDCD6\uDD44-\uDD4A]|\uDB40[\uDD00-\uDDEF]'
+	    },
+	    {
+	        'name': 'N',
+	        'alias': 'Number',
+	        'bmp': '0-9\xB2\xB3\xB9\xBC-\xBE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D58-\u0D5E\u0D66-\u0D78\u0DE6-\u0DEF\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uA9F0-\uA9F9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19',
+	        'astral': '\uD800[\uDD07-\uDD33\uDD40-\uDD78\uDD8A\uDD8B\uDEE1-\uDEFB\uDF20-\uDF23\uDF41\uDF4A\uDFD1-\uDFD5]|\uD801[\uDCA0-\uDCA9]|\uD802[\uDC58-\uDC5F\uDC79-\uDC7F\uDCA7-\uDCAF\uDCFB-\uDCFF\uDD16-\uDD1B\uDDBC\uDDBD\uDDC0-\uDDCF\uDDD2-\uDDFF\uDE40-\uDE48\uDE7D\uDE7E\uDE9D-\uDE9F\uDEEB-\uDEEF\uDF58-\uDF5F\uDF78-\uDF7F\uDFA9-\uDFAF]|\uD803[\uDCFA-\uDCFF\uDD30-\uDD39\uDE60-\uDE7E\uDF1D-\uDF26\uDF51-\uDF54\uDFC5-\uDFCB]|\uD804[\uDC52-\uDC6F\uDCF0-\uDCF9\uDD36-\uDD3F\uDDD0-\uDDD9\uDDE1-\uDDF4\uDEF0-\uDEF9]|\uD805[\uDC50-\uDC59\uDCD0-\uDCD9\uDE50-\uDE59\uDEC0-\uDEC9\uDF30-\uDF3B]|\uD806[\uDCE0-\uDCF2\uDD50-\uDD59]|\uD807[\uDC50-\uDC6C\uDD50-\uDD59\uDDA0-\uDDA9\uDFC0-\uDFD4]|\uD809[\uDC00-\uDC6E]|\uD81A[\uDE60-\uDE69\uDEC0-\uDEC9\uDF50-\uDF59\uDF5B-\uDF61]|\uD81B[\uDE80-\uDE96]|\uD834[\uDEE0-\uDEF3\uDF60-\uDF78]|\uD835[\uDFCE-\uDFFF]|\uD838[\uDD40-\uDD49\uDEF0-\uDEF9]|\uD83A[\uDCC7-\uDCCF\uDD50-\uDD59]|\uD83B[\uDC71-\uDCAB\uDCAD-\uDCAF\uDCB1-\uDCB4\uDD01-\uDD2D\uDD2F-\uDD3D]|\uD83C[\uDD00-\uDD0C]|\uD83E[\uDFF0-\uDFF9]'
+	    },
+	    {
+	        'name': 'Nd',
+	        'alias': 'Decimal_Number',
+	        'bmp': '0-9\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0BE6-\u0BEF\u0C66-\u0C6F\u0CE6-\u0CEF\u0D66-\u0D6F\u0DE6-\u0DEF\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F29\u1040-\u1049\u1090-\u1099\u17E0-\u17E9\u1810-\u1819\u1946-\u194F\u19D0-\u19D9\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\uA620-\uA629\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uA9F0-\uA9F9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19',
+	        'astral': '\uD801[\uDCA0-\uDCA9]|\uD803[\uDD30-\uDD39]|\uD804[\uDC66-\uDC6F\uDCF0-\uDCF9\uDD36-\uDD3F\uDDD0-\uDDD9\uDEF0-\uDEF9]|\uD805[\uDC50-\uDC59\uDCD0-\uDCD9\uDE50-\uDE59\uDEC0-\uDEC9\uDF30-\uDF39]|\uD806[\uDCE0-\uDCE9\uDD50-\uDD59]|\uD807[\uDC50-\uDC59\uDD50-\uDD59\uDDA0-\uDDA9]|\uD81A[\uDE60-\uDE69\uDEC0-\uDEC9\uDF50-\uDF59]|\uD835[\uDFCE-\uDFFF]|\uD838[\uDD40-\uDD49\uDEF0-\uDEF9]|\uD83A[\uDD50-\uDD59]|\uD83E[\uDFF0-\uDFF9]'
+	    },
+	    {
+	        'name': 'Nl',
+	        'alias': 'Letter_Number',
+	        'bmp': '\u16EE-\u16F0\u2160-\u2182\u2185-\u2188\u3007\u3021-\u3029\u3038-\u303A\uA6E6-\uA6EF',
+	        'astral': '\uD800[\uDD40-\uDD74\uDF41\uDF4A\uDFD1-\uDFD5]|\uD809[\uDC00-\uDC6E]'
+	    },
+	    {
+	        'name': 'No',
+	        'alias': 'Other_Number',
+	        'bmp': '\xB2\xB3\xB9\xBC-\xBE\u09F4-\u09F9\u0B72-\u0B77\u0BF0-\u0BF2\u0C78-\u0C7E\u0D58-\u0D5E\u0D70-\u0D78\u0F2A-\u0F33\u1369-\u137C\u17F0-\u17F9\u19DA\u2070\u2074-\u2079\u2080-\u2089\u2150-\u215F\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA830-\uA835',
+	        'astral': '\uD800[\uDD07-\uDD33\uDD75-\uDD78\uDD8A\uDD8B\uDEE1-\uDEFB\uDF20-\uDF23]|\uD802[\uDC58-\uDC5F\uDC79-\uDC7F\uDCA7-\uDCAF\uDCFB-\uDCFF\uDD16-\uDD1B\uDDBC\uDDBD\uDDC0-\uDDCF\uDDD2-\uDDFF\uDE40-\uDE48\uDE7D\uDE7E\uDE9D-\uDE9F\uDEEB-\uDEEF\uDF58-\uDF5F\uDF78-\uDF7F\uDFA9-\uDFAF]|\uD803[\uDCFA-\uDCFF\uDE60-\uDE7E\uDF1D-\uDF26\uDF51-\uDF54\uDFC5-\uDFCB]|\uD804[\uDC52-\uDC65\uDDE1-\uDDF4]|\uD805[\uDF3A\uDF3B]|\uD806[\uDCEA-\uDCF2]|\uD807[\uDC5A-\uDC6C\uDFC0-\uDFD4]|\uD81A[\uDF5B-\uDF61]|\uD81B[\uDE80-\uDE96]|\uD834[\uDEE0-\uDEF3\uDF60-\uDF78]|\uD83A[\uDCC7-\uDCCF]|\uD83B[\uDC71-\uDCAB\uDCAD-\uDCAF\uDCB1-\uDCB4\uDD01-\uDD2D\uDD2F-\uDD3D]|\uD83C[\uDD00-\uDD0C]'
+	    },
+	    {
+	        'name': 'P',
+	        'alias': 'Punctuation',
+	        'bmp': '!-#%-\\*,-\\/:;\\?@\\[-\\]_\\{\\}\xA1\xA7\xAB\xB6\xB7\xBB\xBF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061D-\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C77\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1B7D\u1B7E\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E4F\u2E52-\u2E5D\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65',
+	        'astral': '\uD800[\uDD00-\uDD02\uDF9F\uDFD0]|\uD801\uDD6F|\uD802[\uDC57\uDD1F\uDD3F\uDE50-\uDE58\uDE7F\uDEF0-\uDEF6\uDF39-\uDF3F\uDF99-\uDF9C]|\uD803[\uDEAD\uDF55-\uDF59\uDF86-\uDF89]|\uD804[\uDC47-\uDC4D\uDCBB\uDCBC\uDCBE-\uDCC1\uDD40-\uDD43\uDD74\uDD75\uDDC5-\uDDC8\uDDCD\uDDDB\uDDDD-\uDDDF\uDE38-\uDE3D\uDEA9]|\uD805[\uDC4B-\uDC4F\uDC5A\uDC5B\uDC5D\uDCC6\uDDC1-\uDDD7\uDE41-\uDE43\uDE60-\uDE6C\uDEB9\uDF3C-\uDF3E]|\uD806[\uDC3B\uDD44-\uDD46\uDDE2\uDE3F-\uDE46\uDE9A-\uDE9C\uDE9E-\uDEA2]|\uD807[\uDC41-\uDC45\uDC70\uDC71\uDEF7\uDEF8\uDFFF]|\uD809[\uDC70-\uDC74]|\uD80B[\uDFF1\uDFF2]|\uD81A[\uDE6E\uDE6F\uDEF5\uDF37-\uDF3B\uDF44]|\uD81B[\uDE97-\uDE9A\uDFE2]|\uD82F\uDC9F|\uD836[\uDE87-\uDE8B]|\uD83A[\uDD5E\uDD5F]'
+	    },
+	    {
+	        'name': 'Pc',
+	        'alias': 'Connector_Punctuation',
+	        'bmp': '_\u203F\u2040\u2054\uFE33\uFE34\uFE4D-\uFE4F\uFF3F'
+	    },
+	    {
+	        'name': 'Pd',
+	        'alias': 'Dash_Punctuation',
+	        'bmp': '\\-\u058A\u05BE\u1400\u1806\u2010-\u2015\u2E17\u2E1A\u2E3A\u2E3B\u2E40\u2E5D\u301C\u3030\u30A0\uFE31\uFE32\uFE58\uFE63\uFF0D',
+	        'astral': '\uD803\uDEAD'
+	    },
+	    {
+	        'name': 'Pe',
+	        'alias': 'Close_Punctuation',
+	        'bmp': '\\)\\]\\}\u0F3B\u0F3D\u169C\u2046\u207E\u208E\u2309\u230B\u232A\u2769\u276B\u276D\u276F\u2771\u2773\u2775\u27C6\u27E7\u27E9\u27EB\u27ED\u27EF\u2984\u2986\u2988\u298A\u298C\u298E\u2990\u2992\u2994\u2996\u2998\u29D9\u29DB\u29FD\u2E23\u2E25\u2E27\u2E29\u2E56\u2E58\u2E5A\u2E5C\u3009\u300B\u300D\u300F\u3011\u3015\u3017\u3019\u301B\u301E\u301F\uFD3E\uFE18\uFE36\uFE38\uFE3A\uFE3C\uFE3E\uFE40\uFE42\uFE44\uFE48\uFE5A\uFE5C\uFE5E\uFF09\uFF3D\uFF5D\uFF60\uFF63'
+	    },
+	    {
+	        'name': 'Pf',
+	        'alias': 'Final_Punctuation',
+	        'bmp': '\xBB\u2019\u201D\u203A\u2E03\u2E05\u2E0A\u2E0D\u2E1D\u2E21'
+	    },
+	    {
+	        'name': 'Pi',
+	        'alias': 'Initial_Punctuation',
+	        'bmp': '\xAB\u2018\u201B\u201C\u201F\u2039\u2E02\u2E04\u2E09\u2E0C\u2E1C\u2E20'
+	    },
+	    {
+	        'name': 'Po',
+	        'alias': 'Other_Punctuation',
+	        'bmp': '!-#%-\'\\*,\\.\\/:;\\?@\\\xA1\xA7\xB6\xB7\xBF\u037E\u0387\u055A-\u055F\u0589\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061D-\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C77\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u166E\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u1805\u1807-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1B7D\u1B7E\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2016\u2017\u2020-\u2027\u2030-\u2038\u203B-\u203E\u2041-\u2043\u2047-\u2051\u2053\u2055-\u205E\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00\u2E01\u2E06-\u2E08\u2E0B\u2E0E-\u2E16\u2E18\u2E19\u2E1B\u2E1E\u2E1F\u2E2A-\u2E2E\u2E30-\u2E39\u2E3C-\u2E3F\u2E41\u2E43-\u2E4F\u2E52-\u2E54\u3001-\u3003\u303D\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFE10-\uFE16\uFE19\uFE30\uFE45\uFE46\uFE49-\uFE4C\uFE50-\uFE52\uFE54-\uFE57\uFE5F-\uFE61\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF07\uFF0A\uFF0C\uFF0E\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3C\uFF61\uFF64\uFF65',
+	        'astral': '\uD800[\uDD00-\uDD02\uDF9F\uDFD0]|\uD801\uDD6F|\uD802[\uDC57\uDD1F\uDD3F\uDE50-\uDE58\uDE7F\uDEF0-\uDEF6\uDF39-\uDF3F\uDF99-\uDF9C]|\uD803[\uDF55-\uDF59\uDF86-\uDF89]|\uD804[\uDC47-\uDC4D\uDCBB\uDCBC\uDCBE-\uDCC1\uDD40-\uDD43\uDD74\uDD75\uDDC5-\uDDC8\uDDCD\uDDDB\uDDDD-\uDDDF\uDE38-\uDE3D\uDEA9]|\uD805[\uDC4B-\uDC4F\uDC5A\uDC5B\uDC5D\uDCC6\uDDC1-\uDDD7\uDE41-\uDE43\uDE60-\uDE6C\uDEB9\uDF3C-\uDF3E]|\uD806[\uDC3B\uDD44-\uDD46\uDDE2\uDE3F-\uDE46\uDE9A-\uDE9C\uDE9E-\uDEA2]|\uD807[\uDC41-\uDC45\uDC70\uDC71\uDEF7\uDEF8\uDFFF]|\uD809[\uDC70-\uDC74]|\uD80B[\uDFF1\uDFF2]|\uD81A[\uDE6E\uDE6F\uDEF5\uDF37-\uDF3B\uDF44]|\uD81B[\uDE97-\uDE9A\uDFE2]|\uD82F\uDC9F|\uD836[\uDE87-\uDE8B]|\uD83A[\uDD5E\uDD5F]'
+	    },
+	    {
+	        'name': 'Ps',
+	        'alias': 'Open_Punctuation',
+	        'bmp': '\\(\\[\\{\u0F3A\u0F3C\u169B\u201A\u201E\u2045\u207D\u208D\u2308\u230A\u2329\u2768\u276A\u276C\u276E\u2770\u2772\u2774\u27C5\u27E6\u27E8\u27EA\u27EC\u27EE\u2983\u2985\u2987\u2989\u298B\u298D\u298F\u2991\u2993\u2995\u2997\u29D8\u29DA\u29FC\u2E22\u2E24\u2E26\u2E28\u2E42\u2E55\u2E57\u2E59\u2E5B\u3008\u300A\u300C\u300E\u3010\u3014\u3016\u3018\u301A\u301D\uFD3F\uFE17\uFE35\uFE37\uFE39\uFE3B\uFE3D\uFE3F\uFE41\uFE43\uFE47\uFE59\uFE5B\uFE5D\uFF08\uFF3B\uFF5B\uFF5F\uFF62'
+	    },
+	    {
+	        'name': 'S',
+	        'alias': 'Symbol',
+	        'bmp': '\\$\\+<->\\^`\\|~\xA2-\xA6\xA8\xA9\xAC\xAE-\xB1\xB4\xB8\xD7\xF7\u02C2-\u02C5\u02D2-\u02DF\u02E5-\u02EB\u02ED\u02EF-\u02FF\u0375\u0384\u0385\u03F6\u0482\u058D-\u058F\u0606-\u0608\u060B\u060E\u060F\u06DE\u06E9\u06FD\u06FE\u07F6\u07FE\u07FF\u0888\u09F2\u09F3\u09FA\u09FB\u0AF1\u0B70\u0BF3-\u0BFA\u0C7F\u0D4F\u0D79\u0E3F\u0F01-\u0F03\u0F13\u0F15-\u0F17\u0F1A-\u0F1F\u0F34\u0F36\u0F38\u0FBE-\u0FC5\u0FC7-\u0FCC\u0FCE\u0FCF\u0FD5-\u0FD8\u109E\u109F\u1390-\u1399\u166D\u17DB\u1940\u19DE-\u19FF\u1B61-\u1B6A\u1B74-\u1B7C\u1FBD\u1FBF-\u1FC1\u1FCD-\u1FCF\u1FDD-\u1FDF\u1FED-\u1FEF\u1FFD\u1FFE\u2044\u2052\u207A-\u207C\u208A-\u208C\u20A0-\u20C0\u2100\u2101\u2103-\u2106\u2108\u2109\u2114\u2116-\u2118\u211E-\u2123\u2125\u2127\u2129\u212E\u213A\u213B\u2140-\u2144\u214A-\u214D\u214F\u218A\u218B\u2190-\u2307\u230C-\u2328\u232B-\u2426\u2440-\u244A\u249C-\u24E9\u2500-\u2767\u2794-\u27C4\u27C7-\u27E5\u27F0-\u2982\u2999-\u29D7\u29DC-\u29FB\u29FE-\u2B73\u2B76-\u2B95\u2B97-\u2BFF\u2CE5-\u2CEA\u2E50\u2E51\u2E80-\u2E99\u2E9B-\u2EF3\u2F00-\u2FD5\u2FF0-\u2FFB\u3004\u3012\u3013\u3020\u3036\u3037\u303E\u303F\u309B\u309C\u3190\u3191\u3196-\u319F\u31C0-\u31E3\u3200-\u321E\u322A-\u3247\u3250\u3260-\u327F\u328A-\u32B0\u32C0-\u33FF\u4DC0-\u4DFF\uA490-\uA4C6\uA700-\uA716\uA720\uA721\uA789\uA78A\uA828-\uA82B\uA836-\uA839\uAA77-\uAA79\uAB5B\uAB6A\uAB6B\uFB29\uFBB2-\uFBC2\uFD40-\uFD4F\uFDCF\uFDFC-\uFDFF\uFE62\uFE64-\uFE66\uFE69\uFF04\uFF0B\uFF1C-\uFF1E\uFF3E\uFF40\uFF5C\uFF5E\uFFE0-\uFFE6\uFFE8-\uFFEE\uFFFC\uFFFD',
+	        'astral': '\uD800[\uDD37-\uDD3F\uDD79-\uDD89\uDD8C-\uDD8E\uDD90-\uDD9C\uDDA0\uDDD0-\uDDFC]|\uD802[\uDC77\uDC78\uDEC8]|\uD805\uDF3F|\uD807[\uDFD5-\uDFF1]|\uD81A[\uDF3C-\uDF3F\uDF45]|\uD82F\uDC9C|\uD833[\uDF50-\uDFC3]|\uD834[\uDC00-\uDCF5\uDD00-\uDD26\uDD29-\uDD64\uDD6A-\uDD6C\uDD83\uDD84\uDD8C-\uDDA9\uDDAE-\uDDEA\uDE00-\uDE41\uDE45\uDF00-\uDF56]|\uD835[\uDEC1\uDEDB\uDEFB\uDF15\uDF35\uDF4F\uDF6F\uDF89\uDFA9\uDFC3]|\uD836[\uDC00-\uDDFF\uDE37-\uDE3A\uDE6D-\uDE74\uDE76-\uDE83\uDE85\uDE86]|\uD838[\uDD4F\uDEFF]|\uD83B[\uDCAC\uDCB0\uDD2E\uDEF0\uDEF1]|\uD83C[\uDC00-\uDC2B\uDC30-\uDC93\uDCA0-\uDCAE\uDCB1-\uDCBF\uDCC1-\uDCCF\uDCD1-\uDCF5\uDD0D-\uDDAD\uDDE6-\uDE02\uDE10-\uDE3B\uDE40-\uDE48\uDE50\uDE51\uDE60-\uDE65\uDF00-\uDFFF]|\uD83D[\uDC00-\uDED7\uDEDD-\uDEEC\uDEF0-\uDEFC\uDF00-\uDF73\uDF80-\uDFD8\uDFE0-\uDFEB\uDFF0]|\uD83E[\uDC00-\uDC0B\uDC10-\uDC47\uDC50-\uDC59\uDC60-\uDC87\uDC90-\uDCAD\uDCB0\uDCB1\uDD00-\uDE53\uDE60-\uDE6D\uDE70-\uDE74\uDE78-\uDE7C\uDE80-\uDE86\uDE90-\uDEAC\uDEB0-\uDEBA\uDEC0-\uDEC5\uDED0-\uDED9\uDEE0-\uDEE7\uDEF0-\uDEF6\uDF00-\uDF92\uDF94-\uDFCA]'
+	    },
+	    {
+	        'name': 'Sc',
+	        'alias': 'Currency_Symbol',
+	        'bmp': '\\$\xA2-\xA5\u058F\u060B\u07FE\u07FF\u09F2\u09F3\u09FB\u0AF1\u0BF9\u0E3F\u17DB\u20A0-\u20C0\uA838\uFDFC\uFE69\uFF04\uFFE0\uFFE1\uFFE5\uFFE6',
+	        'astral': '\uD807[\uDFDD-\uDFE0]|\uD838\uDEFF|\uD83B\uDCB0'
+	    },
+	    {
+	        'name': 'Sk',
+	        'alias': 'Modifier_Symbol',
+	        'bmp': '\\^`\xA8\xAF\xB4\xB8\u02C2-\u02C5\u02D2-\u02DF\u02E5-\u02EB\u02ED\u02EF-\u02FF\u0375\u0384\u0385\u0888\u1FBD\u1FBF-\u1FC1\u1FCD-\u1FCF\u1FDD-\u1FDF\u1FED-\u1FEF\u1FFD\u1FFE\u309B\u309C\uA700-\uA716\uA720\uA721\uA789\uA78A\uAB5B\uAB6A\uAB6B\uFBB2-\uFBC2\uFF3E\uFF40\uFFE3',
+	        'astral': '\uD83C[\uDFFB-\uDFFF]'
+	    },
+	    {
+	        'name': 'Sm',
+	        'alias': 'Math_Symbol',
+	        'bmp': '\\+<->\\|~\xAC\xB1\xD7\xF7\u03F6\u0606-\u0608\u2044\u2052\u207A-\u207C\u208A-\u208C\u2118\u2140-\u2144\u214B\u2190-\u2194\u219A\u219B\u21A0\u21A3\u21A6\u21AE\u21CE\u21CF\u21D2\u21D4\u21F4-\u22FF\u2320\u2321\u237C\u239B-\u23B3\u23DC-\u23E1\u25B7\u25C1\u25F8-\u25FF\u266F\u27C0-\u27C4\u27C7-\u27E5\u27F0-\u27FF\u2900-\u2982\u2999-\u29D7\u29DC-\u29FB\u29FE-\u2AFF\u2B30-\u2B44\u2B47-\u2B4C\uFB29\uFE62\uFE64-\uFE66\uFF0B\uFF1C-\uFF1E\uFF5C\uFF5E\uFFE2\uFFE9-\uFFEC',
+	        'astral': '\uD835[\uDEC1\uDEDB\uDEFB\uDF15\uDF35\uDF4F\uDF6F\uDF89\uDFA9\uDFC3]|\uD83B[\uDEF0\uDEF1]'
+	    },
+	    {
+	        'name': 'So',
+	        'alias': 'Other_Symbol',
+	        'bmp': '\xA6\xA9\xAE\xB0\u0482\u058D\u058E\u060E\u060F\u06DE\u06E9\u06FD\u06FE\u07F6\u09FA\u0B70\u0BF3-\u0BF8\u0BFA\u0C7F\u0D4F\u0D79\u0F01-\u0F03\u0F13\u0F15-\u0F17\u0F1A-\u0F1F\u0F34\u0F36\u0F38\u0FBE-\u0FC5\u0FC7-\u0FCC\u0FCE\u0FCF\u0FD5-\u0FD8\u109E\u109F\u1390-\u1399\u166D\u1940\u19DE-\u19FF\u1B61-\u1B6A\u1B74-\u1B7C\u2100\u2101\u2103-\u2106\u2108\u2109\u2114\u2116\u2117\u211E-\u2123\u2125\u2127\u2129\u212E\u213A\u213B\u214A\u214C\u214D\u214F\u218A\u218B\u2195-\u2199\u219C-\u219F\u21A1\u21A2\u21A4\u21A5\u21A7-\u21AD\u21AF-\u21CD\u21D0\u21D1\u21D3\u21D5-\u21F3\u2300-\u2307\u230C-\u231F\u2322-\u2328\u232B-\u237B\u237D-\u239A\u23B4-\u23DB\u23E2-\u2426\u2440-\u244A\u249C-\u24E9\u2500-\u25B6\u25B8-\u25C0\u25C2-\u25F7\u2600-\u266E\u2670-\u2767\u2794-\u27BF\u2800-\u28FF\u2B00-\u2B2F\u2B45\u2B46\u2B4D-\u2B73\u2B76-\u2B95\u2B97-\u2BFF\u2CE5-\u2CEA\u2E50\u2E51\u2E80-\u2E99\u2E9B-\u2EF3\u2F00-\u2FD5\u2FF0-\u2FFB\u3004\u3012\u3013\u3020\u3036\u3037\u303E\u303F\u3190\u3191\u3196-\u319F\u31C0-\u31E3\u3200-\u321E\u322A-\u3247\u3250\u3260-\u327F\u328A-\u32B0\u32C0-\u33FF\u4DC0-\u4DFF\uA490-\uA4C6\uA828-\uA82B\uA836\uA837\uA839\uAA77-\uAA79\uFD40-\uFD4F\uFDCF\uFDFD-\uFDFF\uFFE4\uFFE8\uFFED\uFFEE\uFFFC\uFFFD',
+	        'astral': '\uD800[\uDD37-\uDD3F\uDD79-\uDD89\uDD8C-\uDD8E\uDD90-\uDD9C\uDDA0\uDDD0-\uDDFC]|\uD802[\uDC77\uDC78\uDEC8]|\uD805\uDF3F|\uD807[\uDFD5-\uDFDC\uDFE1-\uDFF1]|\uD81A[\uDF3C-\uDF3F\uDF45]|\uD82F\uDC9C|\uD833[\uDF50-\uDFC3]|\uD834[\uDC00-\uDCF5\uDD00-\uDD26\uDD29-\uDD64\uDD6A-\uDD6C\uDD83\uDD84\uDD8C-\uDDA9\uDDAE-\uDDEA\uDE00-\uDE41\uDE45\uDF00-\uDF56]|\uD836[\uDC00-\uDDFF\uDE37-\uDE3A\uDE6D-\uDE74\uDE76-\uDE83\uDE85\uDE86]|\uD838\uDD4F|\uD83B[\uDCAC\uDD2E]|\uD83C[\uDC00-\uDC2B\uDC30-\uDC93\uDCA0-\uDCAE\uDCB1-\uDCBF\uDCC1-\uDCCF\uDCD1-\uDCF5\uDD0D-\uDDAD\uDDE6-\uDE02\uDE10-\uDE3B\uDE40-\uDE48\uDE50\uDE51\uDE60-\uDE65\uDF00-\uDFFA]|\uD83D[\uDC00-\uDED7\uDEDD-\uDEEC\uDEF0-\uDEFC\uDF00-\uDF73\uDF80-\uDFD8\uDFE0-\uDFEB\uDFF0]|\uD83E[\uDC00-\uDC0B\uDC10-\uDC47\uDC50-\uDC59\uDC60-\uDC87\uDC90-\uDCAD\uDCB0\uDCB1\uDD00-\uDE53\uDE60-\uDE6D\uDE70-\uDE74\uDE78-\uDE7C\uDE80-\uDE86\uDE90-\uDEAC\uDEB0-\uDEBA\uDEC0-\uDEC5\uDED0-\uDED9\uDEE0-\uDEE7\uDEF0-\uDEF6\uDF00-\uDF92\uDF94-\uDFCA]'
+	    },
+	    {
+	        'name': 'Z',
+	        'alias': 'Separator',
+	        'bmp': ' \xA0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000'
+	    },
+	    {
+	        'name': 'Zl',
+	        'alias': 'Line_Separator',
+	        'bmp': '\u2028'
+	    },
+	    {
+	        'name': 'Zp',
+	        'alias': 'Paragraph_Separator',
+	        'bmp': '\u2029'
+	    },
+	    {
+	        'name': 'Zs',
+	        'alias': 'Space_Separator',
+	        'bmp': ' \xA0\u1680\u2000-\u200A\u202F\u205F\u3000'
+	    }
+	];
+	return categories$1;
+}
+
+var categoriesExports = requireCategories();
+var categories = /*@__PURE__*/getDefaultExportFromCjs(categoriesExports);
+
+/*!
+ * XRegExp Unicode Categories 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2010-present MIT License
+ * Unicode data by Mathias Bynens <mathiasbynens.be>
+ */
+
+
+var unicodeCategories = (XRegExp) => {
+
+    /**
+     * Adds support for Unicode's general categories. E.g., `\p{Lu}` or `\p{Uppercase Letter}`. See
+     * category descriptions in UAX #44 <http://unicode.org/reports/tr44/#GC_Values_Table>. Token
+     * names are case insensitive, and any spaces, hyphens, and underscores are ignored.
+     *
+     * Uses Unicode 14.0.0.
+     *
+     * @requires XRegExp, Unicode Base
+     */
+
+    if (!XRegExp.addUnicodeData) {
+        throw new ReferenceError('Unicode Base must be loaded before Unicode Categories');
+    }
+
+    XRegExp.addUnicodeData(categories);
+};
+
+var properties$1;
+var hasRequiredProperties;
+
+function requireProperties () {
+	if (hasRequiredProperties) return properties$1;
+	hasRequiredProperties = 1;
+	properties$1 = [
+	    {
+	        'name': 'ASCII',
+	        'bmp': '\0-\x7F'
+	    },
+	    {
+	        'name': 'Alphabetic',
+	        'bmp': 'A-Za-z\xAA\xB5\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0345\u0370-\u0374\u0376\u0377\u037A-\u037D\u037F\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u052F\u0531-\u0556\u0559\u0560-\u0588\u05B0-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u05D0-\u05EA\u05EF-\u05F2\u0610-\u061A\u0620-\u0657\u0659-\u065F\u066E-\u06D3\u06D5-\u06DC\u06E1-\u06E8\u06ED-\u06EF\u06FA-\u06FC\u06FF\u0710-\u073F\u074D-\u07B1\u07CA-\u07EA\u07F4\u07F5\u07FA\u0800-\u0817\u081A-\u082C\u0840-\u0858\u0860-\u086A\u0870-\u0887\u0889-\u088E\u08A0-\u08C9\u08D4-\u08DF\u08E3-\u08E9\u08F0-\u093B\u093D-\u094C\u094E-\u0950\u0955-\u0963\u0971-\u0983\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BD-\u09C4\u09C7\u09C8\u09CB\u09CC\u09CE\u09D7\u09DC\u09DD\u09DF-\u09E3\u09F0\u09F1\u09FC\u0A01-\u0A03\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A3E-\u0A42\u0A47\u0A48\u0A4B\u0A4C\u0A51\u0A59-\u0A5C\u0A5E\u0A70-\u0A75\u0A81-\u0A83\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABD-\u0AC5\u0AC7-\u0AC9\u0ACB\u0ACC\u0AD0\u0AE0-\u0AE3\u0AF9-\u0AFC\u0B01-\u0B03\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3D-\u0B44\u0B47\u0B48\u0B4B\u0B4C\u0B56\u0B57\u0B5C\u0B5D\u0B5F-\u0B63\u0B71\u0B82\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BBE-\u0BC2\u0BC6-\u0BC8\u0BCA-\u0BCC\u0BD0\u0BD7\u0C00-\u0C03\u0C05-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C39\u0C3D-\u0C44\u0C46-\u0C48\u0C4A-\u0C4C\u0C55\u0C56\u0C58-\u0C5A\u0C5D\u0C60-\u0C63\u0C80-\u0C83\u0C85-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBD-\u0CC4\u0CC6-\u0CC8\u0CCA-\u0CCC\u0CD5\u0CD6\u0CDD\u0CDE\u0CE0-\u0CE3\u0CF1\u0CF2\u0D00-\u0D0C\u0D0E-\u0D10\u0D12-\u0D3A\u0D3D-\u0D44\u0D46-\u0D48\u0D4A-\u0D4C\u0D4E\u0D54-\u0D57\u0D5F-\u0D63\u0D7A-\u0D7F\u0D81-\u0D83\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0DCF-\u0DD4\u0DD6\u0DD8-\u0DDF\u0DF2\u0DF3\u0E01-\u0E3A\u0E40-\u0E46\u0E4D\u0E81\u0E82\u0E84\u0E86-\u0E8A\u0E8C-\u0EA3\u0EA5\u0EA7-\u0EB9\u0EBB-\u0EBD\u0EC0-\u0EC4\u0EC6\u0ECD\u0EDC-\u0EDF\u0F00\u0F40-\u0F47\u0F49-\u0F6C\u0F71-\u0F81\u0F88-\u0F97\u0F99-\u0FBC\u1000-\u1036\u1038\u103B-\u103F\u1050-\u108F\u109A-\u109D\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FC-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u1380-\u138F\u13A0-\u13F5\u13F8-\u13FD\u1401-\u166C\u166F-\u167F\u1681-\u169A\u16A0-\u16EA\u16EE-\u16F8\u1700-\u1713\u171F-\u1733\u1740-\u1753\u1760-\u176C\u176E-\u1770\u1772\u1773\u1780-\u17B3\u17B6-\u17C8\u17D7\u17DC\u1820-\u1878\u1880-\u18AA\u18B0-\u18F5\u1900-\u191E\u1920-\u192B\u1930-\u1938\u1950-\u196D\u1970-\u1974\u1980-\u19AB\u19B0-\u19C9\u1A00-\u1A1B\u1A20-\u1A5E\u1A61-\u1A74\u1AA7\u1ABF\u1AC0\u1ACC-\u1ACE\u1B00-\u1B33\u1B35-\u1B43\u1B45-\u1B4C\u1B80-\u1BA9\u1BAC-\u1BAF\u1BBA-\u1BE5\u1BE7-\u1BF1\u1C00-\u1C36\u1C4D-\u1C4F\u1C5A-\u1C7D\u1C80-\u1C88\u1C90-\u1CBA\u1CBD-\u1CBF\u1CE9-\u1CEC\u1CEE-\u1CF3\u1CF5\u1CF6\u1CFA\u1D00-\u1DBF\u1DE7-\u1DF4\u1E00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FBC\u1FBE\u1FC2-\u1FC4\u1FC6-\u1FCC\u1FD0-\u1FD3\u1FD6-\u1FDB\u1FE0-\u1FEC\u1FF2-\u1FF4\u1FF6-\u1FFC\u2071\u207F\u2090-\u209C\u2102\u2107\u210A-\u2113\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u212F-\u2139\u213C-\u213F\u2145-\u2149\u214E\u2160-\u2188\u24B6-\u24E9\u2C00-\u2CE4\u2CEB-\u2CEE\u2CF2\u2CF3\u2D00-\u2D25\u2D27\u2D2D\u2D30-\u2D67\u2D6F\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\u2DE0-\u2DFF\u2E2F\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303C\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FC-\u30FF\u3105-\u312F\u3131-\u318E\u31A0-\u31BF\u31F0-\u31FF\u3400-\u4DBF\u4E00-\uA48C\uA4D0-\uA4FD\uA500-\uA60C\uA610-\uA61F\uA62A\uA62B\uA640-\uA66E\uA674-\uA67B\uA67F-\uA6EF\uA717-\uA71F\uA722-\uA788\uA78B-\uA7CA\uA7D0\uA7D1\uA7D3\uA7D5-\uA7D9\uA7F2-\uA805\uA807-\uA827\uA840-\uA873\uA880-\uA8C3\uA8C5\uA8F2-\uA8F7\uA8FB\uA8FD-\uA8FF\uA90A-\uA92A\uA930-\uA952\uA960-\uA97C\uA980-\uA9B2\uA9B4-\uA9BF\uA9CF\uA9E0-\uA9EF\uA9FA-\uA9FE\uAA00-\uAA36\uAA40-\uAA4D\uAA60-\uAA76\uAA7A-\uAABE\uAAC0\uAAC2\uAADB-\uAADD\uAAE0-\uAAEF\uAAF2-\uAAF5\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E\uAB30-\uAB5A\uAB5C-\uAB69\uAB70-\uABEA\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uF900-\uFA6D\uFA70-\uFAD9\uFB00-\uFB06\uFB13-\uFB17\uFB1D-\uFB28\uFB2A-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFBB1\uFBD3-\uFD3D\uFD50-\uFD8F\uFD92-\uFDC7\uFDF0-\uFDFB\uFE70-\uFE74\uFE76-\uFEFC\uFF21-\uFF3A\uFF41-\uFF5A\uFF66-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC',
+	        'astral': '\uD800[\uDC00-\uDC0B\uDC0D-\uDC26\uDC28-\uDC3A\uDC3C\uDC3D\uDC3F-\uDC4D\uDC50-\uDC5D\uDC80-\uDCFA\uDD40-\uDD74\uDE80-\uDE9C\uDEA0-\uDED0\uDF00-\uDF1F\uDF2D-\uDF4A\uDF50-\uDF7A\uDF80-\uDF9D\uDFA0-\uDFC3\uDFC8-\uDFCF\uDFD1-\uDFD5]|\uD801[\uDC00-\uDC9D\uDCB0-\uDCD3\uDCD8-\uDCFB\uDD00-\uDD27\uDD30-\uDD63\uDD70-\uDD7A\uDD7C-\uDD8A\uDD8C-\uDD92\uDD94\uDD95\uDD97-\uDDA1\uDDA3-\uDDB1\uDDB3-\uDDB9\uDDBB\uDDBC\uDE00-\uDF36\uDF40-\uDF55\uDF60-\uDF67\uDF80-\uDF85\uDF87-\uDFB0\uDFB2-\uDFBA]|\uD802[\uDC00-\uDC05\uDC08\uDC0A-\uDC35\uDC37\uDC38\uDC3C\uDC3F-\uDC55\uDC60-\uDC76\uDC80-\uDC9E\uDCE0-\uDCF2\uDCF4\uDCF5\uDD00-\uDD15\uDD20-\uDD39\uDD80-\uDDB7\uDDBE\uDDBF\uDE00-\uDE03\uDE05\uDE06\uDE0C-\uDE13\uDE15-\uDE17\uDE19-\uDE35\uDE60-\uDE7C\uDE80-\uDE9C\uDEC0-\uDEC7\uDEC9-\uDEE4\uDF00-\uDF35\uDF40-\uDF55\uDF60-\uDF72\uDF80-\uDF91]|\uD803[\uDC00-\uDC48\uDC80-\uDCB2\uDCC0-\uDCF2\uDD00-\uDD27\uDE80-\uDEA9\uDEAB\uDEAC\uDEB0\uDEB1\uDF00-\uDF1C\uDF27\uDF30-\uDF45\uDF70-\uDF81\uDFB0-\uDFC4\uDFE0-\uDFF6]|\uD804[\uDC00-\uDC45\uDC71-\uDC75\uDC82-\uDCB8\uDCC2\uDCD0-\uDCE8\uDD00-\uDD32\uDD44-\uDD47\uDD50-\uDD72\uDD76\uDD80-\uDDBF\uDDC1-\uDDC4\uDDCE\uDDCF\uDDDA\uDDDC\uDE00-\uDE11\uDE13-\uDE34\uDE37\uDE3E\uDE80-\uDE86\uDE88\uDE8A-\uDE8D\uDE8F-\uDE9D\uDE9F-\uDEA8\uDEB0-\uDEE8\uDF00-\uDF03\uDF05-\uDF0C\uDF0F\uDF10\uDF13-\uDF28\uDF2A-\uDF30\uDF32\uDF33\uDF35-\uDF39\uDF3D-\uDF44\uDF47\uDF48\uDF4B\uDF4C\uDF50\uDF57\uDF5D-\uDF63]|\uD805[\uDC00-\uDC41\uDC43-\uDC45\uDC47-\uDC4A\uDC5F-\uDC61\uDC80-\uDCC1\uDCC4\uDCC5\uDCC7\uDD80-\uDDB5\uDDB8-\uDDBE\uDDD8-\uDDDD\uDE00-\uDE3E\uDE40\uDE44\uDE80-\uDEB5\uDEB8\uDF00-\uDF1A\uDF1D-\uDF2A\uDF40-\uDF46]|\uD806[\uDC00-\uDC38\uDCA0-\uDCDF\uDCFF-\uDD06\uDD09\uDD0C-\uDD13\uDD15\uDD16\uDD18-\uDD35\uDD37\uDD38\uDD3B\uDD3C\uDD3F-\uDD42\uDDA0-\uDDA7\uDDAA-\uDDD7\uDDDA-\uDDDF\uDDE1\uDDE3\uDDE4\uDE00-\uDE32\uDE35-\uDE3E\uDE50-\uDE97\uDE9D\uDEB0-\uDEF8]|\uD807[\uDC00-\uDC08\uDC0A-\uDC36\uDC38-\uDC3E\uDC40\uDC72-\uDC8F\uDC92-\uDCA7\uDCA9-\uDCB6\uDD00-\uDD06\uDD08\uDD09\uDD0B-\uDD36\uDD3A\uDD3C\uDD3D\uDD3F-\uDD41\uDD43\uDD46\uDD47\uDD60-\uDD65\uDD67\uDD68\uDD6A-\uDD8E\uDD90\uDD91\uDD93-\uDD96\uDD98\uDEE0-\uDEF6\uDFB0]|\uD808[\uDC00-\uDF99]|\uD809[\uDC00-\uDC6E\uDC80-\uDD43]|\uD80B[\uDF90-\uDFF0]|[\uD80C\uD81C-\uD820\uD822\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879\uD880-\uD883][\uDC00-\uDFFF]|\uD80D[\uDC00-\uDC2E]|\uD811[\uDC00-\uDE46]|\uD81A[\uDC00-\uDE38\uDE40-\uDE5E\uDE70-\uDEBE\uDED0-\uDEED\uDF00-\uDF2F\uDF40-\uDF43\uDF63-\uDF77\uDF7D-\uDF8F]|\uD81B[\uDE40-\uDE7F\uDF00-\uDF4A\uDF4F-\uDF87\uDF8F-\uDF9F\uDFE0\uDFE1\uDFE3\uDFF0\uDFF1]|\uD821[\uDC00-\uDFF7]|\uD823[\uDC00-\uDCD5\uDD00-\uDD08]|\uD82B[\uDFF0-\uDFF3\uDFF5-\uDFFB\uDFFD\uDFFE]|\uD82C[\uDC00-\uDD22\uDD50-\uDD52\uDD64-\uDD67\uDD70-\uDEFB]|\uD82F[\uDC00-\uDC6A\uDC70-\uDC7C\uDC80-\uDC88\uDC90-\uDC99\uDC9E]|\uD835[\uDC00-\uDC54\uDC56-\uDC9C\uDC9E\uDC9F\uDCA2\uDCA5\uDCA6\uDCA9-\uDCAC\uDCAE-\uDCB9\uDCBB\uDCBD-\uDCC3\uDCC5-\uDD05\uDD07-\uDD0A\uDD0D-\uDD14\uDD16-\uDD1C\uDD1E-\uDD39\uDD3B-\uDD3E\uDD40-\uDD44\uDD46\uDD4A-\uDD50\uDD52-\uDEA5\uDEA8-\uDEC0\uDEC2-\uDEDA\uDEDC-\uDEFA\uDEFC-\uDF14\uDF16-\uDF34\uDF36-\uDF4E\uDF50-\uDF6E\uDF70-\uDF88\uDF8A-\uDFA8\uDFAA-\uDFC2\uDFC4-\uDFCB]|\uD837[\uDF00-\uDF1E]|\uD838[\uDC00-\uDC06\uDC08-\uDC18\uDC1B-\uDC21\uDC23\uDC24\uDC26-\uDC2A\uDD00-\uDD2C\uDD37-\uDD3D\uDD4E\uDE90-\uDEAD\uDEC0-\uDEEB]|\uD839[\uDFE0-\uDFE6\uDFE8-\uDFEB\uDFED\uDFEE\uDFF0-\uDFFE]|\uD83A[\uDC00-\uDCC4\uDD00-\uDD43\uDD47\uDD4B]|\uD83B[\uDE00-\uDE03\uDE05-\uDE1F\uDE21\uDE22\uDE24\uDE27\uDE29-\uDE32\uDE34-\uDE37\uDE39\uDE3B\uDE42\uDE47\uDE49\uDE4B\uDE4D-\uDE4F\uDE51\uDE52\uDE54\uDE57\uDE59\uDE5B\uDE5D\uDE5F\uDE61\uDE62\uDE64\uDE67-\uDE6A\uDE6C-\uDE72\uDE74-\uDE77\uDE79-\uDE7C\uDE7E\uDE80-\uDE89\uDE8B-\uDE9B\uDEA1-\uDEA3\uDEA5-\uDEA9\uDEAB-\uDEBB]|\uD83C[\uDD30-\uDD49\uDD50-\uDD69\uDD70-\uDD89]|\uD869[\uDC00-\uDEDF\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF38\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0]|\uD87E[\uDC00-\uDE1D]|\uD884[\uDC00-\uDF4A]'
+	    },
+	    {
+	        'name': 'Any',
+	        'isBmpLast': true,
+	        'bmp': '\0-\uFFFF',
+	        'astral': '[\uD800-\uDBFF][\uDC00-\uDFFF]'
+	    },
+	    {
+	        'name': 'Default_Ignorable_Code_Point',
+	        'bmp': '\xAD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0\uFFF0-\uFFF8',
+	        'astral': '\uD82F[\uDCA0-\uDCA3]|\uD834[\uDD73-\uDD7A]|[\uDB40-\uDB43][\uDC00-\uDFFF]'
+	    },
+	    {
+	        'name': 'Lowercase',
+	        'bmp': 'a-z\xAA\xB5\xBA\xDF-\xF6\xF8-\xFF\u0101\u0103\u0105\u0107\u0109\u010B\u010D\u010F\u0111\u0113\u0115\u0117\u0119\u011B\u011D\u011F\u0121\u0123\u0125\u0127\u0129\u012B\u012D\u012F\u0131\u0133\u0135\u0137\u0138\u013A\u013C\u013E\u0140\u0142\u0144\u0146\u0148\u0149\u014B\u014D\u014F\u0151\u0153\u0155\u0157\u0159\u015B\u015D\u015F\u0161\u0163\u0165\u0167\u0169\u016B\u016D\u016F\u0171\u0173\u0175\u0177\u017A\u017C\u017E-\u0180\u0183\u0185\u0188\u018C\u018D\u0192\u0195\u0199-\u019B\u019E\u01A1\u01A3\u01A5\u01A8\u01AA\u01AB\u01AD\u01B0\u01B4\u01B6\u01B9\u01BA\u01BD-\u01BF\u01C6\u01C9\u01CC\u01CE\u01D0\u01D2\u01D4\u01D6\u01D8\u01DA\u01DC\u01DD\u01DF\u01E1\u01E3\u01E5\u01E7\u01E9\u01EB\u01ED\u01EF\u01F0\u01F3\u01F5\u01F9\u01FB\u01FD\u01FF\u0201\u0203\u0205\u0207\u0209\u020B\u020D\u020F\u0211\u0213\u0215\u0217\u0219\u021B\u021D\u021F\u0221\u0223\u0225\u0227\u0229\u022B\u022D\u022F\u0231\u0233-\u0239\u023C\u023F\u0240\u0242\u0247\u0249\u024B\u024D\u024F-\u0293\u0295-\u02B8\u02C0\u02C1\u02E0-\u02E4\u0345\u0371\u0373\u0377\u037A-\u037D\u0390\u03AC-\u03CE\u03D0\u03D1\u03D5-\u03D7\u03D9\u03DB\u03DD\u03DF\u03E1\u03E3\u03E5\u03E7\u03E9\u03EB\u03ED\u03EF-\u03F3\u03F5\u03F8\u03FB\u03FC\u0430-\u045F\u0461\u0463\u0465\u0467\u0469\u046B\u046D\u046F\u0471\u0473\u0475\u0477\u0479\u047B\u047D\u047F\u0481\u048B\u048D\u048F\u0491\u0493\u0495\u0497\u0499\u049B\u049D\u049F\u04A1\u04A3\u04A5\u04A7\u04A9\u04AB\u04AD\u04AF\u04B1\u04B3\u04B5\u04B7\u04B9\u04BB\u04BD\u04BF\u04C2\u04C4\u04C6\u04C8\u04CA\u04CC\u04CE\u04CF\u04D1\u04D3\u04D5\u04D7\u04D9\u04DB\u04DD\u04DF\u04E1\u04E3\u04E5\u04E7\u04E9\u04EB\u04ED\u04EF\u04F1\u04F3\u04F5\u04F7\u04F9\u04FB\u04FD\u04FF\u0501\u0503\u0505\u0507\u0509\u050B\u050D\u050F\u0511\u0513\u0515\u0517\u0519\u051B\u051D\u051F\u0521\u0523\u0525\u0527\u0529\u052B\u052D\u052F\u0560-\u0588\u10D0-\u10FA\u10FD-\u10FF\u13F8-\u13FD\u1C80-\u1C88\u1D00-\u1DBF\u1E01\u1E03\u1E05\u1E07\u1E09\u1E0B\u1E0D\u1E0F\u1E11\u1E13\u1E15\u1E17\u1E19\u1E1B\u1E1D\u1E1F\u1E21\u1E23\u1E25\u1E27\u1E29\u1E2B\u1E2D\u1E2F\u1E31\u1E33\u1E35\u1E37\u1E39\u1E3B\u1E3D\u1E3F\u1E41\u1E43\u1E45\u1E47\u1E49\u1E4B\u1E4D\u1E4F\u1E51\u1E53\u1E55\u1E57\u1E59\u1E5B\u1E5D\u1E5F\u1E61\u1E63\u1E65\u1E67\u1E69\u1E6B\u1E6D\u1E6F\u1E71\u1E73\u1E75\u1E77\u1E79\u1E7B\u1E7D\u1E7F\u1E81\u1E83\u1E85\u1E87\u1E89\u1E8B\u1E8D\u1E8F\u1E91\u1E93\u1E95-\u1E9D\u1E9F\u1EA1\u1EA3\u1EA5\u1EA7\u1EA9\u1EAB\u1EAD\u1EAF\u1EB1\u1EB3\u1EB5\u1EB7\u1EB9\u1EBB\u1EBD\u1EBF\u1EC1\u1EC3\u1EC5\u1EC7\u1EC9\u1ECB\u1ECD\u1ECF\u1ED1\u1ED3\u1ED5\u1ED7\u1ED9\u1EDB\u1EDD\u1EDF\u1EE1\u1EE3\u1EE5\u1EE7\u1EE9\u1EEB\u1EED\u1EEF\u1EF1\u1EF3\u1EF5\u1EF7\u1EF9\u1EFB\u1EFD\u1EFF-\u1F07\u1F10-\u1F15\u1F20-\u1F27\u1F30-\u1F37\u1F40-\u1F45\u1F50-\u1F57\u1F60-\u1F67\u1F70-\u1F7D\u1F80-\u1F87\u1F90-\u1F97\u1FA0-\u1FA7\u1FB0-\u1FB4\u1FB6\u1FB7\u1FBE\u1FC2-\u1FC4\u1FC6\u1FC7\u1FD0-\u1FD3\u1FD6\u1FD7\u1FE0-\u1FE7\u1FF2-\u1FF4\u1FF6\u1FF7\u2071\u207F\u2090-\u209C\u210A\u210E\u210F\u2113\u212F\u2134\u2139\u213C\u213D\u2146-\u2149\u214E\u2170-\u217F\u2184\u24D0-\u24E9\u2C30-\u2C5F\u2C61\u2C65\u2C66\u2C68\u2C6A\u2C6C\u2C71\u2C73\u2C74\u2C76-\u2C7D\u2C81\u2C83\u2C85\u2C87\u2C89\u2C8B\u2C8D\u2C8F\u2C91\u2C93\u2C95\u2C97\u2C99\u2C9B\u2C9D\u2C9F\u2CA1\u2CA3\u2CA5\u2CA7\u2CA9\u2CAB\u2CAD\u2CAF\u2CB1\u2CB3\u2CB5\u2CB7\u2CB9\u2CBB\u2CBD\u2CBF\u2CC1\u2CC3\u2CC5\u2CC7\u2CC9\u2CCB\u2CCD\u2CCF\u2CD1\u2CD3\u2CD5\u2CD7\u2CD9\u2CDB\u2CDD\u2CDF\u2CE1\u2CE3\u2CE4\u2CEC\u2CEE\u2CF3\u2D00-\u2D25\u2D27\u2D2D\uA641\uA643\uA645\uA647\uA649\uA64B\uA64D\uA64F\uA651\uA653\uA655\uA657\uA659\uA65B\uA65D\uA65F\uA661\uA663\uA665\uA667\uA669\uA66B\uA66D\uA681\uA683\uA685\uA687\uA689\uA68B\uA68D\uA68F\uA691\uA693\uA695\uA697\uA699\uA69B-\uA69D\uA723\uA725\uA727\uA729\uA72B\uA72D\uA72F-\uA731\uA733\uA735\uA737\uA739\uA73B\uA73D\uA73F\uA741\uA743\uA745\uA747\uA749\uA74B\uA74D\uA74F\uA751\uA753\uA755\uA757\uA759\uA75B\uA75D\uA75F\uA761\uA763\uA765\uA767\uA769\uA76B\uA76D\uA76F-\uA778\uA77A\uA77C\uA77F\uA781\uA783\uA785\uA787\uA78C\uA78E\uA791\uA793-\uA795\uA797\uA799\uA79B\uA79D\uA79F\uA7A1\uA7A3\uA7A5\uA7A7\uA7A9\uA7AF\uA7B5\uA7B7\uA7B9\uA7BB\uA7BD\uA7BF\uA7C1\uA7C3\uA7C8\uA7CA\uA7D1\uA7D3\uA7D5\uA7D7\uA7D9\uA7F6\uA7F8-\uA7FA\uAB30-\uAB5A\uAB5C-\uAB68\uAB70-\uABBF\uFB00-\uFB06\uFB13-\uFB17\uFF41-\uFF5A',
+	        'astral': '\uD801[\uDC28-\uDC4F\uDCD8-\uDCFB\uDD97-\uDDA1\uDDA3-\uDDB1\uDDB3-\uDDB9\uDDBB\uDDBC\uDF80\uDF83-\uDF85\uDF87-\uDFB0\uDFB2-\uDFBA]|\uD803[\uDCC0-\uDCF2]|\uD806[\uDCC0-\uDCDF]|\uD81B[\uDE60-\uDE7F]|\uD835[\uDC1A-\uDC33\uDC4E-\uDC54\uDC56-\uDC67\uDC82-\uDC9B\uDCB6-\uDCB9\uDCBB\uDCBD-\uDCC3\uDCC5-\uDCCF\uDCEA-\uDD03\uDD1E-\uDD37\uDD52-\uDD6B\uDD86-\uDD9F\uDDBA-\uDDD3\uDDEE-\uDE07\uDE22-\uDE3B\uDE56-\uDE6F\uDE8A-\uDEA5\uDEC2-\uDEDA\uDEDC-\uDEE1\uDEFC-\uDF14\uDF16-\uDF1B\uDF36-\uDF4E\uDF50-\uDF55\uDF70-\uDF88\uDF8A-\uDF8F\uDFAA-\uDFC2\uDFC4-\uDFC9\uDFCB]|\uD837[\uDF00-\uDF09\uDF0B-\uDF1E]|\uD83A[\uDD22-\uDD43]'
+	    },
+	    {
+	        'name': 'Noncharacter_Code_Point',
+	        'bmp': '\uFDD0-\uFDEF\uFFFE\uFFFF',
+	        'astral': '[\uD83F\uD87F\uD8BF\uD8FF\uD93F\uD97F\uD9BF\uD9FF\uDA3F\uDA7F\uDABF\uDAFF\uDB3F\uDB7F\uDBBF\uDBFF][\uDFFE\uDFFF]'
+	    },
+	    {
+	        'name': 'Uppercase',
+	        'bmp': 'A-Z\xC0-\xD6\xD8-\xDE\u0100\u0102\u0104\u0106\u0108\u010A\u010C\u010E\u0110\u0112\u0114\u0116\u0118\u011A\u011C\u011E\u0120\u0122\u0124\u0126\u0128\u012A\u012C\u012E\u0130\u0132\u0134\u0136\u0139\u013B\u013D\u013F\u0141\u0143\u0145\u0147\u014A\u014C\u014E\u0150\u0152\u0154\u0156\u0158\u015A\u015C\u015E\u0160\u0162\u0164\u0166\u0168\u016A\u016C\u016E\u0170\u0172\u0174\u0176\u0178\u0179\u017B\u017D\u0181\u0182\u0184\u0186\u0187\u0189-\u018B\u018E-\u0191\u0193\u0194\u0196-\u0198\u019C\u019D\u019F\u01A0\u01A2\u01A4\u01A6\u01A7\u01A9\u01AC\u01AE\u01AF\u01B1-\u01B3\u01B5\u01B7\u01B8\u01BC\u01C4\u01C7\u01CA\u01CD\u01CF\u01D1\u01D3\u01D5\u01D7\u01D9\u01DB\u01DE\u01E0\u01E2\u01E4\u01E6\u01E8\u01EA\u01EC\u01EE\u01F1\u01F4\u01F6-\u01F8\u01FA\u01FC\u01FE\u0200\u0202\u0204\u0206\u0208\u020A\u020C\u020E\u0210\u0212\u0214\u0216\u0218\u021A\u021C\u021E\u0220\u0222\u0224\u0226\u0228\u022A\u022C\u022E\u0230\u0232\u023A\u023B\u023D\u023E\u0241\u0243-\u0246\u0248\u024A\u024C\u024E\u0370\u0372\u0376\u037F\u0386\u0388-\u038A\u038C\u038E\u038F\u0391-\u03A1\u03A3-\u03AB\u03CF\u03D2-\u03D4\u03D8\u03DA\u03DC\u03DE\u03E0\u03E2\u03E4\u03E6\u03E8\u03EA\u03EC\u03EE\u03F4\u03F7\u03F9\u03FA\u03FD-\u042F\u0460\u0462\u0464\u0466\u0468\u046A\u046C\u046E\u0470\u0472\u0474\u0476\u0478\u047A\u047C\u047E\u0480\u048A\u048C\u048E\u0490\u0492\u0494\u0496\u0498\u049A\u049C\u049E\u04A0\u04A2\u04A4\u04A6\u04A8\u04AA\u04AC\u04AE\u04B0\u04B2\u04B4\u04B6\u04B8\u04BA\u04BC\u04BE\u04C0\u04C1\u04C3\u04C5\u04C7\u04C9\u04CB\u04CD\u04D0\u04D2\u04D4\u04D6\u04D8\u04DA\u04DC\u04DE\u04E0\u04E2\u04E4\u04E6\u04E8\u04EA\u04EC\u04EE\u04F0\u04F2\u04F4\u04F6\u04F8\u04FA\u04FC\u04FE\u0500\u0502\u0504\u0506\u0508\u050A\u050C\u050E\u0510\u0512\u0514\u0516\u0518\u051A\u051C\u051E\u0520\u0522\u0524\u0526\u0528\u052A\u052C\u052E\u0531-\u0556\u10A0-\u10C5\u10C7\u10CD\u13A0-\u13F5\u1C90-\u1CBA\u1CBD-\u1CBF\u1E00\u1E02\u1E04\u1E06\u1E08\u1E0A\u1E0C\u1E0E\u1E10\u1E12\u1E14\u1E16\u1E18\u1E1A\u1E1C\u1E1E\u1E20\u1E22\u1E24\u1E26\u1E28\u1E2A\u1E2C\u1E2E\u1E30\u1E32\u1E34\u1E36\u1E38\u1E3A\u1E3C\u1E3E\u1E40\u1E42\u1E44\u1E46\u1E48\u1E4A\u1E4C\u1E4E\u1E50\u1E52\u1E54\u1E56\u1E58\u1E5A\u1E5C\u1E5E\u1E60\u1E62\u1E64\u1E66\u1E68\u1E6A\u1E6C\u1E6E\u1E70\u1E72\u1E74\u1E76\u1E78\u1E7A\u1E7C\u1E7E\u1E80\u1E82\u1E84\u1E86\u1E88\u1E8A\u1E8C\u1E8E\u1E90\u1E92\u1E94\u1E9E\u1EA0\u1EA2\u1EA4\u1EA6\u1EA8\u1EAA\u1EAC\u1EAE\u1EB0\u1EB2\u1EB4\u1EB6\u1EB8\u1EBA\u1EBC\u1EBE\u1EC0\u1EC2\u1EC4\u1EC6\u1EC8\u1ECA\u1ECC\u1ECE\u1ED0\u1ED2\u1ED4\u1ED6\u1ED8\u1EDA\u1EDC\u1EDE\u1EE0\u1EE2\u1EE4\u1EE6\u1EE8\u1EEA\u1EEC\u1EEE\u1EF0\u1EF2\u1EF4\u1EF6\u1EF8\u1EFA\u1EFC\u1EFE\u1F08-\u1F0F\u1F18-\u1F1D\u1F28-\u1F2F\u1F38-\u1F3F\u1F48-\u1F4D\u1F59\u1F5B\u1F5D\u1F5F\u1F68-\u1F6F\u1FB8-\u1FBB\u1FC8-\u1FCB\u1FD8-\u1FDB\u1FE8-\u1FEC\u1FF8-\u1FFB\u2102\u2107\u210B-\u210D\u2110-\u2112\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u2130-\u2133\u213E\u213F\u2145\u2160-\u216F\u2183\u24B6-\u24CF\u2C00-\u2C2F\u2C60\u2C62-\u2C64\u2C67\u2C69\u2C6B\u2C6D-\u2C70\u2C72\u2C75\u2C7E-\u2C80\u2C82\u2C84\u2C86\u2C88\u2C8A\u2C8C\u2C8E\u2C90\u2C92\u2C94\u2C96\u2C98\u2C9A\u2C9C\u2C9E\u2CA0\u2CA2\u2CA4\u2CA6\u2CA8\u2CAA\u2CAC\u2CAE\u2CB0\u2CB2\u2CB4\u2CB6\u2CB8\u2CBA\u2CBC\u2CBE\u2CC0\u2CC2\u2CC4\u2CC6\u2CC8\u2CCA\u2CCC\u2CCE\u2CD0\u2CD2\u2CD4\u2CD6\u2CD8\u2CDA\u2CDC\u2CDE\u2CE0\u2CE2\u2CEB\u2CED\u2CF2\uA640\uA642\uA644\uA646\uA648\uA64A\uA64C\uA64E\uA650\uA652\uA654\uA656\uA658\uA65A\uA65C\uA65E\uA660\uA662\uA664\uA666\uA668\uA66A\uA66C\uA680\uA682\uA684\uA686\uA688\uA68A\uA68C\uA68E\uA690\uA692\uA694\uA696\uA698\uA69A\uA722\uA724\uA726\uA728\uA72A\uA72C\uA72E\uA732\uA734\uA736\uA738\uA73A\uA73C\uA73E\uA740\uA742\uA744\uA746\uA748\uA74A\uA74C\uA74E\uA750\uA752\uA754\uA756\uA758\uA75A\uA75C\uA75E\uA760\uA762\uA764\uA766\uA768\uA76A\uA76C\uA76E\uA779\uA77B\uA77D\uA77E\uA780\uA782\uA784\uA786\uA78B\uA78D\uA790\uA792\uA796\uA798\uA79A\uA79C\uA79E\uA7A0\uA7A2\uA7A4\uA7A6\uA7A8\uA7AA-\uA7AE\uA7B0-\uA7B4\uA7B6\uA7B8\uA7BA\uA7BC\uA7BE\uA7C0\uA7C2\uA7C4-\uA7C7\uA7C9\uA7D0\uA7D6\uA7D8\uA7F5\uFF21-\uFF3A',
+	        'astral': '\uD801[\uDC00-\uDC27\uDCB0-\uDCD3\uDD70-\uDD7A\uDD7C-\uDD8A\uDD8C-\uDD92\uDD94\uDD95]|\uD803[\uDC80-\uDCB2]|\uD806[\uDCA0-\uDCBF]|\uD81B[\uDE40-\uDE5F]|\uD835[\uDC00-\uDC19\uDC34-\uDC4D\uDC68-\uDC81\uDC9C\uDC9E\uDC9F\uDCA2\uDCA5\uDCA6\uDCA9-\uDCAC\uDCAE-\uDCB5\uDCD0-\uDCE9\uDD04\uDD05\uDD07-\uDD0A\uDD0D-\uDD14\uDD16-\uDD1C\uDD38\uDD39\uDD3B-\uDD3E\uDD40-\uDD44\uDD46\uDD4A-\uDD50\uDD6C-\uDD85\uDDA0-\uDDB9\uDDD4-\uDDED\uDE08-\uDE21\uDE3C-\uDE55\uDE70-\uDE89\uDEA8-\uDEC0\uDEE2-\uDEFA\uDF1C-\uDF34\uDF56-\uDF6E\uDF90-\uDFA8\uDFCA]|\uD83A[\uDD00-\uDD21]|\uD83C[\uDD30-\uDD49\uDD50-\uDD69\uDD70-\uDD89]'
+	    },
+	    {
+	        'name': 'White_Space',
+	        'bmp': '\t-\r \x85\xA0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000'
+	    }
+	];
+	return properties$1;
+}
+
+var propertiesExports = requireProperties();
+var properties = /*@__PURE__*/getDefaultExportFromCjs(propertiesExports);
+
+/*!
+ * XRegExp Unicode Properties 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2012-present MIT License
+ * Unicode data by Mathias Bynens <mathiasbynens.be>
+ */
+
+
+var unicodeProperties = (XRegExp) => {
+
+    /**
+     * Adds properties to meet the UTS #18 Level 1 RL1.2 requirements for Unicode regex support. See
+     * <http://unicode.org/reports/tr18/#RL1.2>. Following are definitions of these properties from
+     * UAX #44 <http://unicode.org/reports/tr44/>:
+     *
+     * - Alphabetic
+     *   Characters with the Alphabetic property. Generated from: Lowercase + Uppercase + Lt + Lm +
+     *   Lo + Nl + Other_Alphabetic.
+     *
+     * - Default_Ignorable_Code_Point
+     *   For programmatic determination of default ignorable code points. New characters that should
+     *   be ignored in rendering (unless explicitly supported) will be assigned in these ranges,
+     *   permitting programs to correctly handle the default rendering of such characters when not
+     *   otherwise supported.
+     *
+     * - Lowercase
+     *   Characters with the Lowercase property. Generated from: Ll + Other_Lowercase.
+     *
+     * - Noncharacter_Code_Point
+     *   Code points permanently reserved for internal use.
+     *
+     * - Uppercase
+     *   Characters with the Uppercase property. Generated from: Lu + Other_Uppercase.
+     *
+     * - White_Space
+     *   Spaces, separator characters and other control characters which should be treated by
+     *   programming languages as "white space" for the purpose of parsing elements.
+     *
+     * The properties ASCII, Any, and Assigned are also included but are not defined in UAX #44. UTS
+     * #18 RL1.2 additionally requires support for Unicode scripts and general categories. These are
+     * included in XRegExp's Unicode Categories and Unicode Scripts addons.
+     *
+     * Token names are case insensitive, and any spaces, hyphens, and underscores are ignored.
+     *
+     * Uses Unicode 14.0.0.
+     *
+     * @requires XRegExp, Unicode Base
+     */
+
+    if (!XRegExp.addUnicodeData) {
+        throw new ReferenceError('Unicode Base must be loaded before Unicode Properties');
+    }
+
+    const unicodeData = properties;
+
+    // Add non-generated data
+    unicodeData.push({
+        name: 'Assigned',
+        // Since this is defined as the inverse of Unicode category Cn (Unassigned), the Unicode
+        // Categories addon is required to use this property
+        inverseOf: 'Cn'
+    });
+
+    XRegExp.addUnicodeData(unicodeData);
+};
+
+var scripts$1;
+var hasRequiredScripts;
+
+function requireScripts () {
+	if (hasRequiredScripts) return scripts$1;
+	hasRequiredScripts = 1;
+	scripts$1 = [
+	    {
+	        'name': 'Adlam',
+	        'astral': '\uD83A[\uDD00-\uDD4B\uDD50-\uDD59\uDD5E\uDD5F]'
+	    },
+	    {
+	        'name': 'Ahom',
+	        'astral': '\uD805[\uDF00-\uDF1A\uDF1D-\uDF2B\uDF30-\uDF46]'
+	    },
+	    {
+	        'name': 'Anatolian_Hieroglyphs',
+	        'astral': '\uD811[\uDC00-\uDE46]'
+	    },
+	    {
+	        'name': 'Arabic',
+	        'bmp': '\u0600-\u0604\u0606-\u060B\u060D-\u061A\u061C-\u061E\u0620-\u063F\u0641-\u064A\u0656-\u066F\u0671-\u06DC\u06DE-\u06FF\u0750-\u077F\u0870-\u088E\u0890\u0891\u0898-\u08E1\u08E3-\u08FF\uFB50-\uFBC2\uFBD3-\uFD3D\uFD40-\uFD8F\uFD92-\uFDC7\uFDCF\uFDF0-\uFDFF\uFE70-\uFE74\uFE76-\uFEFC',
+	        'astral': '\uD803[\uDE60-\uDE7E]|\uD83B[\uDE00-\uDE03\uDE05-\uDE1F\uDE21\uDE22\uDE24\uDE27\uDE29-\uDE32\uDE34-\uDE37\uDE39\uDE3B\uDE42\uDE47\uDE49\uDE4B\uDE4D-\uDE4F\uDE51\uDE52\uDE54\uDE57\uDE59\uDE5B\uDE5D\uDE5F\uDE61\uDE62\uDE64\uDE67-\uDE6A\uDE6C-\uDE72\uDE74-\uDE77\uDE79-\uDE7C\uDE7E\uDE80-\uDE89\uDE8B-\uDE9B\uDEA1-\uDEA3\uDEA5-\uDEA9\uDEAB-\uDEBB\uDEF0\uDEF1]'
+	    },
+	    {
+	        'name': 'Armenian',
+	        'bmp': '\u0531-\u0556\u0559-\u058A\u058D-\u058F\uFB13-\uFB17'
+	    },
+	    {
+	        'name': 'Avestan',
+	        'astral': '\uD802[\uDF00-\uDF35\uDF39-\uDF3F]'
+	    },
+	    {
+	        'name': 'Balinese',
+	        'bmp': '\u1B00-\u1B4C\u1B50-\u1B7E'
+	    },
+	    {
+	        'name': 'Bamum',
+	        'bmp': '\uA6A0-\uA6F7',
+	        'astral': '\uD81A[\uDC00-\uDE38]'
+	    },
+	    {
+	        'name': 'Bassa_Vah',
+	        'astral': '\uD81A[\uDED0-\uDEED\uDEF0-\uDEF5]'
+	    },
+	    {
+	        'name': 'Batak',
+	        'bmp': '\u1BC0-\u1BF3\u1BFC-\u1BFF'
+	    },
+	    {
+	        'name': 'Bengali',
+	        'bmp': '\u0980-\u0983\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BC-\u09C4\u09C7\u09C8\u09CB-\u09CE\u09D7\u09DC\u09DD\u09DF-\u09E3\u09E6-\u09FE'
+	    },
+	    {
+	        'name': 'Bhaiksuki',
+	        'astral': '\uD807[\uDC00-\uDC08\uDC0A-\uDC36\uDC38-\uDC45\uDC50-\uDC6C]'
+	    },
+	    {
+	        'name': 'Bopomofo',
+	        'bmp': '\u02EA\u02EB\u3105-\u312F\u31A0-\u31BF'
+	    },
+	    {
+	        'name': 'Brahmi',
+	        'astral': '\uD804[\uDC00-\uDC4D\uDC52-\uDC75\uDC7F]'
+	    },
+	    {
+	        'name': 'Braille',
+	        'bmp': '\u2800-\u28FF'
+	    },
+	    {
+	        'name': 'Buginese',
+	        'bmp': '\u1A00-\u1A1B\u1A1E\u1A1F'
+	    },
+	    {
+	        'name': 'Buhid',
+	        'bmp': '\u1740-\u1753'
+	    },
+	    {
+	        'name': 'Canadian_Aboriginal',
+	        'bmp': '\u1400-\u167F\u18B0-\u18F5',
+	        'astral': '\uD806[\uDEB0-\uDEBF]'
+	    },
+	    {
+	        'name': 'Carian',
+	        'astral': '\uD800[\uDEA0-\uDED0]'
+	    },
+	    {
+	        'name': 'Caucasian_Albanian',
+	        'astral': '\uD801[\uDD30-\uDD63\uDD6F]'
+	    },
+	    {
+	        'name': 'Chakma',
+	        'astral': '\uD804[\uDD00-\uDD34\uDD36-\uDD47]'
+	    },
+	    {
+	        'name': 'Cham',
+	        'bmp': '\uAA00-\uAA36\uAA40-\uAA4D\uAA50-\uAA59\uAA5C-\uAA5F'
+	    },
+	    {
+	        'name': 'Cherokee',
+	        'bmp': '\u13A0-\u13F5\u13F8-\u13FD\uAB70-\uABBF'
+	    },
+	    {
+	        'name': 'Chorasmian',
+	        'astral': '\uD803[\uDFB0-\uDFCB]'
+	    },
+	    {
+	        'name': 'Common',
+	        'bmp': '\0-@\\[-`\\{-\xA9\xAB-\xB9\xBB-\xBF\xD7\xF7\u02B9-\u02DF\u02E5-\u02E9\u02EC-\u02FF\u0374\u037E\u0385\u0387\u0605\u060C\u061B\u061F\u0640\u06DD\u08E2\u0964\u0965\u0E3F\u0FD5-\u0FD8\u10FB\u16EB-\u16ED\u1735\u1736\u1802\u1803\u1805\u1CD3\u1CE1\u1CE9-\u1CEC\u1CEE-\u1CF3\u1CF5-\u1CF7\u1CFA\u2000-\u200B\u200E-\u2064\u2066-\u2070\u2074-\u207E\u2080-\u208E\u20A0-\u20C0\u2100-\u2125\u2127-\u2129\u212C-\u2131\u2133-\u214D\u214F-\u215F\u2189-\u218B\u2190-\u2426\u2440-\u244A\u2460-\u27FF\u2900-\u2B73\u2B76-\u2B95\u2B97-\u2BFF\u2E00-\u2E5D\u2FF0-\u2FFB\u3000-\u3004\u3006\u3008-\u3020\u3030-\u3037\u303C-\u303F\u309B\u309C\u30A0\u30FB\u30FC\u3190-\u319F\u31C0-\u31E3\u3220-\u325F\u327F-\u32CF\u32FF\u3358-\u33FF\u4DC0-\u4DFF\uA700-\uA721\uA788-\uA78A\uA830-\uA839\uA92E\uA9CF\uAB5B\uAB6A\uAB6B\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE66\uFE68-\uFE6B\uFEFF\uFF01-\uFF20\uFF3B-\uFF40\uFF5B-\uFF65\uFF70\uFF9E\uFF9F\uFFE0-\uFFE6\uFFE8-\uFFEE\uFFF9-\uFFFD',
+	        'astral': '\uD800[\uDD00-\uDD02\uDD07-\uDD33\uDD37-\uDD3F\uDD90-\uDD9C\uDDD0-\uDDFC\uDEE1-\uDEFB]|\uD82F[\uDCA0-\uDCA3]|\uD833[\uDF50-\uDFC3]|\uD834[\uDC00-\uDCF5\uDD00-\uDD26\uDD29-\uDD66\uDD6A-\uDD7A\uDD83\uDD84\uDD8C-\uDDA9\uDDAE-\uDDEA\uDEE0-\uDEF3\uDF00-\uDF56\uDF60-\uDF78]|\uD835[\uDC00-\uDC54\uDC56-\uDC9C\uDC9E\uDC9F\uDCA2\uDCA5\uDCA6\uDCA9-\uDCAC\uDCAE-\uDCB9\uDCBB\uDCBD-\uDCC3\uDCC5-\uDD05\uDD07-\uDD0A\uDD0D-\uDD14\uDD16-\uDD1C\uDD1E-\uDD39\uDD3B-\uDD3E\uDD40-\uDD44\uDD46\uDD4A-\uDD50\uDD52-\uDEA5\uDEA8-\uDFCB\uDFCE-\uDFFF]|\uD83B[\uDC71-\uDCB4\uDD01-\uDD3D]|\uD83C[\uDC00-\uDC2B\uDC30-\uDC93\uDCA0-\uDCAE\uDCB1-\uDCBF\uDCC1-\uDCCF\uDCD1-\uDCF5\uDD00-\uDDAD\uDDE6-\uDDFF\uDE01\uDE02\uDE10-\uDE3B\uDE40-\uDE48\uDE50\uDE51\uDE60-\uDE65\uDF00-\uDFFF]|\uD83D[\uDC00-\uDED7\uDEDD-\uDEEC\uDEF0-\uDEFC\uDF00-\uDF73\uDF80-\uDFD8\uDFE0-\uDFEB\uDFF0]|\uD83E[\uDC00-\uDC0B\uDC10-\uDC47\uDC50-\uDC59\uDC60-\uDC87\uDC90-\uDCAD\uDCB0\uDCB1\uDD00-\uDE53\uDE60-\uDE6D\uDE70-\uDE74\uDE78-\uDE7C\uDE80-\uDE86\uDE90-\uDEAC\uDEB0-\uDEBA\uDEC0-\uDEC5\uDED0-\uDED9\uDEE0-\uDEE7\uDEF0-\uDEF6\uDF00-\uDF92\uDF94-\uDFCA\uDFF0-\uDFF9]|\uDB40[\uDC01\uDC20-\uDC7F]'
+	    },
+	    {
+	        'name': 'Coptic',
+	        'bmp': '\u03E2-\u03EF\u2C80-\u2CF3\u2CF9-\u2CFF'
+	    },
+	    {
+	        'name': 'Cuneiform',
+	        'astral': '\uD808[\uDC00-\uDF99]|\uD809[\uDC00-\uDC6E\uDC70-\uDC74\uDC80-\uDD43]'
+	    },
+	    {
+	        'name': 'Cypriot',
+	        'astral': '\uD802[\uDC00-\uDC05\uDC08\uDC0A-\uDC35\uDC37\uDC38\uDC3C\uDC3F]'
+	    },
+	    {
+	        'name': 'Cypro_Minoan',
+	        'astral': '\uD80B[\uDF90-\uDFF2]'
+	    },
+	    {
+	        'name': 'Cyrillic',
+	        'bmp': '\u0400-\u0484\u0487-\u052F\u1C80-\u1C88\u1D2B\u1D78\u2DE0-\u2DFF\uA640-\uA69F\uFE2E\uFE2F'
+	    },
+	    {
+	        'name': 'Deseret',
+	        'astral': '\uD801[\uDC00-\uDC4F]'
+	    },
+	    {
+	        'name': 'Devanagari',
+	        'bmp': '\u0900-\u0950\u0955-\u0963\u0966-\u097F\uA8E0-\uA8FF'
+	    },
+	    {
+	        'name': 'Dives_Akuru',
+	        'astral': '\uD806[\uDD00-\uDD06\uDD09\uDD0C-\uDD13\uDD15\uDD16\uDD18-\uDD35\uDD37\uDD38\uDD3B-\uDD46\uDD50-\uDD59]'
+	    },
+	    {
+	        'name': 'Dogra',
+	        'astral': '\uD806[\uDC00-\uDC3B]'
+	    },
+	    {
+	        'name': 'Duployan',
+	        'astral': '\uD82F[\uDC00-\uDC6A\uDC70-\uDC7C\uDC80-\uDC88\uDC90-\uDC99\uDC9C-\uDC9F]'
+	    },
+	    {
+	        'name': 'Egyptian_Hieroglyphs',
+	        'astral': '\uD80C[\uDC00-\uDFFF]|\uD80D[\uDC00-\uDC2E\uDC30-\uDC38]'
+	    },
+	    {
+	        'name': 'Elbasan',
+	        'astral': '\uD801[\uDD00-\uDD27]'
+	    },
+	    {
+	        'name': 'Elymaic',
+	        'astral': '\uD803[\uDFE0-\uDFF6]'
+	    },
+	    {
+	        'name': 'Ethiopic',
+	        'bmp': '\u1200-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u135D-\u137C\u1380-\u1399\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E',
+	        'astral': '\uD839[\uDFE0-\uDFE6\uDFE8-\uDFEB\uDFED\uDFEE\uDFF0-\uDFFE]'
+	    },
+	    {
+	        'name': 'Georgian',
+	        'bmp': '\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FC-\u10FF\u1C90-\u1CBA\u1CBD-\u1CBF\u2D00-\u2D25\u2D27\u2D2D'
+	    },
+	    {
+	        'name': 'Glagolitic',
+	        'bmp': '\u2C00-\u2C5F',
+	        'astral': '\uD838[\uDC00-\uDC06\uDC08-\uDC18\uDC1B-\uDC21\uDC23\uDC24\uDC26-\uDC2A]'
+	    },
+	    {
+	        'name': 'Gothic',
+	        'astral': '\uD800[\uDF30-\uDF4A]'
+	    },
+	    {
+	        'name': 'Grantha',
+	        'astral': '\uD804[\uDF00-\uDF03\uDF05-\uDF0C\uDF0F\uDF10\uDF13-\uDF28\uDF2A-\uDF30\uDF32\uDF33\uDF35-\uDF39\uDF3C-\uDF44\uDF47\uDF48\uDF4B-\uDF4D\uDF50\uDF57\uDF5D-\uDF63\uDF66-\uDF6C\uDF70-\uDF74]'
+	    },
+	    {
+	        'name': 'Greek',
+	        'bmp': '\u0370-\u0373\u0375-\u0377\u037A-\u037D\u037F\u0384\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03E1\u03F0-\u03FF\u1D26-\u1D2A\u1D5D-\u1D61\u1D66-\u1D6A\u1DBF\u1F00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FC4\u1FC6-\u1FD3\u1FD6-\u1FDB\u1FDD-\u1FEF\u1FF2-\u1FF4\u1FF6-\u1FFE\u2126\uAB65',
+	        'astral': '\uD800[\uDD40-\uDD8E\uDDA0]|\uD834[\uDE00-\uDE45]'
+	    },
+	    {
+	        'name': 'Gujarati',
+	        'bmp': '\u0A81-\u0A83\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABC-\u0AC5\u0AC7-\u0AC9\u0ACB-\u0ACD\u0AD0\u0AE0-\u0AE3\u0AE6-\u0AF1\u0AF9-\u0AFF'
+	    },
+	    {
+	        'name': 'Gunjala_Gondi',
+	        'astral': '\uD807[\uDD60-\uDD65\uDD67\uDD68\uDD6A-\uDD8E\uDD90\uDD91\uDD93-\uDD98\uDDA0-\uDDA9]'
+	    },
+	    {
+	        'name': 'Gurmukhi',
+	        'bmp': '\u0A01-\u0A03\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A3C\u0A3E-\u0A42\u0A47\u0A48\u0A4B-\u0A4D\u0A51\u0A59-\u0A5C\u0A5E\u0A66-\u0A76'
+	    },
+	    {
+	        'name': 'Han',
+	        'bmp': '\u2E80-\u2E99\u2E9B-\u2EF3\u2F00-\u2FD5\u3005\u3007\u3021-\u3029\u3038-\u303B\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFA6D\uFA70-\uFAD9',
+	        'astral': '\uD81B[\uDFE2\uDFE3\uDFF0\uDFF1]|[\uD840-\uD868\uD86A-\uD86C\uD86F-\uD872\uD874-\uD879\uD880-\uD883][\uDC00-\uDFFF]|\uD869[\uDC00-\uDEDF\uDF00-\uDFFF]|\uD86D[\uDC00-\uDF38\uDF40-\uDFFF]|\uD86E[\uDC00-\uDC1D\uDC20-\uDFFF]|\uD873[\uDC00-\uDEA1\uDEB0-\uDFFF]|\uD87A[\uDC00-\uDFE0]|\uD87E[\uDC00-\uDE1D]|\uD884[\uDC00-\uDF4A]'
+	    },
+	    {
+	        'name': 'Hangul',
+	        'bmp': '\u1100-\u11FF\u302E\u302F\u3131-\u318E\u3200-\u321E\u3260-\u327E\uA960-\uA97C\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uFFA0-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC'
+	    },
+	    {
+	        'name': 'Hanifi_Rohingya',
+	        'astral': '\uD803[\uDD00-\uDD27\uDD30-\uDD39]'
+	    },
+	    {
+	        'name': 'Hanunoo',
+	        'bmp': '\u1720-\u1734'
+	    },
+	    {
+	        'name': 'Hatran',
+	        'astral': '\uD802[\uDCE0-\uDCF2\uDCF4\uDCF5\uDCFB-\uDCFF]'
+	    },
+	    {
+	        'name': 'Hebrew',
+	        'bmp': '\u0591-\u05C7\u05D0-\u05EA\u05EF-\u05F4\uFB1D-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFB4F'
+	    },
+	    {
+	        'name': 'Hiragana',
+	        'bmp': '\u3041-\u3096\u309D-\u309F',
+	        'astral': '\uD82C[\uDC01-\uDD1F\uDD50-\uDD52]|\uD83C\uDE00'
+	    },
+	    {
+	        'name': 'Imperial_Aramaic',
+	        'astral': '\uD802[\uDC40-\uDC55\uDC57-\uDC5F]'
+	    },
+	    {
+	        'name': 'Inherited',
+	        'bmp': '\u0300-\u036F\u0485\u0486\u064B-\u0655\u0670\u0951-\u0954\u1AB0-\u1ACE\u1CD0-\u1CD2\u1CD4-\u1CE0\u1CE2-\u1CE8\u1CED\u1CF4\u1CF8\u1CF9\u1DC0-\u1DFF\u200C\u200D\u20D0-\u20F0\u302A-\u302D\u3099\u309A\uFE00-\uFE0F\uFE20-\uFE2D',
+	        'astral': '\uD800[\uDDFD\uDEE0]|\uD804\uDF3B|\uD833[\uDF00-\uDF2D\uDF30-\uDF46]|\uD834[\uDD67-\uDD69\uDD7B-\uDD82\uDD85-\uDD8B\uDDAA-\uDDAD]|\uDB40[\uDD00-\uDDEF]'
+	    },
+	    {
+	        'name': 'Inscriptional_Pahlavi',
+	        'astral': '\uD802[\uDF60-\uDF72\uDF78-\uDF7F]'
+	    },
+	    {
+	        'name': 'Inscriptional_Parthian',
+	        'astral': '\uD802[\uDF40-\uDF55\uDF58-\uDF5F]'
+	    },
+	    {
+	        'name': 'Javanese',
+	        'bmp': '\uA980-\uA9CD\uA9D0-\uA9D9\uA9DE\uA9DF'
+	    },
+	    {
+	        'name': 'Kaithi',
+	        'astral': '\uD804[\uDC80-\uDCC2\uDCCD]'
+	    },
+	    {
+	        'name': 'Kannada',
+	        'bmp': '\u0C80-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBC-\u0CC4\u0CC6-\u0CC8\u0CCA-\u0CCD\u0CD5\u0CD6\u0CDD\u0CDE\u0CE0-\u0CE3\u0CE6-\u0CEF\u0CF1\u0CF2'
+	    },
+	    {
+	        'name': 'Katakana',
+	        'bmp': '\u30A1-\u30FA\u30FD-\u30FF\u31F0-\u31FF\u32D0-\u32FE\u3300-\u3357\uFF66-\uFF6F\uFF71-\uFF9D',
+	        'astral': '\uD82B[\uDFF0-\uDFF3\uDFF5-\uDFFB\uDFFD\uDFFE]|\uD82C[\uDC00\uDD20-\uDD22\uDD64-\uDD67]'
+	    },
+	    {
+	        'name': 'Kayah_Li',
+	        'bmp': '\uA900-\uA92D\uA92F'
+	    },
+	    {
+	        'name': 'Kharoshthi',
+	        'astral': '\uD802[\uDE00-\uDE03\uDE05\uDE06\uDE0C-\uDE13\uDE15-\uDE17\uDE19-\uDE35\uDE38-\uDE3A\uDE3F-\uDE48\uDE50-\uDE58]'
+	    },
+	    {
+	        'name': 'Khitan_Small_Script',
+	        'astral': '\uD81B\uDFE4|\uD822[\uDF00-\uDFFF]|\uD823[\uDC00-\uDCD5]'
+	    },
+	    {
+	        'name': 'Khmer',
+	        'bmp': '\u1780-\u17DD\u17E0-\u17E9\u17F0-\u17F9\u19E0-\u19FF'
+	    },
+	    {
+	        'name': 'Khojki',
+	        'astral': '\uD804[\uDE00-\uDE11\uDE13-\uDE3E]'
+	    },
+	    {
+	        'name': 'Khudawadi',
+	        'astral': '\uD804[\uDEB0-\uDEEA\uDEF0-\uDEF9]'
+	    },
+	    {
+	        'name': 'Lao',
+	        'bmp': '\u0E81\u0E82\u0E84\u0E86-\u0E8A\u0E8C-\u0EA3\u0EA5\u0EA7-\u0EBD\u0EC0-\u0EC4\u0EC6\u0EC8-\u0ECD\u0ED0-\u0ED9\u0EDC-\u0EDF'
+	    },
+	    {
+	        'name': 'Latin',
+	        'bmp': 'A-Za-z\xAA\xBA\xC0-\xD6\xD8-\xF6\xF8-\u02B8\u02E0-\u02E4\u1D00-\u1D25\u1D2C-\u1D5C\u1D62-\u1D65\u1D6B-\u1D77\u1D79-\u1DBE\u1E00-\u1EFF\u2071\u207F\u2090-\u209C\u212A\u212B\u2132\u214E\u2160-\u2188\u2C60-\u2C7F\uA722-\uA787\uA78B-\uA7CA\uA7D0\uA7D1\uA7D3\uA7D5-\uA7D9\uA7F2-\uA7FF\uAB30-\uAB5A\uAB5C-\uAB64\uAB66-\uAB69\uFB00-\uFB06\uFF21-\uFF3A\uFF41-\uFF5A',
+	        'astral': '\uD801[\uDF80-\uDF85\uDF87-\uDFB0\uDFB2-\uDFBA]|\uD837[\uDF00-\uDF1E]'
+	    },
+	    {
+	        'name': 'Lepcha',
+	        'bmp': '\u1C00-\u1C37\u1C3B-\u1C49\u1C4D-\u1C4F'
+	    },
+	    {
+	        'name': 'Limbu',
+	        'bmp': '\u1900-\u191E\u1920-\u192B\u1930-\u193B\u1940\u1944-\u194F'
+	    },
+	    {
+	        'name': 'Linear_A',
+	        'astral': '\uD801[\uDE00-\uDF36\uDF40-\uDF55\uDF60-\uDF67]'
+	    },
+	    {
+	        'name': 'Linear_B',
+	        'astral': '\uD800[\uDC00-\uDC0B\uDC0D-\uDC26\uDC28-\uDC3A\uDC3C\uDC3D\uDC3F-\uDC4D\uDC50-\uDC5D\uDC80-\uDCFA]'
+	    },
+	    {
+	        'name': 'Lisu',
+	        'bmp': '\uA4D0-\uA4FF',
+	        'astral': '\uD807\uDFB0'
+	    },
+	    {
+	        'name': 'Lycian',
+	        'astral': '\uD800[\uDE80-\uDE9C]'
+	    },
+	    {
+	        'name': 'Lydian',
+	        'astral': '\uD802[\uDD20-\uDD39\uDD3F]'
+	    },
+	    {
+	        'name': 'Mahajani',
+	        'astral': '\uD804[\uDD50-\uDD76]'
+	    },
+	    {
+	        'name': 'Makasar',
+	        'astral': '\uD807[\uDEE0-\uDEF8]'
+	    },
+	    {
+	        'name': 'Malayalam',
+	        'bmp': '\u0D00-\u0D0C\u0D0E-\u0D10\u0D12-\u0D44\u0D46-\u0D48\u0D4A-\u0D4F\u0D54-\u0D63\u0D66-\u0D7F'
+	    },
+	    {
+	        'name': 'Mandaic',
+	        'bmp': '\u0840-\u085B\u085E'
+	    },
+	    {
+	        'name': 'Manichaean',
+	        'astral': '\uD802[\uDEC0-\uDEE6\uDEEB-\uDEF6]'
+	    },
+	    {
+	        'name': 'Marchen',
+	        'astral': '\uD807[\uDC70-\uDC8F\uDC92-\uDCA7\uDCA9-\uDCB6]'
+	    },
+	    {
+	        'name': 'Masaram_Gondi',
+	        'astral': '\uD807[\uDD00-\uDD06\uDD08\uDD09\uDD0B-\uDD36\uDD3A\uDD3C\uDD3D\uDD3F-\uDD47\uDD50-\uDD59]'
+	    },
+	    {
+	        'name': 'Medefaidrin',
+	        'astral': '\uD81B[\uDE40-\uDE9A]'
+	    },
+	    {
+	        'name': 'Meetei_Mayek',
+	        'bmp': '\uAAE0-\uAAF6\uABC0-\uABED\uABF0-\uABF9'
+	    },
+	    {
+	        'name': 'Mende_Kikakui',
+	        'astral': '\uD83A[\uDC00-\uDCC4\uDCC7-\uDCD6]'
+	    },
+	    {
+	        'name': 'Meroitic_Cursive',
+	        'astral': '\uD802[\uDDA0-\uDDB7\uDDBC-\uDDCF\uDDD2-\uDDFF]'
+	    },
+	    {
+	        'name': 'Meroitic_Hieroglyphs',
+	        'astral': '\uD802[\uDD80-\uDD9F]'
+	    },
+	    {
+	        'name': 'Miao',
+	        'astral': '\uD81B[\uDF00-\uDF4A\uDF4F-\uDF87\uDF8F-\uDF9F]'
+	    },
+	    {
+	        'name': 'Modi',
+	        'astral': '\uD805[\uDE00-\uDE44\uDE50-\uDE59]'
+	    },
+	    {
+	        'name': 'Mongolian',
+	        'bmp': '\u1800\u1801\u1804\u1806-\u1819\u1820-\u1878\u1880-\u18AA',
+	        'astral': '\uD805[\uDE60-\uDE6C]'
+	    },
+	    {
+	        'name': 'Mro',
+	        'astral': '\uD81A[\uDE40-\uDE5E\uDE60-\uDE69\uDE6E\uDE6F]'
+	    },
+	    {
+	        'name': 'Multani',
+	        'astral': '\uD804[\uDE80-\uDE86\uDE88\uDE8A-\uDE8D\uDE8F-\uDE9D\uDE9F-\uDEA9]'
+	    },
+	    {
+	        'name': 'Myanmar',
+	        'bmp': '\u1000-\u109F\uA9E0-\uA9FE\uAA60-\uAA7F'
+	    },
+	    {
+	        'name': 'Nabataean',
+	        'astral': '\uD802[\uDC80-\uDC9E\uDCA7-\uDCAF]'
+	    },
+	    {
+	        'name': 'Nandinagari',
+	        'astral': '\uD806[\uDDA0-\uDDA7\uDDAA-\uDDD7\uDDDA-\uDDE4]'
+	    },
+	    {
+	        'name': 'New_Tai_Lue',
+	        'bmp': '\u1980-\u19AB\u19B0-\u19C9\u19D0-\u19DA\u19DE\u19DF'
+	    },
+	    {
+	        'name': 'Newa',
+	        'astral': '\uD805[\uDC00-\uDC5B\uDC5D-\uDC61]'
+	    },
+	    {
+	        'name': 'Nko',
+	        'bmp': '\u07C0-\u07FA\u07FD-\u07FF'
+	    },
+	    {
+	        'name': 'Nushu',
+	        'astral': '\uD81B\uDFE1|\uD82C[\uDD70-\uDEFB]'
+	    },
+	    {
+	        'name': 'Nyiakeng_Puachue_Hmong',
+	        'astral': '\uD838[\uDD00-\uDD2C\uDD30-\uDD3D\uDD40-\uDD49\uDD4E\uDD4F]'
+	    },
+	    {
+	        'name': 'Ogham',
+	        'bmp': '\u1680-\u169C'
+	    },
+	    {
+	        'name': 'Ol_Chiki',
+	        'bmp': '\u1C50-\u1C7F'
+	    },
+	    {
+	        'name': 'Old_Hungarian',
+	        'astral': '\uD803[\uDC80-\uDCB2\uDCC0-\uDCF2\uDCFA-\uDCFF]'
+	    },
+	    {
+	        'name': 'Old_Italic',
+	        'astral': '\uD800[\uDF00-\uDF23\uDF2D-\uDF2F]'
+	    },
+	    {
+	        'name': 'Old_North_Arabian',
+	        'astral': '\uD802[\uDE80-\uDE9F]'
+	    },
+	    {
+	        'name': 'Old_Permic',
+	        'astral': '\uD800[\uDF50-\uDF7A]'
+	    },
+	    {
+	        'name': 'Old_Persian',
+	        'astral': '\uD800[\uDFA0-\uDFC3\uDFC8-\uDFD5]'
+	    },
+	    {
+	        'name': 'Old_Sogdian',
+	        'astral': '\uD803[\uDF00-\uDF27]'
+	    },
+	    {
+	        'name': 'Old_South_Arabian',
+	        'astral': '\uD802[\uDE60-\uDE7F]'
+	    },
+	    {
+	        'name': 'Old_Turkic',
+	        'astral': '\uD803[\uDC00-\uDC48]'
+	    },
+	    {
+	        'name': 'Old_Uyghur',
+	        'astral': '\uD803[\uDF70-\uDF89]'
+	    },
+	    {
+	        'name': 'Oriya',
+	        'bmp': '\u0B01-\u0B03\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3C-\u0B44\u0B47\u0B48\u0B4B-\u0B4D\u0B55-\u0B57\u0B5C\u0B5D\u0B5F-\u0B63\u0B66-\u0B77'
+	    },
+	    {
+	        'name': 'Osage',
+	        'astral': '\uD801[\uDCB0-\uDCD3\uDCD8-\uDCFB]'
+	    },
+	    {
+	        'name': 'Osmanya',
+	        'astral': '\uD801[\uDC80-\uDC9D\uDCA0-\uDCA9]'
+	    },
+	    {
+	        'name': 'Pahawh_Hmong',
+	        'astral': '\uD81A[\uDF00-\uDF45\uDF50-\uDF59\uDF5B-\uDF61\uDF63-\uDF77\uDF7D-\uDF8F]'
+	    },
+	    {
+	        'name': 'Palmyrene',
+	        'astral': '\uD802[\uDC60-\uDC7F]'
+	    },
+	    {
+	        'name': 'Pau_Cin_Hau',
+	        'astral': '\uD806[\uDEC0-\uDEF8]'
+	    },
+	    {
+	        'name': 'Phags_Pa',
+	        'bmp': '\uA840-\uA877'
+	    },
+	    {
+	        'name': 'Phoenician',
+	        'astral': '\uD802[\uDD00-\uDD1B\uDD1F]'
+	    },
+	    {
+	        'name': 'Psalter_Pahlavi',
+	        'astral': '\uD802[\uDF80-\uDF91\uDF99-\uDF9C\uDFA9-\uDFAF]'
+	    },
+	    {
+	        'name': 'Rejang',
+	        'bmp': '\uA930-\uA953\uA95F'
+	    },
+	    {
+	        'name': 'Runic',
+	        'bmp': '\u16A0-\u16EA\u16EE-\u16F8'
+	    },
+	    {
+	        'name': 'Samaritan',
+	        'bmp': '\u0800-\u082D\u0830-\u083E'
+	    },
+	    {
+	        'name': 'Saurashtra',
+	        'bmp': '\uA880-\uA8C5\uA8CE-\uA8D9'
+	    },
+	    {
+	        'name': 'Sharada',
+	        'astral': '\uD804[\uDD80-\uDDDF]'
+	    },
+	    {
+	        'name': 'Shavian',
+	        'astral': '\uD801[\uDC50-\uDC7F]'
+	    },
+	    {
+	        'name': 'Siddham',
+	        'astral': '\uD805[\uDD80-\uDDB5\uDDB8-\uDDDD]'
+	    },
+	    {
+	        'name': 'SignWriting',
+	        'astral': '\uD836[\uDC00-\uDE8B\uDE9B-\uDE9F\uDEA1-\uDEAF]'
+	    },
+	    {
+	        'name': 'Sinhala',
+	        'bmp': '\u0D81-\u0D83\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0DCA\u0DCF-\u0DD4\u0DD6\u0DD8-\u0DDF\u0DE6-\u0DEF\u0DF2-\u0DF4',
+	        'astral': '\uD804[\uDDE1-\uDDF4]'
+	    },
+	    {
+	        'name': 'Sogdian',
+	        'astral': '\uD803[\uDF30-\uDF59]'
+	    },
+	    {
+	        'name': 'Sora_Sompeng',
+	        'astral': '\uD804[\uDCD0-\uDCE8\uDCF0-\uDCF9]'
+	    },
+	    {
+	        'name': 'Soyombo',
+	        'astral': '\uD806[\uDE50-\uDEA2]'
+	    },
+	    {
+	        'name': 'Sundanese',
+	        'bmp': '\u1B80-\u1BBF\u1CC0-\u1CC7'
+	    },
+	    {
+	        'name': 'Syloti_Nagri',
+	        'bmp': '\uA800-\uA82C'
+	    },
+	    {
+	        'name': 'Syriac',
+	        'bmp': '\u0700-\u070D\u070F-\u074A\u074D-\u074F\u0860-\u086A'
+	    },
+	    {
+	        'name': 'Tagalog',
+	        'bmp': '\u1700-\u1715\u171F'
+	    },
+	    {
+	        'name': 'Tagbanwa',
+	        'bmp': '\u1760-\u176C\u176E-\u1770\u1772\u1773'
+	    },
+	    {
+	        'name': 'Tai_Le',
+	        'bmp': '\u1950-\u196D\u1970-\u1974'
+	    },
+	    {
+	        'name': 'Tai_Tham',
+	        'bmp': '\u1A20-\u1A5E\u1A60-\u1A7C\u1A7F-\u1A89\u1A90-\u1A99\u1AA0-\u1AAD'
+	    },
+	    {
+	        'name': 'Tai_Viet',
+	        'bmp': '\uAA80-\uAAC2\uAADB-\uAADF'
+	    },
+	    {
+	        'name': 'Takri',
+	        'astral': '\uD805[\uDE80-\uDEB9\uDEC0-\uDEC9]'
+	    },
+	    {
+	        'name': 'Tamil',
+	        'bmp': '\u0B82\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BBE-\u0BC2\u0BC6-\u0BC8\u0BCA-\u0BCD\u0BD0\u0BD7\u0BE6-\u0BFA',
+	        'astral': '\uD807[\uDFC0-\uDFF1\uDFFF]'
+	    },
+	    {
+	        'name': 'Tangsa',
+	        'astral': '\uD81A[\uDE70-\uDEBE\uDEC0-\uDEC9]'
+	    },
+	    {
+	        'name': 'Tangut',
+	        'astral': '\uD81B\uDFE0|[\uD81C-\uD820][\uDC00-\uDFFF]|\uD821[\uDC00-\uDFF7]|\uD822[\uDC00-\uDEFF]|\uD823[\uDD00-\uDD08]'
+	    },
+	    {
+	        'name': 'Telugu',
+	        'bmp': '\u0C00-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C39\u0C3C-\u0C44\u0C46-\u0C48\u0C4A-\u0C4D\u0C55\u0C56\u0C58-\u0C5A\u0C5D\u0C60-\u0C63\u0C66-\u0C6F\u0C77-\u0C7F'
+	    },
+	    {
+	        'name': 'Thaana',
+	        'bmp': '\u0780-\u07B1'
+	    },
+	    {
+	        'name': 'Thai',
+	        'bmp': '\u0E01-\u0E3A\u0E40-\u0E5B'
+	    },
+	    {
+	        'name': 'Tibetan',
+	        'bmp': '\u0F00-\u0F47\u0F49-\u0F6C\u0F71-\u0F97\u0F99-\u0FBC\u0FBE-\u0FCC\u0FCE-\u0FD4\u0FD9\u0FDA'
+	    },
+	    {
+	        'name': 'Tifinagh',
+	        'bmp': '\u2D30-\u2D67\u2D6F\u2D70\u2D7F'
+	    },
+	    {
+	        'name': 'Tirhuta',
+	        'astral': '\uD805[\uDC80-\uDCC7\uDCD0-\uDCD9]'
+	    },
+	    {
+	        'name': 'Toto',
+	        'astral': '\uD838[\uDE90-\uDEAE]'
+	    },
+	    {
+	        'name': 'Ugaritic',
+	        'astral': '\uD800[\uDF80-\uDF9D\uDF9F]'
+	    },
+	    {
+	        'name': 'Vai',
+	        'bmp': '\uA500-\uA62B'
+	    },
+	    {
+	        'name': 'Vithkuqi',
+	        'astral': '\uD801[\uDD70-\uDD7A\uDD7C-\uDD8A\uDD8C-\uDD92\uDD94\uDD95\uDD97-\uDDA1\uDDA3-\uDDB1\uDDB3-\uDDB9\uDDBB\uDDBC]'
+	    },
+	    {
+	        'name': 'Wancho',
+	        'astral': '\uD838[\uDEC0-\uDEF9\uDEFF]'
+	    },
+	    {
+	        'name': 'Warang_Citi',
+	        'astral': '\uD806[\uDCA0-\uDCF2\uDCFF]'
+	    },
+	    {
+	        'name': 'Yezidi',
+	        'astral': '\uD803[\uDE80-\uDEA9\uDEAB-\uDEAD\uDEB0\uDEB1]'
+	    },
+	    {
+	        'name': 'Yi',
+	        'bmp': '\uA000-\uA48C\uA490-\uA4C6'
+	    },
+	    {
+	        'name': 'Zanabazar_Square',
+	        'astral': '\uD806[\uDE00-\uDE47]'
+	    }
+	];
+	return scripts$1;
+}
+
+var scriptsExports = requireScripts();
+var scripts = /*@__PURE__*/getDefaultExportFromCjs(scriptsExports);
+
+/*!
+ * XRegExp Unicode Scripts 5.1.2
+ * <xregexp.com>
+ * Steven Levithan (c) 2010-present MIT License
+ * Unicode data by Mathias Bynens <mathiasbynens.be>
+ */
+
+
+var unicodeScripts = (XRegExp) => {
+
+    /**
+     * Adds support for all Unicode scripts. E.g., `\p{Latin}`. Token names are case insensitive,
+     * and any spaces, hyphens, and underscores are ignored.
+     *
+     * Uses Unicode 14.0.0.
+     *
+     * @requires XRegExp, Unicode Base
+     */
+
+    if (!XRegExp.addUnicodeData) {
+        throw new ReferenceError('Unicode Base must be loaded before Unicode Scripts');
+    }
+
+    XRegExp.addUnicodeData(scripts, 'Script');
+};
+
+build(XRegExp);
+matchRecursive(XRegExp);
+unicodeBase(XRegExp);
+unicodeCategories(XRegExp);
+unicodeProperties(XRegExp);
+unicodeScripts(XRegExp);
+
+var me=class{debug=false;enableDebug(){this.debug=true;}isDebug(){return this.debug}},A=new me;var Ze=/]/,N=createToken({name:"ArrayClose",pattern:Ze,label:"]",pop_mode:true});var Je=/\[/,M=createToken({name:"ArrayOpen",pattern:Je,label:"[",push_mode:"Array"});var et=/,/,B=createToken({name:"Comma",pattern:et,label:","});var v=createToken({name:"ArrayTableClose",pattern:/]]/,label:"]]",push_mode:"Value"});var R=createToken({name:"ArrayTableOpen",pattern:/\[\[/,label:"[["});var H=new Map,d=(r,e,t)=>{let i=H[e.tokenType.name];if(i)return i(r,e,t)},o=(r,e)=>{H[r.name]=e;};var h=createToken({name:"Boolean",pattern:Lexer.NA});o(h,d);var g=/[ \t]/,b=/[\x80-\uD7FF]|[\uE000-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]/,l=/\r\n|\n/,P=/"/,pe=/\\/,c=/[0-9]/,ce=XRegExp.build("{{digit}}|[A-Fa-f]",{digit:c}),ot=XRegExp.build('["\\\\bfnrt]|u{{hexDigit}}{4}|U{{hexDigit}}{8}',{hexDigit:ce}),Z=XRegExp.build("{{escape}}{{escapeSeqChar}}",{escape:pe,escapeSeqChar:ot}),F=/'/,k=/_/,G=/-/,J=/\+/,at=/[1-9]/,st=XRegExp.build("{{digit1_9}}({{digit}}|{{underscore}}{{digit}})+|{{digit}}",{digit1_9:at,digit:c,underscore:k}),j=XRegExp.build("({{minus}}|{{plus}})?{{unsignedDecimalInteger}}",{minus:G,plus:J,unsignedDecimalInteger:st});var f=class extends Error{constructor(e){super(e),this.name="SyntaxParseError";}},ee=class extends f{errors;constructor(e){super(`Syntax error
+`+e.map(t=>t.message).join(`
+`)),this.errors=e;}},te=class extends f{errors;constructor(e){super(`Syntax error
+`+e.map(t=>t.message).join(`
+`)),this.errors=e;}},re=class extends f{constructor(e){super(e);}};var De=XRegExp.build("{{digit}}{4}",{digit:c}),we=XRegExp.build("{{digit}}{2}",{digit:c}),Ne=XRegExp.build("{{digit}}{2}",{digit:c}),Me=/[Tt ]/,ue=XRegExp.build("{{digit}}{2}",{digit:c}),fe=XRegExp.build("{{digit}}{2}",{digit:c}),Be=XRegExp.build("{{digit}}{2}",{digit:c}),mt=XRegExp.build("\\.{{digit}}+",{digit:c}),pt=XRegExp.build("[+-]{{timeHour}}:{{timeMinute}}",{timeHour:ue,timeMinute:fe}),ct=XRegExp.build("[Zz]|{{timeNumOffset}}",{timeNumOffset:pt}),de=XRegExp.build("{{timeHour}}:{{timeMinute}}:{{timeSecond}}{{timeSecFrac}}?",{timeHour:ue,timeMinute:fe,timeSecond:Be,timeSecFrac:mt}),he=XRegExp.build("{{dateFullYear}}-{{dateMonth}}-{{dateMDay}}",{dateFullYear:De,dateMonth:we,dateMDay:Ne}),ut=XRegExp.build("{{partialTime}}{{timeOffset}}",{partialTime:de,timeOffset:ct}),ft=XRegExp.build("{{fullDate}}{{timeDelim}}{{fullTime}}",{fullDate:he,timeDelim:Me,fullTime:ut}),dt=XRegExp.build("{{fullDate}}{{timeDelim}}{{partialTime}}",{fullDate:he,timeDelim:Me,partialTime:de}),ht=he,ve=de,gt=XRegExp.build("{{offsetDateTime}}|{{localDateTime}}|{{localDate}}|{{localTime}}",{offsetDateTime:ft,localDateTime:dt,localDate:ht,localTime:ve}),S=createToken({name:"DateTime",pattern:gt}),bt=r=>{let e=XRegExp.build("({{dateFullYear}})-({{dateMonth}})-({{dateMDay}})",{dateFullYear:De,dateMonth:we,dateMDay:Ne}),t=XRegExp.exec(r,e);if(t){let i=Number(t[1]),n=Number(t[2]),a=Number(t[3]),p=new Date(i,n-1,a);return p.getFullYear()===i&&p.getMonth()+1===n&&p.getDate()===a}return  true},Tt=r=>{let e=XRegExp.build("({{timeHour}}):({{timeMinute}}):({{timeSecond}})",{timeHour:ue,timeMinute:fe,timeSecond:Be}),t=XRegExp.exec(r,e);if(t){let i=Number(t[1]),n=Number(t[2]),a=Number(t[3]),p=new Date(0,0,0,i,n,a);return p.getHours()===i&&p.getMinutes()===n&&p.getSeconds()===a}return  true},xt=r=>bt(r)&&Tt(r);o(S,r=>{var t;if(!xt(r))throw new f(`Invalid date time: ${r}`);return ((t=r.match(ve))==null?void 0:t.index)===0?r:new Date(r)});var K=createToken({name:"DotSeparator",pattern:/\./,label:"."});var O=createToken({name:"ExpressionNewLine",pattern:l});var Lt=j,Re=XRegExp.build("{{digit}}({{digit}}|{{underscore}}{{digit}})*",{digit:c,underscore:k}),kt=XRegExp.build("({{minus}}|{{plus}})?{{zeroPrefixableInt}}",{minus:G,plus:J,zeroPrefixableInt:Re}),Et=XRegExp.build("[Ee]{{floatExpPart}}",{floatExpPart:kt}),Ct=/\./,At=XRegExp.build("{{decimalPoint}}{{zeroPrefixableInt}}",{decimalPoint:Ct,zeroPrefixableInt:Re}),Ot=/inf/,Ut=/nan/,Dt=XRegExp.build("({{minus}}|{{plus}})?({{inf}}|{{nan}})",{minus:G,plus:J,inf:Ot,nan:Ut}),wt=XRegExp.build("{{floatIntPart}}({{exp}}|{{frac}}{{exp}}?)|{{specialFloat}}",{floatIntPart:Lt,exp:Et,frac:At,specialFloat:Dt}),y=createToken({name:"Float",pattern:wt}),Nt=r=>r==="inf"||r==="+inf"?1/0:r==="-inf"?-1/0:r==="nan"||r==="+nan"||r==="-nan"?NaN:null;o(y,r=>{let e=Nt(r);if(e!==null)return e;let t=r.replace(/_/g,"");return parseFloat(t)});var Bt=/}/,D=createToken({name:"InlineTableClose",pattern:Bt,label:"}",pop_mode:true});var Rt=/{/,_=createToken({name:"InlineTableOpen",pattern:Rt,label:"{",push_mode:"InlineTable"});var Pt=/,/,q=createToken({name:"InlineTableSep",pattern:Pt,label:",",pop_mode:true,push_mode:"InlineTable"});var T=createToken({name:"Integer",pattern:Lexer.NA});o(T,d);var E=createToken({name:"KeyValueSeparator",pattern:/=/,label:"=",push_mode:"Value"});var X=createToken({name:"Newline",pattern:l,pop_mode:true});var m=createToken({name:"SimpleKey",pattern:Lexer.NA});o(m,d);var Q=createToken({name:"StdTableClose",pattern:/]/,label:"]",push_mode:"Value"});var Y=createToken({name:"StdTableOpen",pattern:/\[/,label:"["});var u=createToken({name:"String",pattern:Lexer.NA});o(u,d);var Jt=XRegExp.build("{{whiteSpaceChar}}+",{whiteSpaceChar:g}),ge=createToken({name:"WhiteSpace",pattern:Jt,group:Lexer.SKIPPED});var jt=XRegExp.build("^{{whiteSpaceChar}}*{{newline}}(?:{{whiteSpaceChar}}|{{newline}})*",{whiteSpaceChar:g,newline:l}),er=r=>{let e=XRegExp.exec(r,jt);return e?e[0].length:0},ie=r=>{let e="";for(let t=0;t<r.length;t++){let i=r[t];if(i==="\\"){t++;let n=er(r.slice(t));if(n>0){t+=n-1;continue}switch(r[t]){case "b":e+="\b";break;case "t":e+="	";break;case "n":e+=`
+`;break;case "f":e+="\f";break;case "r":e+="\r";break;case '"':e+='"';break;case "\\":e+="\\";break;case "u":{let a=r.slice(t+1,t+5),p=parseInt(a,16);if(p>55295&&p<57344)throw new f(`Invalid Unicode code point: \\u${a}`);e+=String.fromCodePoint(p),t+=4;break}case "U":{let a=r.slice(t+1,t+9),p=parseInt(a,16);if(p>1114111)throw new f(`Invalid Unicode code point: \\U${a}`);e+=String.fromCodePoint(p),t+=8;break}case r.match(/^[0-7]{1,3}$/):}}else e+=i;}return e},ne=r=>r.substring(3,r.length-3).replace(/^(\r\n|\n)/,"");var rr=XRegExp.build("{{quotationMark}}{3}",{quotationMark:P}),ir=XRegExp.build("{{whiteSpaceChar}}|!|[#-\\x5B]|[\\x5D-~]|{{nonAscii}}",{whiteSpaceChar:g,nonAscii:b}),nr=XRegExp.build("{{multiLineBasicUnescaped}}|{{escaped}}",{multiLineBasicUnescaped:ir,escaped:Z}),or=XRegExp.build("{{whiteSpaceChar}}*",{whiteSpaceChar:g}),ar=XRegExp.build("{{escape}}{{whiteSpace}}{{newline}}({{whiteSpaceChar}}|{{newline}})*",{escape:pe,whiteSpace:or,newline:l,whiteSpaceChar:g}),sr=XRegExp.build("{{multiLineBasicChar}}|{{newline}}|{{multiLineBasicEscapedNewline}}",{multiLineBasicChar:nr,newline:l,multiLineBasicEscapedNewline:ar}),lr=XRegExp.build("{{quotationMark}}{1,2}",{quotationMark:P}),mr=XRegExp.build("{{multiLineBasicContent}}*({{multiLineBasicQuotes}}{{multiLineBasicContent}}+)*{{multiLineBasicQuotes}}?",{multiLineBasicContent:sr,multiLineBasicQuotes:lr}),be=createToken({name:"MultiLineBasicString",pattern:XRegExp.build("{{multiLineBasicStringDelimiter}}{{newline}}?{{multiLineBasicBody}}{{multiLineBasicStringDelimiter}}",{multiLineBasicStringDelimiter:rr,newline:l,multiLineBasicBody:mr}),label:'"""MultiLineBasicString"""',categories:[u],line_breaks:true});o(be,r=>{let e=ne(r);return ie(e)});var cr=XRegExp.build("{{apostrophe}}{3}",{apostrophe:F}),ur=XRegExp.build("	|[ -&]|[\\x28-~]|{{nonAscii}}",{nonAscii:b}),fr=XRegExp.build("{{multiLineLiteralChar}}|{{newline}}",{multiLineLiteralChar:ur,newline:l}),dr=XRegExp.build("{{apostrophe}}{1,2}",{apostrophe:F}),hr=XRegExp.build("{{multiLineLiteralContent}}*({{multiLineLiteralQuotes}}{{multiLineLiteralContent}}+)*{{multiLineLiteralQuotes}}?",{multiLineLiteralContent:fr,multiLineLiteralQuotes:dr}),Te=createToken({name:"MultiLineLiteralString",pattern:XRegExp.build("{{multiLineLiteralStringDelimiter}}{{newline}}?{{multiLineLiteralBody}}{{multiLineLiteralStringDelimiter}}",{multiLineLiteralStringDelimiter:cr,newline:l,multiLineLiteralBody:hr}),label:"'''MultiLineLiteralString'''",categories:[u],line_breaks:true});o(Te,ne);var W=createToken({name:"QuotedKey",pattern:Lexer.NA,categories:[m]});o(W,d);var xr=XRegExp.build("{{whiteSpaceChar}}|!|[#-\\x5B]|[\\x5D-~]|{{nonAscii}}",{whiteSpaceChar:g,nonAscii:b}),Sr=XRegExp.build("{{basicUnescaped}}|{{escaped}}",{basicUnescaped:xr,escaped:Z}),oe=createToken({name:"BasicString",pattern:XRegExp.build("{{quotationMark}}{{basicChar}}*{{quotationMark}}",{quotationMark:P,basicChar:Sr}),label:'"BasicString"',categories:[W,u]});o(oe,r=>{let e=r.slice(1,-1);return ie(e)});var Ir=XRegExp.build("	|[ -&]|[\\x28-~]|{{nonAscii}}",{nonAscii:b}),ae=createToken({name:"LiteralString",pattern:XRegExp.build("{{apostrophe}}{{literalChar}}*{{apostrophe}}",{apostrophe:F,literalChar:Ir}),label:"'LiteralString'",categories:[W,u]});o(ae,r=>r.slice(1,-1));var kr=/0x/,Er=/0o/,Cr=/0b/,Ar=/[0-7]/,Or=/[01]/,Ur=XRegExp.build("{{hexPrefix}}{{hexDigit}}({{hexDigit}}|{{underscore}}{{hexDigit}})*",{hexPrefix:kr,hexDigit:ce,underscore:k}),Dr=XRegExp.build("{{octPrefix}}{{digit0_7}}({{digit0_7}}|{{underscore}}{{digit0_7}})*",{octPrefix:Er,digit0_7:Ar,underscore:k}),wr=XRegExp.build("{{binPrefix}}{{digit0_1}}({{digit0_1}}|{{underscore}}{{digit0_1}})*",{binPrefix:Cr,digit0_1:Or,underscore:k}),Nr=XRegExp.build("{{hexInteger}}|{{octalInteger}}|{{binaryInteger}}",{hexInteger:Ur,octalInteger:Dr,binaryInteger:wr}),Se=createToken({name:"NonDecimalInteger",pattern:Nr,categories:[T]}),Mr=(r,e)=>{let t=BigInt(0);for(let i=0;i<r.length;i++){let n=r[i],a=parseInt(n,e);t=t*BigInt(e)+BigInt(a);}return t},Br=r=>{if(r.startsWith("0x"))return 16;if(r.startsWith("0o"))return 8;if(r.startsWith("0b"))return 2};o(Se,r=>{let t=r.replace(/_/g,"").slice(2),i=Br(r),n=parseInt(t,i);return Number.isSafeInteger(n)?n:Mr(t,i)});var ye=createToken({name:"DecimalInteger",pattern:j,categories:[T]});o(ye,r=>{let e=r.replace(/_/g,""),t=parseInt(e);return Number.isSafeInteger(t)?t||0:BigInt(e)});var Pr=/[a-zA-Z]/,Fr=XRegExp.build("({{alpha}}|{{digit}}|-|_)+",{alpha:Pr,digit:c}),Ie=createToken({name:"UnquotedKey",pattern:Fr,categories:[m]});o(Ie,r=>r);var _r=/#/,qr=XRegExp.build("	|[ -~]|{{nonAscii}}",{nonAscii:b}),Xr=XRegExp.build("{{commentStartChar}}{{nonEol}}*",{commentStartChar:_r,nonEol:qr}),Le=createToken({name:"Comment",pattern:Xr,group:"comment"});var Yr=/true/,ke=createToken({name:"True",pattern:Yr,label:"true",categories:[h]});o(ke,()=>true);var zr=/false/,Ee=createToken({name:"False",pattern:zr,label:"false",categories:[h]});o(Ee,()=>false);var Ke=createToken({name:"IgnoredNewline",pattern:l,group:Lexer.SKIPPED});var _e=createToken({name:"InlineTableKeyValSep",pattern:/=/,label:"=",push_mode:"Value",pop_mode:true,categories:[E]});var qe=[ge,oe,ae,Ie,K,m],Xe=[ge,be,Te,oe,ae,ke,Ee,S,y,Se,ye,M,_,Le],z={modes:{Key:[Le,O,E,R,v,Y,Q,...qe],Value:[...Xe,X,q,D],Array:[...Xe,Ke,B,N],InlineTable:[...qe,_e,D]},defaultMode:"Key"};var Qe=new Lexer(z,{ensureOptimizations:true,skipValidations:!A.isDebug(),traceInitPerf:A.isDebug()});var Ce=class extends CstParser{toml=this.RULE("toml",()=>{this.MANY(()=>this.CONSUME(O)),this.MANY1(()=>{this.SUBRULE1(this.expression),this.OPTION2(()=>{this.CONSUME1(X),this.MANY3(()=>this.CONSUME2(O));});});});valueCache;dottedKey=this.RULE("dottedKey",()=>{this.CONSUME(m),this.AT_LEAST_ONE(()=>{this.CONSUME(K),this.CONSUME1(m);});});key=this.RULE("key",()=>{this.OR({MAX_LOOKAHEAD:2,DEF:[{ALT:()=>this.SUBRULE(this.dottedKey)},{ALT:()=>this.CONSUME(m)}]});});inlineTableKeyValues=this.RULE("inlineTableKeyValues",()=>{this.MANY_SEP({SEP:q,DEF:()=>this.SUBRULE(this.keyValue)});});inlineTable=this.RULE("inlineTable",()=>{this.CONSUME(_),this.OPTION(()=>this.SUBRULE(this.inlineTableKeyValues)),this.CONSUME(D);});array=this.RULE("array",()=>{this.CONSUME(M),this.OPTION(()=>this.SUBRULE(this.arrayValues)),this.CONSUME(N);});value=this.RULE("value",()=>{this.OR(this.valueCache||(this.valueCache=[{ALT:()=>this.CONSUME(u)},{ALT:()=>this.CONSUME(h)},{ALT:()=>this.SUBRULE(this.array)},{ALT:()=>this.SUBRULE(this.inlineTable)},{ALT:()=>this.CONSUME(S)},{ALT:()=>this.CONSUME(y)},{ALT:()=>this.CONSUME(T)}]));});keyValue=this.RULE("keyValue",()=>{this.SUBRULE(this.key),this.CONSUME(E),this.SUBRULE(this.value);});arrayValues=this.RULE("arrayValues",()=>{this.SUBRULE(this.value);let e=true;this.MANY({GATE:()=>e,DEF:()=>{this.CONSUME(B),this.OPTION(()=>this.SUBRULE1(this.value))||(e=false);}});});stdTable=this.RULE("stdTable",()=>{this.CONSUME(Y),this.SUBRULE(this.key),this.CONSUME(Q);});arrayTable=this.RULE("arrayTable",()=>{this.CONSUME(R),this.SUBRULE(this.key),this.CONSUME(v);});table=this.RULE("table",()=>{this.OR([{ALT:()=>this.SUBRULE(this.stdTable)},{ALT:()=>this.SUBRULE(this.arrayTable)}]);});expression=this.RULE("expression",()=>{this.OR([{ALT:()=>this.SUBRULE(this.keyValue)},{ALT:()=>this.SUBRULE(this.table)}]);});constructor(){super(z,{traceInitPerf:A.isDebug(),maxLookahead:1,skipValidations:!A.isDebug()}),this.performSelfAnalysis();}},C=new Ce;var Ye=r=>r&&(r.constructor===Object||r.constructor===void 0),le=()=>Object.create(null),Ae=(r,e)=>{try{return r()}catch(t){if(t instanceof I)throw new re(e)}},I=class extends Error{},jr=C.getBaseCstVisitorConstructor(),Oe=Symbol("explicitlyDeclared"),We=Symbol("implicitlyDeclared"),$=Symbol("notEditable"),Ue=class extends jr{constructor(){super(),this.validateVisitor();}toml(e){var n;let t=le(),i=t;return (n=e.expression)==null||n.forEach(a=>i=this.visit(a,{current:i,root:t})),this.cleanInternalProperties(t),t}expression(e,{current:t,root:i}){if(e.keyValue)return this.visit(e.keyValue,t),t;if(e.table)return this.visit(e.table,i)}keyValue(e,t){let i=this.visit(e.key),n=this.visit(e.value);Ae(()=>this.assignValue(i,n,t),`Cannot assign value to '${i.join(".")}'`);}key(e){return e.dottedKey?this.visit(e.dottedKey):[this.interpret(e,m)]}dottedKey(e){return this.interpret(e,m)}inlineTableKeyValues(e,t){e.keyValue&&e.keyValue.forEach(i=>this.visit(i,t));}inlineTable(e){let t=le();return t[$]=true,e.inlineTableKeyValues&&this.visit(e.inlineTableKeyValues,t),t}value(e){return e.array?this.visit(e.array):e.inlineTable?this.visit(e.inlineTable):this.interpret(e,u,y,h,S,T)}arrayValues(e,t){return e.value.forEach(i=>t.push(this.visit(i))),t}array(e){let t=[];return t[$]=true,e.arrayValues?this.visit(e.arrayValues,t):t}table(e,t){if(e.stdTable)return this.visit(e.stdTable,t);if(e.arrayTable)return this.visit(e.arrayTable,t)}stdTable(e,t){let i=this.visit(e.key);return Ae(()=>this.createTable(i,t),`Cannot create table '${i.join(".")}'`)}arrayTable(e,t){let i=this.visit(e.key);return Ae(()=>{let n=this.getOrCreateArray(i,t);if(n[$])throw new I;let a=le();return n.push(a),a},`Cannot create array table '${i.join(".")}'`)}cleanInternalProperties(e){for(let t of Object.getOwnPropertySymbols(e))delete e[t];for(let t in e)typeof e[t]=="object"&&this.cleanInternalProperties(e[t]),Array.isArray(e[t])&&e[t].forEach(i=>this.cleanInternalProperties(i));}interpret(e,...t){for(let i of t)if(e[i.name]){let n=e[i.name].map(a=>H[i.name](a.image,a,i.name));return n.length===1?n[0]:n}}assignPrimitiveValue(e,t,i){if(e in i)throw new I;return Ye(t)&&(t[Oe]=true),i[e]=t,i}tryCreatingObject(e,t,i,n,a){if(t[e]){if(!Ye(t[e])||!a&&t[e][Oe]||!n&&t[e][We]||t[e][$])throw new I}else t[e]=le(),i&&(t[e][i]=true);return t[e]}assignValue(e,t,i){let[n,...a]=e;return a.length>0?(this.tryCreatingObject(n,i,We,true,false),this.assignValue(a,t,i[n])):this.assignPrimitiveValue(n,t,i)}createTable(e,t){let[i,...n]=e;if(n.length>0){if(Array.isArray(t[i])){if(t[i][$])throw new I;let a=t[i][t[i].length-1];return this.createTable(n,a)}return this.tryCreatingObject(i,t,null,true,true),this.createTable(n,t[i])}return this.tryCreatingObject(i,t,Oe,false,false)}getOrCreateArray(e,t){let[i,...n]=e;if(n.length>0){if(Array.isArray(t[i])){let a=t[i][t[i].length-1];return this.getOrCreateArray(n,a)}return this.tryCreatingObject(i,t,null,true,true),this.getOrCreateArray(n,t[i])}if(t[i]&&!Array.isArray(t[i]))throw new I;return t[i]=t[i]||[],t[i]}},ze=new Ue;var $e=r=>{let e=Qe.tokenize(r);if(e.errors.length>0)throw new ee(e.errors);C.input=e.tokens;let t=C.toml();if(C.errors.length>0)throw new te(C.errors);return ze.visit(t)};
+
+/**
+ * Parse TOML file content
+ * @param {string} content - TOML file content
+ * @returns {Object} Parsed TOML object
+ */
+const parseTomlContent = (content) => {
+  try {
+    return $e(content)
+  } catch (error) {
+    throw new Error(`Failed to parse TOML: ${error.message}`)
+  }
+};
+
+/**
+ * Extract package info from TOML object
+ * @param {Object} toml - Parsed TOML object
+ * @returns {{name: string, version: string} | null}
+ */
+const extractPackageInfo = (toml) => {
+  const pkg = toml.package;
+  if (!pkg || !pkg.name) return null
+
+  return Object.freeze({
+    name: pkg.name,
+    version: pkg.version || '0.0.0'
+  })
+};
+
+/**
+ * Extract dependencies from dependency table
+ * @param {Object | undefined} deps - Dependencies object
+ * @returns {Array<{name: string, path: string | null}>}
+ */
+const extractDependencies = (deps) => {
+  if (!deps || typeof deps !== 'object') {
+    return []
+  }
+
+  return Object.entries(deps)
+    .filter(([_, dep]) => {
+      // Filter out invalid dependency definitions
+      return dep && (typeof dep === 'string' || typeof dep === 'object')
+    })
+    .map(([name, dep]) => {
+      // Handle path dependencies and version dependencies
+      const depPath = typeof dep === 'object' ? dep.path : null;
+      return Object.freeze({
+        name,
+        path: depPath
+      })
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+};
+
+/**
+ * Extract all dependencies from TOML object (including dev-dependencies)
+ * @param {Object} toml - Parsed TOML object
+ * @returns {Array<{name: string, path: string | null}>}
+ */
+const extractAllDependencies = (toml) => {
+  const deps = extractDependencies(toml.dependencies);
+  const devDeps = extractDependencies(toml['dev-dependencies']);
+
+  // Merge and deduplicate by package name
+  const depMap = new Map(deps.map((d) => [d.name, d]));
+  devDeps.forEach((d) => {
+    if (!depMap.has(d.name)) {
+      depMap.set(d.name, d);
+    }
+  });
+
+  return Array.from(depMap.values())
+};
+
+/**
+ * Parse a single Cargo.toml manifest file
+ * @param {string} filePath - Path to Cargo.toml file
+ * @returns {{
+ *   path: string,
+ *   name: string,
+ *   version: string,
+ *   dependencies: Array<{name: string, path: string | null}>
+ * } | null}
+ */
+const parseManifestFile = (filePath) => {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+
+    let toml;
+    try {
+      toml = parseTomlContent(content);
+    } catch (parseError) {
+      return null
+    }
+
+    const pkgInfo = extractPackageInfo(toml);
+
+    if (!pkgInfo) {
+      return null
+    }
+
+    const dependencies = extractAllDependencies(toml);
+
+    return Object.freeze({
+      path: filePath,
+      name: pkgInfo.name,
+      version: pkgInfo.version,
+      dependencies
+    })
+  } catch (error) {
+    return null
+  }
+};
+
+/**
+ * Recursively scan directory for all Cargo.toml files
+ * @param {string} dir - Directory path
+ * @param {Array<string>} [acc=[]] - Accumulator
+ * @returns {Array<string>} List of Cargo.toml file paths
+ */
+const findManifestFiles = (dir, acc = []) => {
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+    return entries.reduce((files, entry) => {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.name === 'Cargo.toml') {
+        return [...files, fullPath]
+      }
+
+      // Skip specific directories
+      if (
+        entry.isDirectory() &&
+        !['node_modules', '.git', 'target', 'dist'].includes(entry.name)
+      ) {
+        return [...files, ...findManifestFiles(fullPath, [])]
+      }
+
+      return files
+    }, acc)
+  } catch (error) {
+    // Return accumulator on directory read failure
+    return acc
+  }
+};
+
+/**
+ * Parse all Cargo crates in workspace
+ * @param {string} workspaceRoot - Workspace root directory
+ * @returns {Array<{
+ *   path: string,
+ *   name: string,
+ *   version: string,
+ *   dependencies: Array<{name: string, path: string | null}>
+ * }>}
+ */
+const parseWorkspace = (workspaceRoot) => {
+  const manifestFiles = findManifestFiles(workspaceRoot);
+
+  return manifestFiles
+    .map(parseManifestFile)
+    .filter((crate) => crate !== null)
+    .sort((a, b) => a.name.localeCompare(b.name))
+};
+
+/**
+ * Create a crate index by name
+ * @param {Array<Object>} crates - Array of parsed crates
+ * @returns {Map<string, Object>} Map of crate name to crate object
+ */
+const createCrateIndex = (crates) => {
+  return new Map(crates.map((crate) => [crate.name, crate]))
+};
+
+/**
+ * Get direct downstream dependencies (crates that depend on this crate)
+ * @param {string} crateName - Name of the crate
+ * @param {Array<Object>} allCrates - All crates in workspace
+ * @returns {Array<string>} Names of crates that depend on this one
+ */
+const getDirectDownstream = (crateName, allCrates) => {
+  const crateIndex = new Map(allCrates.map((c) => [c.name, c]));
+
+  return allCrates
+    .filter((crate) => {
+      // Only consider dependencies to workspace members
+      return crate.dependencies.some((dep) => {
+        if (!crateIndex.has(dep.name)) {
+          return false
+        }
+        return dep.name === crateName
+      })
+    })
+    .map((crate) => crate.name)
+};
+
+/**
+ * Get transitive downstream dependencies using BFS
+ * @param {Array<string>} startCrates - Starting crate names
+ * @param {Array<Object>} allCrates - All crates in workspace
+ * @param {Set<string>} [visited=new Set()] - Already visited crates
+ * @returns {Set<string>} Set of all downstream crate names
+ */
+const getTransitiveDownstream = (
+  startCrates,
+  allCrates,
+  visited = new Set()
+) => {
+  // Convert startCrates to array if it's a string or single element
+  const queue = Array.isArray(startCrates) ? [...startCrates] : [startCrates];
+  let result = new Set(visited);
+  const startSet = new Set(queue);
+
+  while (queue.length > 0) {
+    const crateName = queue.shift();
+
+    if (result.has(crateName)) {
+      continue
+    }
+
+    // Add to result only if it's not a starting crate
+    if (!startSet.has(crateName)) {
+      result = new Set([...result, crateName]);
+    }
+
+    const downstream = getDirectDownstream(crateName, allCrates);
+
+    downstream.forEach((name) => {
+      if (!result.has(name)) {
+        queue.push(name);
+      }
+    });
+  }
+
+  // Return a new immutable Set-like wrapper
+  return new Set([...result])
+};
+
+/**
+ * Compute test scope based on modified crates
+ * Returns both the directly modified crates and their downstream dependents
+ * @param {Set<string>} modifiedCrates - Set of modified crate names
+ * @param {Array<Object>} allCrates - All crates in workspace
+ * @returns {{
+ *   modified: Set<string>,
+ *   downstream: Set<string>,
+ *   allAffected: Set<string>
+ * }}
+ */
+const computeTestScope = (modifiedCrates, allCrates) => {
+  const downstream = getTransitiveDownstream(
+    Array.from(modifiedCrates),
+    allCrates
+  );
+
+  // Remove the modified crates themselves from downstream
+  const downstreamOnly = new Set(
+    [...downstream].filter((name) => !modifiedCrates.has(name))
+  );
+
+  const allAffected = new Set([...modifiedCrates, ...downstreamOnly]);
+
+  return {
+    modified: new Set(modifiedCrates),
+    downstream: new Set(downstreamOnly),
+    allAffected: new Set(allAffected)
+  }
+};
+
+/**
+ * Topologically sort crates for testing
+ * @param {Set<string>} crates - Set of crate names to test
+ * @param {Map<string, Object>} crateIndex - Index of crates
+ * @returns {Array<string>} Topologically sorted crate names
+ */
+const topologicalSort = (crates, crateIndex) => {
+  const crateArray = Array.from(crates);
+  const inDegree = new Map(crateArray.map((name) => [name, 0]));
+  const adjacency = new Map(crateArray.map((name) => [name, []]));
+
+  // Build graph
+  crateArray.forEach((crateName) => {
+    const crate = crateIndex.get(crateName);
+    if (!crate) return
+
+    crate.dependencies.forEach((dep) => {
+      if (crateArray.includes(dep.name)) {
+        adjacency.get(dep.name).push(crateName);
+        inDegree.set(crateName, (inDegree.get(crateName) || 0) + 1);
+      }
+    });
+  });
+
+  // Kahn's algorithm
+  const queue = crateArray.filter((name) => inDegree.get(name) === 0);
+  const result = [];
+
+  while (queue.length > 0) {
+    const crateName = queue.shift();
+    result.push(crateName);
+
+    adjacency.get(crateName).forEach((dependent) => {
+      const newInDegree = inDegree.get(dependent) - 1;
+      inDegree.set(dependent, newInDegree);
+
+      if (newInDegree === 0) {
+        queue.push(dependent);
+      }
+    });
+  }
+
+  return result
+};
+
+/**
+ * Build a complete dependency report
+ * @param {Array<Object>} crates - All crates in workspace
+ * @returns {{
+ *   crateIndex: Map<string, Object>,
+ *   dependencyCount: Map<string, number>,
+ *   dependentCount: Map<string, number>
+ * }}
+ */
+const buildDependencyReport = (crates) => {
+  const crateIndex = createCrateIndex(crates);
+
+  const dependencyCount = new Map(
+    crates.map((crate) => [crate.name, crate.dependencies.length])
+  );
+
+  const dependentCount = new Map(
+    crates.map((crate) => [
+      crate.name,
+      getDirectDownstream(crate.name, crates).length
+    ])
+  );
+
+  return {
+    crateIndex,
+    dependencyCount,
+    dependentCount
+  }
+};
+
+/**
+ * Execute cargo tree command and get output
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {string} Cargo tree output
+ */
+const getCargoTreeOutput = (cwd = process.cwd()) => {
+  try {
+    return execSync(
+      'cargo tree --depth 1 2>/dev/null || cargo tree --depth 1',
+      {
+        cwd,
+        encoding: 'utf-8'
+      }
+    ).trim()
+  } catch (error) {
+    throw new Error(`Failed to execute cargo tree: ${error.message}`)
+  }
+};
+
+/**
+ * Parse cargo tree output into dependency relationships
+ * Format example:
+ * package-a v0.1.0
+ * ├── package-b v0.1.0
+ * ├── package-c v0.1.0
+ * │   └── package-d v0.1.0
+ * @param {string} output - Cargo tree output
+ * @returns {Map<string, Set<string>>} Map of crate name to its direct dependencies
+ */
+const parseCargoTreeOutput = (output) => {
+  const depMap = new Map();
+  const lines = output.split('\n');
+
+  let currentCrate = null;
+
+  lines.forEach((line) => {
+    // Skip empty lines
+    if (!line.trim()) return
+
+    // Extract tree character prefix and content
+    const treeMatch = line.match(/^([│├└─\s]*)(.*)$/);
+    if (!treeMatch) return
+
+    const treePrefix = treeMatch[1];
+    const cleanLine = treeMatch[2].trim();
+
+    if (!cleanLine) return
+
+    // Extract package name (before version or space)
+    const crateName = cleanLine.split(/\s+/)[0];
+
+    if (!crateName) return
+
+    // Determine depth based on count of branch characters (├ or └)
+    const depth = (treePrefix.match(/[├└]/g) || []).length;
+
+    // If this is at root level (depth 0), it's a workspace member
+    if (depth === 0) {
+      currentCrate = crateName;
+      if (!depMap.has(currentCrate)) {
+        depMap.set(currentCrate, new Set());
+      }
+    } else if (depth === 1 && currentCrate) {
+      // Direct dependency of the current crate
+      if (!depMap.has(currentCrate)) {
+        depMap.set(currentCrate, new Set());
+      }
+      depMap.get(currentCrate).add(crateName);
+    }
+  });
+
+  return depMap
+};
+
+/**
+ * Build a simpler dependency map from parsed crates for comparison
+ * @param {Array<Object>} crates - Parsed crates from manifest
+ * @returns {Map<string, Set<string>>} Map of crate name to its direct dependencies (workspace only)
+ */
+const buildManifestDependencyMap = (crates) => {
+  const depMap = new Map();
+
+  // Create index for workspace member lookup
+  const crateIndex = new Map(crates.map((c) => [c.name, c]));
+
+  crates.forEach((crate) => {
+    const deps = new Set();
+    crate.dependencies.forEach((dep) => {
+      // Only include workspace members
+      if (crateIndex.has(dep.name)) {
+        deps.add(dep.name);
+      }
+    });
+    depMap.set(crate.name, deps);
+  });
+
+  return depMap
+};
+
+/**
+ * Compare manifest dependencies with cargo tree dependencies
+ * @param {Map<string, Set<string>>} manifestDeps - Dependencies from manifests
+ * @param {Map<string, Set<string>>} treeDeps - Dependencies from cargo tree
+ * @returns {{
+ *   matches: boolean,
+ *   missingInTree: Map<string, Set<string>>,
+ *   extraInTree: Map<string, Set<string>>,
+ *   details: Array<{crate: string, status: string, message: string}>
+ * }}
+ */
+const compareDependencies = (manifestDeps, treeDeps) => {
+  const missingInTree = new Map();
+  const extraInTree = new Map();
+  const details = [];
+
+  // Check manifest dependencies
+  for (const [crateName, manifestDepsSet] of manifestDeps.entries()) {
+    const treeDepsSet = treeDeps.get(crateName);
+
+    if (!treeDepsSet) {
+      details.push({
+        crate: crateName,
+        status: 'missing',
+        message: `Crate not found in cargo tree`
+      });
+      continue
+    }
+
+    // Check for missing dependencies in tree
+    const missing = new Set(
+      [...manifestDepsSet].filter((dep) => !treeDepsSet.has(dep))
+    );
+    if (missing.size > 0) {
+      missingInTree.set(crateName, missing);
+      details.push({
+        crate: crateName,
+        status: 'missing_deps',
+        message: `Missing dependencies in cargo tree: ${Array.from(missing).join(', ')}`
+      });
+    }
+
+    // Check for extra dependencies in tree
+    const extra = new Set(
+      [...treeDepsSet].filter((dep) => !manifestDepsSet.has(dep))
+    );
+    if (extra.size > 0) {
+      extraInTree.set(crateName, extra);
+      details.push({
+        crate: crateName,
+        status: 'extra_deps',
+        message: `Extra dependencies in cargo tree: ${Array.from(extra).join(', ')}`
+      });
+    }
+
+    if (missing.size === 0 && extra.size === 0) {
+      details.push({
+        crate: crateName,
+        status: 'ok',
+        message: 'Dependencies match'
+      });
+    }
+  }
+
+  const matches = missingInTree.size === 0 && extraInTree.size === 0;
+
+  return Object.freeze({
+    matches,
+    missingInTree: Object.freeze(missingInTree),
+    extraInTree: Object.freeze(extraInTree),
+    details: Object.freeze(details)
+  })
+};
+
+/**
+ * Validate workspace dependencies against cargo tree
+ * Builds file system first, then validates with command
+ * @param {Array<Object>} crates - Parsed crates from manifest
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {{
+ *   valid: boolean,
+ *   manifestDeps: Map<string, Set<string>>,
+ *   treeDeps: Map<string, Set<string>>,
+ *   comparison: Object,
+ *   errors: Array<string>
+ * }}
+ */
+const validateWorkspaceWithCargoTree = (crates, cwd = process.cwd()) => {
+  const errors = [];
+
+  // Step 1: Build dependency map from manifest (file system already built)
+  let manifestDeps;
+  try {
+    manifestDeps = buildManifestDependencyMap(crates);
+  } catch (error) {
+    errors.push(`Failed to build manifest dependency map: ${error.message}`);
+    return Object.freeze({
+      valid: false,
+      manifestDeps: new Map(),
+      treeDeps: new Map(),
+      comparison: null,
+      errors: Object.freeze(errors)
+    })
+  }
+
+  // Step 2: Get cargo tree output for command validation
+  let treeOutput;
+  try {
+    treeOutput = getCargoTreeOutput(cwd);
+  } catch (error) {
+    errors.push(`Failed to get cargo tree: ${error.message}`);
+    return Object.freeze({
+      valid: false,
+      manifestDeps,
+      treeDeps: new Map(),
+      comparison: null,
+      errors: Object.freeze(errors)
+    })
+  }
+
+  // Step 3: Parse cargo tree output
+  let treeDeps;
+  try {
+    treeDeps = parseCargoTreeOutput(treeOutput);
+  } catch (error) {
+    errors.push(`Failed to parse cargo tree output: ${error.message}`);
+    return Object.freeze({
+      valid: false,
+      manifestDeps,
+      treeDeps: new Map(),
+      comparison: null,
+      errors: Object.freeze(errors)
+    })
+  }
+
+  // Step 4: Compare the two dependency maps
+  const comparison = compareDependencies(manifestDeps, treeDeps);
+
+  return Object.freeze({
+    valid: comparison.matches,
+    manifestDeps: Object.freeze(manifestDeps),
+    treeDeps: Object.freeze(treeDeps),
+    comparison,
+    errors: Object.freeze(errors)
+  })
+};
+
+/**
+ * Parse porcelain format string (XY PATH) into file paths
+ * @param {string} input - Git status porcelain output
+ * @returns {Array<{status: string, filename: string}>} Array of parsed file entries
+ */
+const parsePorcelain = (input) => {
+  if (!input || typeof input !== 'string' || /^\s*$/.test(input)) {
+    return []
+  }
+
+  return input
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const match = line.match(/^(\S{1,2})\s+(.+)$/);
+      if (!match) {
+        return null
+      }
+      const [, status, filename] = match;
+      return {
+        status: status.trim(),
+        filename: filename.trim()
+      }
+    })
+    .filter(Boolean)
+};
+
+/**
+ * Parse git diff --name-only format output
+ * @param {string} input - Git diff --name-only output string
+ * @returns {Array<string>} Array of file paths
+ */
+const parseDiffFile = (input) => {
+  if (!input || typeof input !== 'string' || /^\s*$/.test(input)) {
+    return []
+  }
+  return input
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+};
+
+/**
+ * Execute git command and return output
+ * @param {string} command - Git command to execute
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {string} Command output
+ */
+const execGitCommand = (command, cwd = process.cwd()) => {
+  try {
+    return execSync(`git ${command}`, {
+      cwd,
+      encoding: 'utf-8'
+    }).trim()
+  } catch (error) {
+    throw new Error(`Git command failed: ${error.message}`)
+  }
+};
+
+/**
+ * Determine if file belongs to a crate
+ * @param {string} filePath - Path to file
+ * @param {Object} crate - Crate object with path property
+ * @returns {boolean} True if file is in crate directory
+ */
+const fileInCrate = (filePath, crate) => {
+  const crateDir = path.dirname(crate.path);
+  const normalizedFile = path.normalize(filePath);
+  const normalizedCrateDir = path.normalize(crateDir);
+
+  // Check if file is in the crate directory or any subdirectory
+  if (normalizedFile === normalizedCrateDir) {
+    return true
+  }
+
+  return normalizedFile.startsWith(normalizedCrateDir + path.sep)
+};
+
+/**
+ * Map modified files to affected crates
+ * @param {Array<string>} modifiedFiles - Array of modified file paths
+ * @param {Array<Object>} allCrates - All crates in workspace
+ * @returns {Set<string>} Set of affected crate names
+ */
+const mapFilesToCrates = (modifiedFiles, allCrates) => {
+  const result = new Set(
+    modifiedFiles
+      .flatMap((file) => {
+        // Find all crates that contain this file
+        const affectedCrates = allCrates.filter((crate) =>
+          fileInCrate(file, crate)
+        );
+        return affectedCrates.map((crate) => crate.name)
+      })
+      .filter((name) => name.length > 0)
+  );
+
+  return Object.freeze(result)
+};
+
+/**
+ * Get list of changed files between two commits
+ * @param {string} baseRef - Base reference (branch/commit)
+ * @param {string} headRef - Head reference (branch/commit)
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {Array<string>} List of modified file paths
+ */
+const getChangedFiles = (baseRef, headRef, cwd = process.cwd()) => {
+  const command = `diff --name-only ${baseRef}...${headRef}`;
+  const output = execGitCommand(command, cwd);
+
+  return output.length > 0 ? parseDiffFile(output) : []
+};
+
+/**
+ * Get list of untracked and modified files in working directory
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {Array<string>} List of modified file paths
+ */
+const getLocalChanges = (cwd = process.cwd()) => {
+  const command = 'status --porcelain';
+  const output = execGitCommand(command, cwd);
+  return parsePorcelain(output).map((entry) => entry.filename)
+};
+
+/**
+ * Detect modified crates based on git changes
+ * @param {{
+ *   baseRef: string | null,
+ *   headRef: string | null,
+ *   useLocal: boolean,
+ *   cwd: string
+ * }} options - Detection options
+ * @param {Array<Object>} allCrates - All crates in workspace
+ * @returns {Set<string>} Set of modified crate names
+ */
+const detectModifiedCrates = (options, allCrates) => {
+  const {
+    baseRef = null,
+    headRef = null,
+    useLocal = false,
+    cwd = process.cwd()
+  } = options;
+
+  let modifiedFiles = [];
+
+  if (useLocal) {
+    modifiedFiles = getLocalChanges(cwd);
+  } else if (baseRef && headRef) {
+    modifiedFiles = getChangedFiles(baseRef, headRef, cwd);
+  } else {
+    // Default: use main/origin/main as base
+    try {
+      const defaultBase = 'origin/main';
+      modifiedFiles = getChangedFiles(defaultBase, 'HEAD', cwd);
+    } catch {
+      // Fallback to local changes if origin/main doesn't exist
+      modifiedFiles = getLocalChanges(cwd);
+    }
+  }
+
+  return mapFilesToCrates(modifiedFiles, allCrates)
+};
+
+/**
+ * Format crate names for cargo command
+ * @param {Array<string>} crateNames - Array of crate names
+ * @returns {string} Formatted flag for cargo command
+ */
+const formatCrateFlags = (crateNames) => {
+  return crateNames.map((name) => `-p ${name}`).join(' ')
+};
+
+/**
+ * Build cargo test command
+ * @param {{
+ *   crateNames: Array<string>,
+ *   allCrates: boolean,
+ *   verbose: boolean,
+ *   releaseMode: boolean,
+ *   additionalArgs: string
+ * }} options - Command options
+ * @returns {string} Complete cargo test command
+ */
+const buildTestCommand = (options) => {
+  const {
+    crateNames = [],
+    allCrates = false,
+    verbose = false,
+    releaseMode = false,
+    additionalArgs = ''
+  } = options;
+
+  let command = 'cargo test';
+
+  if (allCrates) {
+    command += ' --workspace';
+  } else if (crateNames.length > 0) {
+    command += ` ${formatCrateFlags(crateNames)}`;
+  }
+
+  if (verbose) {
+    command += ' --verbose';
+  }
+
+  if (releaseMode) {
+    command += ' --release';
+  }
+
+  if (additionalArgs) {
+    command += ` ${additionalArgs}`;
+  }
+
+  return command
+};
+
+/**
+ * Build cargo build command
+ * @param {{
+ *   crateNames: Array<string>,
+ *   allCrates: boolean,
+ *   verbose: boolean,
+ *   releaseMode: boolean
+ * }} options - Build options
+ * @returns {string} Complete cargo build command
+ */
+const buildBuildCommand = (options) => {
+  const {
+    crateNames = [],
+    allCrates = false,
+    verbose = false,
+    releaseMode = false
+  } = options;
+
+  let command = 'cargo build';
+
+  if (allCrates) {
+    command += ' --workspace';
+  } else if (crateNames.length > 0) {
+    command += ` ${formatCrateFlags(crateNames)}`;
+  }
+
+  if (verbose) {
+    command += ' --verbose';
+  }
+
+  if (releaseMode) {
+    command += ' --release';
+  }
+
+  return command
+};
+
+/**
+ * Execute command and capture output
+ * @param {string} command - Command to execute
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {{exitCode: number, stdout: string, stderr: string}}
+ */
+const executeCommand = (command, cwd = process.cwd()) => {
+  try {
+    const stdout = execSync(command, {
+      cwd,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    return Object.freeze({
+      exitCode: 0,
+      stdout,
+      stderr: ''
+    })
+  } catch (error) {
+    return Object.freeze({
+      exitCode: error.status || 1,
+      stdout: error.stdout ? error.stdout.toString() : '',
+      stderr: error.stderr ? error.stderr.toString() : error.message
+    })
+  }
+};
+
+/**
+ * Create test execution plan
+ * @param {{
+ *   affected: Set<string>,
+ *   sortedCrates: Array<string>,
+ *   allCrates: Array<Object>
+ * }} context - Execution context
+ * @returns {Array<{
+ *   crateName: string,
+ *   command: string,
+ *   index: number
+ * }>}
+ */
+const createTestPlan = (context) => {
+  const { affected, sortedCrates} = context;
+
+  // Filter sorted crates to only include affected ones
+  const affectedSorted = sortedCrates.filter((name) => affected.has(name));
+
+  return affectedSorted.map((crateName, index) => ({
+    crateName,
+    command: buildTestCommand({ crateNames: [crateName] }),
+    index: index + 1
+  }))
+};
+
+/**
+ * Format test results
+ * @param {Array<{
+ *   crateName: string,
+ *   command: string,
+ *   index: number,
+ *   result: {exitCode: number, stdout: string, stderr: string}
+ * }>} results - Array of test results
+ * @returns {string} Formatted report
+ */
+const formatTestResults = (results) => {
+  const lines = [
+    '\n═══════════════════════════════════════════════════════',
+    'Test Execution Report',
+    '═══════════════════════════════════════════════════════\n'
+  ];
+
+  const passed = results.filter((r) => r.result.exitCode === 0);
+  const failed = results.filter((r) => r.result.exitCode !== 0);
+
+  // Summary
+  lines.push(
+    `Total: ${results.length} | Passed: ${passed.length} | Failed: ${failed.length}`
+  );
+  lines.push('');
+
+  // Details
+  results.forEach((result) => {
+    const status = result.result.exitCode === 0 ? '✓ PASS' : '✗ FAIL';
+    lines.push(
+      `[${result.index}/${results.length}] ${status} - ${result.crateName}`
+    );
+
+    if (result.result.exitCode !== 0) {
+      lines.push(`    Command: ${result.command}`);
+      if (result.result.stderr) {
+        lines.push(`    Error: ${result.result.stderr.split('\n')[0]}`);
+      }
+    }
+  });
+
+  lines.push('\n═══════════════════════════════════════════════════════\n');
+
+  return lines.join('\n')
+};
+
+/**
+ * Execute test plan and collect results
+ * @param {Array<{crateName: string, command: string, index: number}>} plan - Test plan
+ * @param {string} [cwd=process.cwd()] - Working directory
+ * @returns {{
+ *   results: Array<{crateName: string, command: string, index: number, result: Object}>,
+ *   success: boolean
+ * }}
+ */
+const executePlan = (plan, cwd = process.cwd()) => {
+  const results = plan.map((step) => ({
+    ...step,
+    result: executeCommand(step.command, cwd)
+  }));
+
+  const success = results.every((r) => r.result.exitCode === 0);
+
+  return Object.freeze({
+    results,
+    success
+  })
+};
+
+/**
+ * Format dependency graph as readable text
+ * @param {Array<Object>} crates - All parsed crates
+ * @param {Map<string, number>} dependentCount - Dependents per crate
+ * @returns {string} Formatted report
+ */
+const formatDependencyGraph = (crates, dependentCount) => {
+  const lines = [
+    '\n═══════════════════════════════════════════════════════',
+    'Workspace Dependency Graph',
+    '═══════════════════════════════════════════════════════\n'
+  ];
+
+  crates.forEach((crate) => {
+    const dependents = dependentCount.get(crate.name) || 0;
+    const deps = crate.dependencies.length;
+
+    lines.push(`📦 ${crate.name}`);
+    lines.push(`   Dependencies: ${deps} | Dependents: ${dependents}`);
+
+    if (deps > 0) {
+      crate.dependencies.forEach((dep) => {
+        lines.push(`     → ${dep.name}`);
+      });
+    }
+    lines.push('');
+  });
+
+  lines.push('═══════════════════════════════════════════════════════\n');
+
+  return lines.join('\n')
+};
+
+/**
+ * Format test scope information
+ * @param {{modified: Set<string>, downstream: Set<string>, allAffected: Set<string>}} scope
+ * @returns {string} Formatted scope report
+ */
+const formatTestScope = (scope) => {
+  const lines = [
+    '\n═══════════════════════════════════════════════════════',
+    'Test Scope Analysis',
+    '═══════════════════════════════════════════════════════\n',
+    `Modified crates: ${Array.from(scope.modified).join(', ') || 'None'}`,
+    `Downstream dependents: ${Array.from(scope.downstream).join(', ') || 'None'}`,
+    `Total to test: ${scope.allAffected.size}`,
+    '═══════════════════════════════════════════════════════\n'
+  ];
+
+  return lines.join('\n')
+};
+
+/**
+ * Main action entry point
+ * @returns {Promise<void>}
  */
 async function run() {
   try {
-    const ms = coreExports.getInput('milliseconds');
+    // Get inputs
+    const workspaceRoot = coreExports.getInput('workspace-root') || '.';
+    const baseRef = coreExports.getInput('base-ref') || null;
+    const headRef = coreExports.getInput('head-ref') || null;
+    const testAll = coreExports.getBooleanInput('test-all') || false;
+    const verbose = coreExports.getBooleanInput('verbose') || false;
 
-    // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
-    coreExports.debug(`Waiting ${ms} milliseconds ...`);
+    coreExports.debug(`Workspace root: ${workspaceRoot}`);
+    coreExports.debug(`Base ref: ${baseRef}, Head ref: ${headRef}`);
 
-    // Log the current timestamp, wait, then log the new timestamp
-    coreExports.debug(new Date().toTimeString());
-    await wait(parseInt(ms, 10));
-    coreExports.debug(new Date().toTimeString());
+    // Parse workspace
+    coreExports.info('Parsing Cargo workspace...');
+    const crates = parseWorkspace(workspaceRoot);
+    coreExports.info(`Found ${crates.length} crates`);
 
-    // Set outputs for other workflow steps to use
-    coreExports.setOutput('time', new Date().toTimeString());
+    if (crates.length === 0) {
+      coreExports.setFailed('No Cargo crates found in workspace');
+      return
+    }
+
+    // Build dependency graph
+    const report = buildDependencyReport(crates);
+    coreExports.debug(formatDependencyGraph(crates, report.dependentCount));
+
+    // Validate dependency graph with cargo tree
+    const validation = validateWorkspaceWithCargoTree(crates, workspaceRoot);
+    if (validation.errors.length > 0) {
+      coreExports.warning('Dependency graph validation issues:');
+      validation.errors.forEach((err) => {
+        coreExports.debug(`  - ${err}`);
+      });
+    }
+    if (!validation.valid) {
+      coreExports.warning('Dependency graph validation failed');
+    }
+
+    // Detect modified crates
+    const modifiedCrates = testAll
+      ? new Set(crates.map((c) => c.name))
+      : detectModifiedCrates({ baseRef, headRef, cwd: workspaceRoot }, crates);
+
+    coreExports.info(`Modified crates: ${modifiedCrates.size}`);
+
+    if (modifiedCrates.size === 0) {
+      coreExports.info('No modifications detected. Skipping tests.');
+      coreExports.setOutput('test-count', '0');
+      return
+    }
+
+    // Compute test scope
+    const testScope = computeTestScope(modifiedCrates, crates);
+    coreExports.info(formatTestScope(testScope));
+
+    // Plan test execution order
+    const sortedCrates = topologicalSort(
+      testScope.allAffected,
+      report.crateIndex
+    );
+    coreExports.debug(`Execution order: ${sortedCrates.join(' → ')}`);
+
+    // Build affected crates
+    const buildCommand = buildBuildCommand({
+      crateNames: sortedCrates,
+      verbose
+    });
+    coreExports.debug(`Build command: ${buildCommand}`);
+
+    // Create test plan
+    const testPlan = createTestPlan({
+      affected: testScope.allAffected,
+      sortedCrates,
+      allCrates: crates
+    });
+
+    coreExports.info(`Test plan: ${testPlan.length} crate(s)`);
+    testPlan.forEach((step) => {
+      coreExports.debug(`[${step.index}] ${step.command}`);
+    });
+
+    // Execute tests
+    coreExports.info('Executing tests...');
+    const execution = executePlan(testPlan, workspaceRoot);
+
+    // Report results
+    coreExports.info(formatTestResults(execution.results));
+
+    // Set outputs
+    coreExports.setOutput('test-count', execution.results.length.toString());
+    coreExports.setOutput(
+      'passed-count',
+      execution.results.filter((r) => r.result.exitCode === 0).length.toString()
+    );
+    coreExports.setOutput(
+      'failed-count',
+      execution.results.filter((r) => r.result.exitCode !== 0).length.toString()
+    );
+
+    if (!execution.success) {
+      coreExports.setFailed('Some tests failed');
+      return
+    }
+
+    coreExports.info('All tests passed');
   } catch (error) {
-    // Fail the workflow run if an error occurs
-    if (error instanceof Error) coreExports.setFailed(error.message);
+    if (error instanceof Error) {
+      coreExports.setFailed(error.message);
+    } else {
+      coreExports.setFailed('Unknown error occurred');
+    }
   }
 }
 

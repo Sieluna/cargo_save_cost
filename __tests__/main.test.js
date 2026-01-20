@@ -137,15 +137,12 @@ describe('main.js', () => {
     expect(core.debug).toHaveBeenCalled()
   })
 
-  it('should warn on validation issues', async () => {
+  it('should handle validation issues', async () => {
     await run()
 
-    // If validation has issues, warnings should be logged
-    // The actual warning depends on fixture structure
-    const warningCalls = core.warning.mock.calls
-    if (warningCalls.length > 0) {
-      expect(core.warning).toHaveBeenCalled()
-    }
+    // Validation issues may result in warnings depending on fixture structure
+    // This test verifies the workflow completes regardless
+    expect(core.info).toHaveBeenCalled()
   })
 
   it('should report when no modifications detected', async () => {
@@ -160,17 +157,8 @@ describe('main.js', () => {
 
     await run()
 
-    // When no modifications are detected, should return early
-    const infoCalls = core.info.mock.calls.map((call) => call[0])
-    const hasNoModMessage = infoCalls.some(
-      (msg) =>
-        msg.includes('No modifications detected') ||
-        msg.includes('not in any crate')
-    )
-
-    if (hasNoModMessage) {
-      expect(core.setOutput).toHaveBeenCalledWith('test-count', '0')
-    }
+    // When no modifications are detected, test-count should be 0
+    expect(core.setOutput).toHaveBeenCalledWith('test-count', '0')
   })
 
   it('should handle verbose flag', async () => {
@@ -206,21 +194,19 @@ describe('main.js', () => {
   })
 
   it('should provide test scope information', async () => {
+    // Test scope info is logged when modifications or test-all is used
+    core.getBooleanInput.mockImplementation((name) => {
+      const boolInputs = {
+        'test-all': true,
+        verbose: false,
+        release: false
+      }
+      return boolInputs[name] || false
+    })
+
     await run()
 
     // Should log test scope information
-    const infoCalls = core.info.mock.calls.map((call) => call[0])
-    const hasTestScope = infoCalls.some(
-      (msg) =>
-        msg.includes('Test Scope') ||
-        msg.includes('Modified crates') ||
-        msg.includes('Total to test')
-    )
-
-    if (hasTestScope) {
-      expect(core.info).toHaveBeenCalledWith(
-        expect.stringContaining('Modified crates')
-      )
-    }
+    expect(core.info).toHaveBeenCalled()
   })
 })
