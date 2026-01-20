@@ -1,0 +1,4 @@
+misconfigurations:
+  - id: AVD-DS-0026
+    paths:
+      - '.devcontainer/Dockerfile'

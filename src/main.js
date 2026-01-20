@@ -77,10 +77,10 @@ const formatTestScope = (scope) => {
 export async function run() {
   try {
     // Get inputs
-    const workspaceRoot = core.getInput('workspace-root') || '.'
-    const baseRef = core.getInput('base-ref') || null
-    const headRef = core.getInput('head-ref') || null
-    const testAll = core.getBooleanInput('test-all') || false
+    const workspaceRoot = core.getInput('workspaceRoot') || '.'
+    const baseRef = core.getInput('baseRef') || null
+    const headRef = core.getInput('headRef') || null
+    const all = core.getBooleanInput('all') || false
     const verbose = core.getBooleanInput('verbose') || false
 
     core.debug(`Workspace root: ${workspaceRoot}`)
@@ -113,7 +113,7 @@ export async function run() {
     }
 
     // Detect modified crates
-    const modifiedCrates = testAll
+    const modifiedCrates = all
       ? new Set(crates.map((c) => c.name))
       : detectModifiedCrates({ baseRef, headRef, cwd: workspaceRoot }, crates)
 
@@ -121,7 +121,7 @@ export async function run() {
 
     if (modifiedCrates.size === 0) {
       core.info('No modifications detected. Skipping tests.')
-      core.setOutput('test-count', '0')
+      core.setOutput('testCount', '0')
       return
     }
 
@@ -163,13 +163,13 @@ export async function run() {
     core.info(formatTestResults(execution.results))
 
     // Set outputs
-    core.setOutput('test-count', execution.results.length.toString())
+    core.setOutput('testCount', execution.results.length.toString())
     core.setOutput(
-      'passed-count',
+      'passedCount',
       execution.results.filter((r) => r.result.exitCode === 0).length.toString()
     )
     core.setOutput(
-      'failed-count',
+      'failedCount',
       execution.results.filter((r) => r.result.exitCode !== 0).length.toString()
     )
 

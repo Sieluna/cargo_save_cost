@@ -53,12 +53,47 @@ jobs:
         id: checkout
         uses: actions/checkout@v6
 
-      - name: Test Local Action
-        id: test-action
+      - name: Init Test Git Repository
+        id: init-git
+        run: |
+          cd __fixtures__/workspace
+          git init
+          git config user.email "test@example.com"
+          git config user.name "Test User"
+          git add .
+          git commit -m "Initial workspace commit"
+
+      - name: Test Action (No Modifications)
+        id: test-none
         uses: ./
         with:
-          milliseconds: 2000
+          workspaceRoot: __fixtures__/workspace
+          verbose: 'false'
 
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+      - name: Verify No Modifications Detected
+        run: |
+          echo "Test Count: ${{ steps.test-none.outputs.testCount }}"
+          echo "Passed: ${{ steps.test-none.outputs.passedCount }}"
+          echo "Failed: ${{ steps.test-none.outputs.failedCount }}"
+
+      - name: Modify a Crate File
+        run: |
+          echo "// Modified" >> __fixtures__/workspace/crates/add/src/lib.rs
+          cd __fixtures__/workspace
+          git add crates/add/src/lib.rs
+          git commit -m "Modify add crate"
+
+      - name: Test Action (Modified Crate)
+        id: test-modified
+        uses: ./
+        with:
+          workspaceRoot: __fixtures__/workspace
+          baseRef: HEAD~1
+          headRef: HEAD
+          verbose: 'true'
+
+      - name: Verify Modified Crate Detected
+        run: |
+          echo "Test Count: ${{ steps.test-modified.outputs.testCount }}"
+          echo "Passed: ${{ steps.test-modified.outputs.passedCount }}"
+          echo "Failed: ${{ steps.test-modified.outputs.failedCount }}"

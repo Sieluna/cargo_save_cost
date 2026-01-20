@@ -18,18 +18,17 @@ describe('main.js', () => {
     // Setup default inputs
     core.getInput.mockImplementation((name) => {
       const inputs = {
-        'workspace-root': fixtureDir,
-        'base-ref': null,
-        'head-ref': null
+        workspaceRoot: fixtureDir,
+        baseRef: null,
+        headRef: null
       }
       return inputs[name] || ''
     })
 
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': false,
-        verbose: false,
-        release: false
+        all: false,
+        verbose: false
       }
       return boolInputs[name] || false
     })
@@ -53,7 +52,7 @@ describe('main.js', () => {
 
   it('should fail when no crates found', async () => {
     core.getInput.mockImplementation((name) => {
-      if (name === 'workspace-root') return '/nonexistent/path'
+      if (name === 'workspaceRoot') return '/nonexistent/path'
       return ''
     })
 
@@ -65,40 +64,35 @@ describe('main.js', () => {
     )
   })
 
-  it('should handle test-all flag', async () => {
+  it('should handle all flag', async () => {
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': true,
-        verbose: false,
-        release: false
+        all: true,
+        verbose: false
       }
       return boolInputs[name] || false
     })
 
     await run()
 
-    // Should process all crates when test-all is true
+    // Should process all crates when all is true
     expect(core.info).toHaveBeenCalledWith(
       expect.stringMatching(/Test plan: \d+ crate\(s\)/)
     )
   })
 
-  it('should set test-count output', async () => {
+  it('should set testCount output', async () => {
     await run()
 
     // Verify outputs are set
-    expect(core.setOutput).toHaveBeenCalledWith(
-      'test-count',
-      expect.any(String)
-    )
+    expect(core.setOutput).toHaveBeenCalledWith('testCount', expect.any(String))
   })
 
-  it('should set passed-count and failed-count outputs', async () => {
+  it('should set passedCount and failedCount outputs', async () => {
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': true, // Test all crates to ensure outputs are set
-        verbose: false,
-        release: false
+        all: true, // Test all crates to ensure outputs are set
+        verbose: false
       }
       return boolInputs[name] || false
     })
@@ -106,16 +100,13 @@ describe('main.js', () => {
     await run()
 
     // Verify all test count outputs are set
+    expect(core.setOutput).toHaveBeenCalledWith('testCount', expect.any(String))
     expect(core.setOutput).toHaveBeenCalledWith(
-      'test-count',
+      'passedCount',
       expect.any(String)
     )
     expect(core.setOutput).toHaveBeenCalledWith(
-      'passed-count',
-      expect.any(String)
-    )
-    expect(core.setOutput).toHaveBeenCalledWith(
-      'failed-count',
+      'failedCount',
       expect.any(String)
     )
   })
@@ -148,25 +139,23 @@ describe('main.js', () => {
   it('should report when no modifications detected', async () => {
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': false,
-        verbose: false,
-        release: false
+        all: false,
+        verbose: false
       }
       return boolInputs[name] || false
     })
 
     await run()
 
-    // When no modifications are detected, test-count should be 0
-    expect(core.setOutput).toHaveBeenCalledWith('test-count', '0')
+    // When no modifications are detected, testCount should be 0
+    expect(core.setOutput).toHaveBeenCalledWith('testCount', '0')
   })
 
   it('should handle verbose flag', async () => {
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': false,
-        verbose: true,
-        release: false
+        all: false,
+        verbose: true
       }
       return boolInputs[name] || false
     })
@@ -180,9 +169,8 @@ describe('main.js', () => {
   it('should handle release flag', async () => {
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': false,
-        verbose: false,
-        release: true
+        all: false,
+        verbose: false
       }
       return boolInputs[name] || false
     })
@@ -194,12 +182,11 @@ describe('main.js', () => {
   })
 
   it('should provide test scope information', async () => {
-    // Test scope info is logged when modifications or test-all is used
+    // Test scope info is logged when modifications or all is used
     core.getBooleanInput.mockImplementation((name) => {
       const boolInputs = {
-        'test-all': true,
-        verbose: false,
-        release: false
+        all: true,
+        verbose: false
       }
       return boolInputs[name] || false
     })

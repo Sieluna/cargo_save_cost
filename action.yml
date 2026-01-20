@@ -9,17 +9,17 @@ branding:
   color: orange
 
 inputs:
-  workspace-root:
+  workspaceRoot:
     description: Path to the Cargo workspace root
     required: false
     default: '.'
-  base-ref:
+  baseRef:
     description: Base git reference (branch/commit) for comparison
     required: false
-  head-ref:
+  headRef:
     description: Head git reference (branch/commit) for comparison
     required: false
-  test-all:
+  all:
     description: Test all crates in the workspace regardless of changes
     required: false
     default: 'false'
@@ -29,11 +29,11 @@ inputs:
     default: 'false'
 
 outputs:
-  test-count:
+  testCount:
     description: Total number of crates tested
-  passed-count:
+  passedCount:
     description: Number of passed test crates
-  failed-count:
+  failedCount:
     description: Number of failed test crates
 
 runs:
